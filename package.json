@@ -1,0 +1,37 @@
+{
+  "name": "controle-estoque",
+  "version": "1.0.0",
+  "description": "Aplicativo desktop de controle de estoque (Electron + React + SQLite)",
+  "main": "dist-electron/electron/main.js",
+  "author": "ControleEstoque",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && tsc -p tsconfig.electron.json",
+    "build:ui": "vite build",
+    "preview": "vite preview",
+    "electron:dev": "concurrently -k \"vite\" \"wait-on http://127.0.0.1:5173 && npx tsc -p tsconfig.electron.json && electron .\"",
+    "electron:start": "npx tsc -p tsconfig.electron.json && electron .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit && tsc -p tsconfig.electron.json --noEmit",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "sql.js": "^1.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.10",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.1.2",
+    "electron": "^35.0.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.0",
+    "vitest": "^3.0.8",
+    "wait-on": "^8.0.3"
+  }
+}
