@@ -25,8 +25,10 @@ Demais capturas: primeiro uso, formulário de produto, categorias, fornecedores,
 ## Funcionalidades
 
 - Dashboard com indicadores e alertas de estoque baixo
+- Tela **Alertas** com déficit, reposição sugerida e ajuste de estoque mínimo
+- Banner global + badge na navegação enquanto houver itens críticos
 - Cadastro de produtos, categorias e fornecedores
-- Movimentações: entrada, saída e ajuste (histórico imutável)
+- Movimentações: entrada, saída e ajuste (histórico imutável), com aviso ao cruzar o mínimo
 - Relatórios com exportação CSV
 - Persistência local SQLite (modo Electron) ou memória (preview no navegador)
 
