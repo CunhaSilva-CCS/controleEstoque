@@ -11,7 +11,10 @@
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "preview": "vite preview",
     "electron:build": "npm run build && electron-builder --dir",
+    "electron:build:win": "npm run build && electron-builder --win nsis",
+    "electron:build:win:portable": "npm run build && electron-builder --win portable",
     "start": "electron .",
+    "postinstall": "electron-builder install-app-deps",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit"
@@ -43,14 +46,34 @@
     },
     "files": [
       "dist/**/*",
-      "dist-electron/**/*"
+      "dist-electron/**/*",
+      "package.json"
     ],
+    "asarUnpack": [
+      "**/*.node",
+      "**/better-sqlite3/**"
+    ],
+    "npmRebuild": true,
     "linux": {
       "target": ["AppImage", "deb"],
       "category": "Office"
     },
     "win": {
-      "target": ["nsis"]
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ],
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Controle de Estoque",
+      "language": "1046"
     },
     "mac": {
       "target": ["dmg"]

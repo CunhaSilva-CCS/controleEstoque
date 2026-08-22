@@ -52,6 +52,34 @@ npm run dev
 # abra http://127.0.0.1:5173 se a janela Electron não estiver disponível
 ```
 
+## Empacotar para Windows
+
+Sim — o app é Electron e gera instalador **NSIS** (`.exe`) para Windows 10/11 (64 bits).
+
+### No próprio Windows (recomendado)
+
+1. Instale [Node.js 20+](https://nodejs.org/)
+2. No PowerShell, na pasta do projeto:
+
+```powershell
+npm install
+npm run electron:build:win
+```
+
+3. O instalador sai em:
+
+`release\Controle de Estoque-Setup-1.0.0.exe`
+
+4. Instale normalmente (atalho na área de trabalho e no menu Iniciar).  
+   Os dados ficam locais em `%APPDATA%\controle-estoque\` (SQLite).
+
+### Observações
+
+- Gere o pacote **no Windows** (ou em CI Windows). O módulo nativo `better-sqlite3` precisa ser compilado para a ABI do Electron no SO de destino.
+- Alternativa portátil: `npm run electron:build:win:portable`
+- Não precisa de internet para usar o app depois de instalado.
+- O SmartScreen do Windows pode avisar em apps sem certificado de assinatura; em uso interno, escolha “Mais informações → Executar mesmo assim”.
+
 ## Scripts
 
 | Comando | Descrição |
