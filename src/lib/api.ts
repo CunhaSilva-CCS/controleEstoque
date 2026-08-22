@@ -62,46 +62,145 @@ function createMemoryApi() {
       seeded = true
       if (!accept) return ok(true)
       const ts = now()
-      const catId = uid()
-      categories.push({
-        id: catId,
-        name: 'Geral',
-        description: 'Categoria padrão',
-        active: true,
-        createdAt: ts,
-        updatedAt: ts,
-      })
-      const supId = uid()
-      suppliers.push({
-        id: supId,
-        name: 'Fornecedor Demo',
-        document: '',
-        phone: '',
-        email: '',
-        notes: '',
-        active: true,
-        createdAt: ts,
-        updatedAt: ts,
-      })
-      const demo: Omit<Product, 'status' | 'stockValue' | 'categoryName' | 'supplierName'>[] = [
+      const catGeral = uid()
+      const catEletronicos = uid()
+      const catEscritorio = uid()
+      categories.push(
         {
-          id: uid(),
-          sku: 'DEMO-001',
-          name: 'Produto demonstração',
-          description: '',
-          categoryId: catId,
-          supplierId: supId,
-          unit: 'un',
-          costPrice: 10,
-          salePrice: 20,
-          minStock: 5,
-          stock: 12,
+          id: catGeral,
+          name: 'Geral',
+          description: 'Categoria padrão',
           active: true,
           createdAt: ts,
           updatedAt: ts,
         },
+        {
+          id: catEletronicos,
+          name: 'Eletrônicos',
+          description: 'Equipamentos e acessórios',
+          active: true,
+          createdAt: ts,
+          updatedAt: ts,
+        },
+        {
+          id: catEscritorio,
+          name: 'Escritório',
+          description: 'Material de escritório',
+          active: true,
+          createdAt: ts,
+          updatedAt: ts,
+        },
+      )
+      const sup1 = uid()
+      const sup2 = uid()
+      suppliers.push(
+        {
+          id: sup1,
+          name: 'Distribuidora Norte',
+          document: '12.345.678/0001-90',
+          phone: '(11) 3000-1000',
+          email: 'contato@norte.com',
+          notes: '',
+          active: true,
+          createdAt: ts,
+          updatedAt: ts,
+        },
+        {
+          id: sup2,
+          name: 'Papelaria Central',
+          document: '98.765.432/0001-10',
+          phone: '(11) 4000-2000',
+          email: 'vendas@papelaria.com',
+          notes: '',
+          active: true,
+          createdAt: ts,
+          updatedAt: ts,
+        },
+      )
+      const demo = [
+        {
+          sku: 'CAB-USB-C',
+          name: 'Cabo USB-C 1m',
+          categoryId: catEletronicos,
+          supplierId: sup1,
+          unit: 'un',
+          costPrice: 8.5,
+          salePrice: 19.9,
+          minStock: 10,
+          stock: 45,
+        },
+        {
+          sku: 'MOUSE-OP',
+          name: 'Mouse óptico USB',
+          categoryId: catEletronicos,
+          supplierId: sup1,
+          unit: 'un',
+          costPrice: 22,
+          salePrice: 49.9,
+          minStock: 5,
+          stock: 3,
+        },
+        {
+          sku: 'CANETA-AZ',
+          name: 'Caneta esferográfica azul',
+          categoryId: catEscritorio,
+          supplierId: sup2,
+          unit: 'cx',
+          costPrice: 12,
+          salePrice: 24,
+          minStock: 8,
+          stock: 20,
+        },
+        {
+          sku: 'RESMA-A4',
+          name: 'Resma papel A4 500 folhas',
+          categoryId: catEscritorio,
+          supplierId: sup2,
+          unit: 'un',
+          costPrice: 18,
+          salePrice: 32,
+          minStock: 15,
+          stock: 0,
+        },
+        {
+          sku: 'FITA-DUP',
+          name: 'Fita adesiva dupla face',
+          categoryId: catGeral,
+          supplierId: null as string | null,
+          unit: 'un',
+          costPrice: 4.5,
+          salePrice: 9.9,
+          minStock: 12,
+          stock: 12,
+        },
       ]
-      products.push(...demo.map(enrich))
+      for (const item of demo) {
+        const id = uid()
+        const product = enrich({
+          id,
+          description: '',
+          active: true,
+          createdAt: ts,
+          updatedAt: ts,
+          ...item,
+        })
+        products.push(product)
+        if (item.stock > 0) {
+          movements.push({
+            id: uid(),
+            productId: id,
+            type: 'entrada',
+            quantity: item.stock,
+            previousStock: 0,
+            newStock: item.stock,
+            reason: 'Estoque inicial',
+            reference: 'SEED',
+            createdAt: ts,
+            productName: item.name,
+            productSku: item.sku,
+          })
+        }
+      }
       return ok(true)
     },
     async listCategories(activeOnly?: boolean) {
