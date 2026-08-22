@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+dist/
+dist-electron/
+release/
+*.log
+.DS_Store
+
+# Local databases / env
+*.db
+*.db-journal
+.env
+.env.*
+
+# Editors
+.idea/
+.vscode/
+*.swp
+
+# Coverage / test
+coverage/
