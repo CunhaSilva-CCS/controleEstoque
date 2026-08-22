@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { EstoqueApi } from '../shared/api-contract'
 import type {
+  AlertSeverityFilter,
   MovementFilters,
   MovementInput,
   ProductFilters,
@@ -27,11 +28,14 @@ const api: EstoqueApi = {
   updateProduct: (input: ProductUpdateInput) => ipcRenderer.invoke('products:update', input),
   setProductActive: (id: string, active: boolean) =>
     ipcRenderer.invoke('products:setActive', id, active),
+  updateMinStock: (id: string, minStock: number) =>
+    ipcRenderer.invoke('products:updateMinStock', id, minStock),
 
   listMovements: (filters?: MovementFilters) => ipcRenderer.invoke('movements:list', filters),
   createMovement: (input: MovementInput) => ipcRenderer.invoke('movements:create', input),
 
   getDashboard: () => ipcRenderer.invoke('dashboard:get'),
+  getAlerts: (severity?: AlertSeverityFilter) => ipcRenderer.invoke('alerts:get', severity),
 
   getReport: (type: ReportType, filters?: MovementFilters) =>
     ipcRenderer.invoke('reports:get', type, filters),

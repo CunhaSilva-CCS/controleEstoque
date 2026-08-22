@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { StatusBadge } from '../components/StatusBadge'
+import { useAlerts } from '../lib/alerts'
 import { api, unwrap } from '../lib/api'
 import { formatCurrency, formatDateTime, formatNumber, movementLabel } from '../lib/format'
 import { useToast } from '../lib/toast'
@@ -13,6 +14,7 @@ type Props = {
 
 export function DashboardPage({ needsSeed, onSeedDone }: Props) {
   const { push } = useToast()
+  const { refresh: refreshAlerts } = useAlerts()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -20,12 +22,13 @@ export function DashboardPage({ needsSeed, onSeedDone }: Props) {
     setLoading(true)
     try {
       setData(await unwrap(api.getDashboard()))
+      await refreshAlerts()
     } catch (err) {
       push(err instanceof Error ? err.message : 'Erro ao carregar dashboard', 'err')
     } finally {
       setLoading(false)
     }
-  }, [push])
+  }, [push, refreshAlerts])
 
   useEffect(() => {
     void load()
@@ -107,8 +110,8 @@ export function DashboardPage({ needsSeed, onSeedDone }: Props) {
                     Produtos com saldo ≤ mínimo
                   </p>
                 </div>
-                <Link className="btn btn-ghost" to="/produtos?low=1">
-                  Ver todos
+                <Link className="btn btn-ghost" to="/alertas">
+                  Ver alertas
                 </Link>
               </div>
               {data.criticalProducts.length === 0 ? (

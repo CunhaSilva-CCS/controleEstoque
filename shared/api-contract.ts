@@ -1,5 +1,7 @@
 import type {
   ApiResponse,
+  AlertSeverityFilter,
+  AlertsSummary,
   Category,
   DashboardData,
   MovementFilters,
@@ -52,6 +54,8 @@ export interface EstoqueApi {
   listMovements: (filters?: MovementFilters) => Promise<ApiResponse<StockMovement[]>>
   createMovement: (input: MovementInput) => Promise<ApiResponse<StockMovement>>
   getDashboard: () => Promise<ApiResponse<DashboardData>>
+  getAlerts: (severity?: AlertSeverityFilter) => Promise<ApiResponse<AlertsSummary>>
+  updateMinStock: (id: string, minStock: number) => Promise<ApiResponse<Product>>
   getReport: (
     type: ReportType,
     filters?: MovementFilters,

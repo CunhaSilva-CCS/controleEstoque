@@ -105,3 +105,56 @@ describe('formatadores', () => {
     expect(movementLabel('entrada')).toBe('Entrada')
   })
 })
+
+describe('alertas de estoque mínimo', () => {
+  it('saída que cruza o mínimo deixa o produto em alerta', async () => {
+    const product = await unwrap(
+      api.createProduct({
+        sku: `ALR-${crypto.randomUUID().slice(0, 8)}`,
+        name: 'Item alerta',
+        unit: 'un',
+        costPrice: 1,
+        salePrice: 2,
+        minStock: 5,
+        initialStock: 6,
+      }),
+    )
+    expect(product.status).toBe('ok')
+
+    await unwrap(
+      api.createMovement({
+        productId: product.id,
+        type: 'saida',
+        quantity: 2,
+        reason: 'Consumo',
+      }),
+    )
+    const updated = await unwrap(api.getProduct(product.id))
+    expect(updated?.stock).toBe(4)
+    expect(updated?.status).toBe('low')
+
+    const alerts = await unwrap(api.getAlerts('low'))
+    expect(alerts.items.some((a) => a.product.id === product.id)).toBe(true)
+  })
+
+  it('ajustar mínimo acima do saldo remove o alerta', async () => {
+    const product = await unwrap(
+      api.createProduct({
+        sku: `MIN-${crypto.randomUUID().slice(0, 8)}`,
+        name: 'Item mínimo',
+        unit: 'un',
+        costPrice: 1,
+        salePrice: 2,
+        minStock: 10,
+        initialStock: 10,
+      }),
+    )
+    expect(product.status).toBe('low')
+
+    const okProduct = await unwrap(api.updateMinStock(product.id, 5))
+    expect(okProduct.status).toBe('ok')
+
+    const alerts = await unwrap(api.getAlerts('all'))
+    expect(alerts.items.some((a) => a.product.id === product.id)).toBe(false)
+  })
+})

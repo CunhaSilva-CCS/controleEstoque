@@ -79,6 +79,11 @@ Aplicativo **desktop** para gestão de estoque de pequenas e médias operações
 | RF-D02 | Listar os 5 produtos com estoque mais crítico. | Must |
 | RF-D03 | Listar últimas movimentações. | Must |
 | RF-D04 | Destacar visualmente produtos com saldo ≤ estoque mínimo. | Must |
+| RF-D05 | Tela **Alertas** com lista completa, déficit até o mínimo e quantidade sugerida de reposição. | Must |
+| RF-D06 | Banner global e badge na navegação enquanto houver produtos em alerta. | Must |
+| RF-D07 | Permitir ajustar o estoque mínimo diretamente a partir do alerta. | Must |
+| RF-D08 | Registrar entrada de reposição a partir do alerta (quantidade sugerida pré-preenchida). | Must |
+| RF-D09 | Após movimentação que deixe saldo ≤ mínimo, exibir aviso imediato. | Must |
 
 ### 4.6 Relatórios (RF-R)
 

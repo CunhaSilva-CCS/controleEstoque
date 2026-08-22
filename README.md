@@ -12,13 +12,15 @@ Aplicativo **desktop** (Electron + React + TypeScript + SQLite) para gestão de 
 
 ![Dashboard com dados](docs/screenshots/02-dashboard-com-dados.png)
 
+![Alertas de estoque mínimo](docs/screenshots/10-alertas.png)
+
 ![Lista de produtos](docs/screenshots/03-produtos.png)
 
 ![Movimentar estoque](docs/screenshots/05-movimentar-produto.png)
 
 ![Relatórios](docs/screenshots/09-relatorios.png)
 
-Demais capturas: primeiro uso, formulário de produto, categorias, fornecedores e histórico de movimentações — em `docs/screenshots/`.
+Demais capturas: primeiro uso, formulário de produto, categorias, fornecedores, histórico e ajuste de mínimo — em `docs/screenshots/`.
 
 ## Funcionalidades
 

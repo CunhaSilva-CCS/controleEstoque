@@ -12,6 +12,7 @@ import {
   createCategory,
   createProduct,
   createSupplier,
+  getAlertsSummary,
   getDashboard,
   getProduct,
   initDatabase,
@@ -24,6 +25,7 @@ import {
   seedDemoData,
   setProductActive,
   updateCategory,
+  updateMinStock,
   updateProduct,
   updateSupplier,
 } from './db'
@@ -207,6 +209,22 @@ function registerIpc(): void {
   ipcMain.handle('dashboard:get', () => {
     try {
       return ok(getDashboard())
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('alerts:get', (_e, severity?: 'all' | 'low' | 'zero') => {
+    try {
+      return ok(getAlertsSummary(severity ?? 'all'))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('products:updateMinStock', (_e, id: string, minStock: number) => {
+    try {
+      return ok(updateMinStock(id, minStock))
     } catch (error) {
       return fail(error)
     }

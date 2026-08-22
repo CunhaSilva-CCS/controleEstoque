@@ -194,6 +194,35 @@ Ao entrar (e após qualquer mutação relevante), o sistema recalcula:
 
 ---
 
+## F12 — Alertas e controle de estoque mínimo
+
+**Pré-condições:** Produtos ativos com `minStock` definido.
+
+```mermaid
+flowchart TD
+  A[Movimentação / cadastro] --> B{saldo <= mínimo?}
+  B -->|Não| C[Status OK]
+  B -->|Sim| D{saldo = 0?}
+  D -->|Sim| E[Status Zerado]
+  D -->|Não| F[Status Baixo]
+  E --> G[Atualiza badge / banner / tela Alertas]
+  F --> G
+  G --> H[Usuário abre Alertas]
+  H --> I{Ação}
+  I -->|Repor| J[Entrada com qtd sugerida = déficit]
+  I -->|Ajustar mínimo| K[Atualiza minStock e recalcula status]
+```
+
+| Passo | Ação | Sistema |
+|------:|------|---------|
+| 1 | Abre `Alertas` | Lista produtos com saldo ≤ mínimo; calcula déficit e sugerido |
+| 2 | Filtra por severidade (todos / baixo / zerado) | Atualiza lista |
+| 3a | Clica **Repor** | Modal de entrada com quantidade = sugerido |
+| 3b | Clica **Ajustar mínimo** | Atualiza `minStock` sem alterar saldo |
+| 4 | Confirma | Recalcula status; banner/badge atualizam |
+
+**Regras:** déficit = max(0, mínimo − saldo); sugerido = déficit (se zerado, pelo menos o mínimo).
+
 ## Matriz fluxo × requisitos
 
 | Fluxo | Requisitos atendidos |
@@ -209,3 +238,4 @@ Ao entrar (e após qualquer mutação relevante), o sistema recalcula:
 | F09 | RF-M06 |
 | F10 | RF-D01..04 |
 | F11 | RF-R01..04 |
+| F12 | RF-D05..09 |

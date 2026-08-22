@@ -1,4 +1,6 @@
 import type {
+  AlertSeverityFilter,
+  AlertsSummary,
   ApiResponse,
   Category,
   DashboardData,
@@ -10,6 +12,7 @@ import type {
   ProductStatus,
   ProductUpdateInput,
   ReportType,
+  StockAlert,
   StockMovement,
   Supplier,
 } from '@shared/types'
@@ -443,6 +446,38 @@ function createMemoryApi() {
           .slice(0, 5),
         recentMovements: movements.slice(0, 8),
       })
+    },
+    async getAlerts(severity: AlertSeverityFilter = 'all'): Promise<ApiResponse<AlertsSummary>> {
+      const critical = products
+        .filter((p) => p.active && p.stock <= p.minStock)
+        .map(enrich)
+        .sort((a, b) => a.stock - b.stock || a.name.localeCompare(b.name))
+
+      const toAlert = (product: Product): StockAlert => {
+        const deficit = Math.max(0, product.minStock - product.stock)
+        const suggestedReorder =
+          product.stock <= 0 ? Math.max(product.minStock, deficit) : deficit
+        return { product, deficit, suggestedReorder }
+      }
+
+      let items = critical.map(toAlert)
+      if (severity === 'zero') items = items.filter((a) => a.product.stock <= 0)
+      if (severity === 'low') items = items.filter((a) => a.product.stock > 0)
+
+      return ok({
+        total: critical.length,
+        lowCount: critical.filter((p) => p.stock > 0).length,
+        zeroCount: critical.filter((p) => p.stock <= 0).length,
+        items,
+      })
+    },
+    async updateMinStock(id: string, minStock: number) {
+      if (minStock < 0) return fail('Estoque mínimo não pode ser negativo')
+      const p = products.find((x) => x.id === id)
+      if (!p) return fail('Produto não encontrado')
+      p.minStock = minStock
+      p.updatedAt = now()
+      return ok(enrich(p))
     },
     async getReport(type: ReportType, filters?: MovementFilters): Promise<
       ApiResponse<{ columns: string[]; rows: Record<string, string | number | boolean | null>[] }>

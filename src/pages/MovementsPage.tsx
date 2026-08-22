@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { ModalForm } from '../components/ModalForm'
+import { useAlerts, minStockWarning } from '../lib/alerts'
 import { api, unwrap } from '../lib/api'
 import { formatDateTime, formatNumber, movementLabel } from '../lib/format'
 import { useToast } from '../lib/toast'
@@ -7,6 +8,7 @@ import type { MovementType, Product, StockMovement } from '@shared/types'
 
 export function MovementsPage() {
   const { push } = useToast()
+  const { refresh: refreshAlerts } = useAlerts()
   const [items, setItems] = useState<StockMovement[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [productId, setProductId] = useState('')
@@ -60,7 +62,7 @@ export function MovementsPage() {
   async function save(e: FormEvent) {
     e.preventDefault()
     try {
-      await unwrap(
+      const mov = await unwrap(
         api.createMovement({
           productId: formProductId,
           type: formType,
@@ -71,8 +73,19 @@ export function MovementsPage() {
         }),
       )
       push('Movimentação registrada')
+      const product = await unwrap(api.getProduct(mov.productId))
+      if (product) {
+        const warn = minStockWarning(
+          product.name,
+          product.stock,
+          product.minStock,
+          product.unit,
+        )
+        if (warn) push(warn, 'warn')
+      }
       setOpen(false)
       await load()
+      await refreshAlerts()
     } catch (err) {
       push(err instanceof Error ? err.message : 'Falha ao registrar', 'err')
     }

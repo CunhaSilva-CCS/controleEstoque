@@ -7,11 +7,11 @@ import {
   type ReactNode,
 } from 'react'
 
-type Toast = { id: string; message: string; tone: 'ok' | 'err' }
+type Toast = { id: string; message: string; tone: 'ok' | 'err' | 'warn' }
 
 type ToastContextValue = {
   toasts: Toast[]
-  push: (message: string, tone?: 'ok' | 'err') => void
+  push: (message: string, tone?: 'ok' | 'err' | 'warn') => void
   dismiss: (id: string) => void
 }
 
@@ -25,10 +25,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const push = useCallback(
-    (message: string, tone: 'ok' | 'err' = 'ok') => {
+    (message: string, tone: 'ok' | 'err' | 'warn' = 'ok') => {
       const id = crypto.randomUUID()
       setToasts((prev) => [...prev, { id, message, tone }])
-      window.setTimeout(() => dismiss(id), 4200)
+      window.setTimeout(() => dismiss(id), tone === 'warn' ? 5600 : 4200)
     },
     [dismiss],
   )

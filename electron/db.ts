@@ -4,6 +4,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import type {
+  AlertSeverityFilter,
+  AlertsSummary,
   Category,
   DashboardData,
   MovementFilters,
@@ -13,6 +15,7 @@ import type {
   ProductInput,
   ProductStatus,
   ProductUpdateInput,
+  StockAlert,
   StockMovement,
   Supplier,
 } from '../shared/types'
@@ -765,6 +768,53 @@ export function getDashboard(): DashboardData {
     criticalProducts,
     recentMovements,
   }
+}
+
+export function buildStockAlert(product: Product): StockAlert {
+  const deficit = Math.max(0, product.minStock - product.stock)
+  const suggestedReorder =
+    product.stock <= 0 ? Math.max(product.minStock, deficit) : deficit
+  return { product, deficit, suggestedReorder }
+}
+
+export function getAlertsSummary(
+  severity: AlertSeverityFilter = 'all',
+): AlertsSummary {
+  let items = listProducts({ active: true, lowStockOnly: true })
+    .sort((a, b) => a.stock - b.stock || a.name.localeCompare(b.name))
+    .map(buildStockAlert)
+
+  if (severity === 'zero') {
+    items = items.filter((a) => a.product.stock <= 0)
+  } else if (severity === 'low') {
+    items = items.filter((a) => a.product.stock > 0)
+  }
+
+  const allCritical = listProducts({ active: true, lowStockOnly: true })
+  return {
+    total: allCritical.length,
+    lowCount: allCritical.filter((p) => p.stock > 0).length,
+    zeroCount: allCritical.filter((p) => p.stock <= 0).length,
+    items,
+  }
+}
+
+export function updateMinStock(id: string, minStock: number): Product {
+  if (minStock < 0) throw new Error('Estoque mínimo não pode ser negativo')
+  const existing = getProduct(id)
+  if (!existing) throw new Error('Produto não encontrado')
+  return updateProduct({
+    id: existing.id,
+    sku: existing.sku,
+    name: existing.name,
+    description: existing.description,
+    categoryId: existing.categoryId,
+    supplierId: existing.supplierId,
+    unit: existing.unit,
+    costPrice: existing.costPrice,
+    salePrice: existing.salePrice,
+    minStock,
+  })
 }
 
 export function buildReport(

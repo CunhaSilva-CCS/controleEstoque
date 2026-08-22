@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { useSearchParams } from 'react-router-dom'
 import { ModalForm } from '../components/ModalForm'
 import { StatusBadge } from '../components/StatusBadge'
+import { useAlerts, minStockWarning } from '../lib/alerts'
 import { api, unwrap } from '../lib/api'
 import { formatCurrency, formatNumber } from '../lib/format'
 import { useToast } from '../lib/toast'
@@ -35,6 +36,7 @@ const emptyForm: ProductForm = {
 
 export function ProductsPage() {
   const { push } = useToast()
+  const { refresh: refreshAlerts } = useAlerts()
   const [params, setParams] = useSearchParams()
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
@@ -178,9 +180,20 @@ export function ProductsPage() {
           reference: moveRef,
         }),
       )
+      const updated = await unwrap(api.getProduct(moveProduct.id))
       push('Movimentação registrada')
+      if (updated) {
+        const warn = minStockWarning(
+          updated.name,
+          updated.stock,
+          updated.minStock,
+          updated.unit,
+        )
+        if (warn) push(warn, 'warn')
+      }
       setMoveOpen(false)
       await load()
+      await refreshAlerts()
     } catch (err) {
       push(err instanceof Error ? err.message : 'Falha na movimentação', 'err')
     }

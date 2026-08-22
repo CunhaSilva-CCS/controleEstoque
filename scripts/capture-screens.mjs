@@ -70,6 +70,16 @@ async function main() {
   await page.waitForSelector('table tbody tr')
   await shot(page, '09-relatorios')
 
+  await page.locator('.nav a', { hasText: 'Alertas' }).click()
+  await page.waitForSelector('h2:text("Alertas de estoque")')
+  await page.waitForSelector('table tbody tr')
+  await shot(page, '10-alertas')
+
+  await page.getByRole('button', { name: 'Ajustar mínimo' }).first().click()
+  await page.waitForSelector('.modal h3')
+  await shot(page, '11-ajustar-minimo')
+  await page.getByRole('button', { name: 'Cancelar' }).click()
+
   await browser.close()
   console.log('DONE')
 }

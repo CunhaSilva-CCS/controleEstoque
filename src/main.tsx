@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, HashRouter } from 'react-router-dom'
 import App from './App'
+import { AlertsProvider } from './lib/alerts'
 import { ToastProvider } from './lib/toast'
 import './styles.css'
 
@@ -11,9 +12,11 @@ const Router = isFileProtocol ? HashRouter : BrowserRouter
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ToastProvider>
-      <Router>
-        <App />
-      </Router>
+      <AlertsProvider>
+        <Router>
+          <App />
+        </Router>
+      </AlertsProvider>
     </ToastProvider>
   </StrictMode>,
 )

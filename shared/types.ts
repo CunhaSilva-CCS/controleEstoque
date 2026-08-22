@@ -117,6 +117,24 @@ export interface DashboardData {
   recentMovements: StockMovement[]
 }
 
+/** Produto com saldo ≤ estoque mínimo, para painel de alertas. */
+export interface StockAlert {
+  product: Product
+  /** Unidades faltantes para atingir o mínimo (minStock - stock, ≥ 0). */
+  deficit: number
+  /** Quantidade sugerida de reposição (= deficit; se zerado, pelo menos o mínimo). */
+  suggestedReorder: number
+}
+
+export interface AlertsSummary {
+  total: number
+  lowCount: number
+  zeroCount: number
+  items: StockAlert[]
+}
+
+export type AlertSeverityFilter = 'all' | 'low' | 'zero'
+
 export interface ReportRow {
   [key: string]: string | number | boolean | null
 }

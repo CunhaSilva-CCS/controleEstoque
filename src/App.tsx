@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { AppLayout } from './components/AppLayout'
 import { api, unwrap } from './lib/api'
 import { useToast } from './lib/toast'
+import { AlertsPage } from './pages/AlertsPage'
 import { CategoriesPage } from './pages/CategoriesPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { MovementsPage } from './pages/MovementsPage'
@@ -42,6 +43,7 @@ export default function App() {
             <DashboardPage needsSeed={needsSeed} onSeedDone={() => setNeedsSeed(false)} />
           }
         />
+        <Route path="alertas" element={<AlertsPage />} />
         <Route path="produtos" element={<ProductsPage />} />
         <Route path="categorias" element={<CategoriesPage />} />
         <Route path="fornecedores" element={<SuppliersPage />} />
