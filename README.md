@@ -6,6 +6,19 @@ Aplicativo **desktop** (Electron + React + TypeScript + SQLite) para gestão de 
 
 - [Requisitos detalhados](docs/REQUISITOS.md)
 - [Fluxos do sistema](docs/FLUXOS.md)
+- [Capturas de tela](docs/screenshots/)
+
+### Preview das telas
+
+![Dashboard com dados](docs/screenshots/02-dashboard-com-dados.png)
+
+![Lista de produtos](docs/screenshots/03-produtos.png)
+
+![Movimentar estoque](docs/screenshots/05-movimentar-produto.png)
+
+![Relatórios](docs/screenshots/09-relatorios.png)
+
+Demais capturas: primeiro uso, formulário de produto, categorias, fornecedores e histórico de movimentações — em `docs/screenshots/`.
 
 ## Funcionalidades
 
