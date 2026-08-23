@@ -56,6 +56,7 @@ Script existente: `scripts/smoke.mts`
 
 ```bash
 npm run smoke
+npm run test:e2e
 ```
 
 Cenários cobertos:
@@ -76,7 +77,8 @@ Todo PR e tag de release **deve** passar:
 npm ci
 npm run typecheck    # TypeScript strict — zero erros
 npm test             # Vitest — zero falhas
-npm run smoke        # Smoke — SMOKE_OK
+npm run smoke
+npm run test:e2e        # Smoke — SMOKE_OK
 npm run build        # Build renderer + main — zero erros
 ```
 
@@ -192,7 +194,8 @@ Exceções à meta de cobertura requerem:
 
 | Versão | Meta adicional |
 |--------|----------------|
-| v1.1 | Playwright E2E automatizado com Electron |
-| v1.1 | Testes de backup/restore do SQLite |
+| v1.0 | Playwright E2E (modo web/memory) cobrindo F01–F08 |
+| v1.1 | Playwright E2E automatizado com Electron empacotado |
+| v1.0 | Testes de backup/restore (API + UI Configurações) |
 | v1.2 | Testes de auto-update (electron-updater) |
 | v2.0 | Cobertura ≥ 85% global + testes de carga com 50.000 produtos |

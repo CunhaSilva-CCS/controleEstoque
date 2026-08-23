@@ -38,7 +38,7 @@ export function ModalForm({
             <button type="button" className="btn btn-ghost" onClick={onClose}>
               Cancelar
             </button>
-            <button type="submit" className="btn btn-primary">
+            <button type="submit" className="btn btn-primary" data-testid="btn-modal-submit">
               {submitLabel}
             </button>
           </div>

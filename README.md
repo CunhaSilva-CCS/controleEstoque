@@ -50,6 +50,7 @@ npm run dev
 | `npm run dev` | Desenvolvimento (Vite + Electron) |
 | `npm run build` | Build de produção (renderer + main) |
 | `npm start` | Abre o app a partir do build |
+| `npm run test:e2e` | Testes E2E Playwright (fluxos F01–F08 em modo web) |
 | `npm test` | Testes unitários das regras de estoque |
 | `npm run smoke` | Smoke test automatizado (API em memória) |
 | `npm run typecheck` | Verificação TypeScript |
@@ -104,3 +105,10 @@ Sem secrets, o CI gera instaladores **sem assinatura** (OK para QA).
 - Vite 6
 - better-sqlite3
 - TypeScript 5
+
+
+## Backup, restauração e atualizações
+
+- Em **Configurações**, exporte/restaure o banco SQLite (`.db`).
+- Auto-update via GitHub Releases em builds empacotados (`electron-updater`).
+- Em desenvolvimento/web, as atualizações aparecem como desabilitadas.

@@ -52,6 +52,7 @@ Checklist de aprovação final antes da publicação do Controle de Estoque em p
 | Q01 | `npm test` — zero falhas | Alta | ☐ | | |
 | Q02 | `npm run typecheck` — zero erros | Alta | ☐ | | |
 | Q03 | Smoke test (`SMOKE_OK`) | Alta | ☐ | | |
+| Q03b | E2E Playwright F01–F08 | Alta | ☐ | | |
 | Q04 | Critérios de aceite REQUISITOS §8 (6/6) | Alta | ☐ | | |
 | Q05 | Fluxos E2E Must FLUXOS F01–F11 | Alta | ☐ | | |
 | Q06 | Testes em build empacotado (não dev) | Alta | ☐ | | |

@@ -187,6 +187,38 @@ function requireDb(): Db {
   return db
 }
 
+
+export function closeDatabase(): void {
+  if (db) {
+    db.close()
+    db = null
+  }
+}
+
+/** Online-safe backup using better-sqlite3 backup API (WAL-aware). */
+export async function backupDatabase(destPath: string): Promise<void> {
+  const database = requireDb()
+  await database.backup(destPath)
+}
+
+/** Replace the live database with a backup file and reopen. */
+export function restoreDatabase(sourcePath: string): { path: string; seeded: boolean } {
+  if (!fs.existsSync(sourcePath)) {
+    throw new Error('Arquivo de backup não encontrado')
+  }
+
+  closeDatabase()
+
+  const dest = getDbPath()
+  for (const suffix of ['-wal', '-shm']) {
+    const side = `${dest}${suffix}`
+    if (fs.existsSync(side)) fs.unlinkSync(side)
+  }
+
+  fs.copyFileSync(sourcePath, dest)
+  return initDatabase()
+}
+
 export function markSeedOffered(): void {
   requireDb()
     .prepare(

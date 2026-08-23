@@ -80,13 +80,13 @@ export function CategoriesPage() {
   }
 
   return (
-    <div>
+    <div data-testid="categories-page">
       <div className="page-header">
         <div>
           <h2>Categorias</h2>
           <p>Organização dos produtos por grupo</p>
         </div>
-        <button className="btn btn-primary" onClick={openCreate}>
+        <button className="btn btn-primary" data-testid="btn-new-category" onClick={openCreate}>
           Nova categoria
         </button>
       </div>
@@ -143,7 +143,7 @@ export function CategoriesPage() {
             <div className="field full">
               <label htmlFor="cname">Nome *</label>
               <input
-                id="cname"
+                id="cname" data-testid="input-category-name"
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}

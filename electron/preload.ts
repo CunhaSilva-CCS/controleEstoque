@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import type { EstoqueApi } from '../shared/api-contract'
 import type {
   MovementFilters,
@@ -7,6 +7,7 @@ import type {
   ProductInput,
   ProductUpdateInput,
   ReportType,
+  UpdateStatus,
 } from '../shared/types'
 
 const api: EstoqueApi = {
@@ -37,6 +38,21 @@ const api: EstoqueApi = {
     ipcRenderer.invoke('reports:get', type, filters),
 
   exportReportCsv: (payload) => ipcRenderer.invoke('reports:exportCsv', payload),
+
+  exportBackup: () => ipcRenderer.invoke('backup:export'),
+  restoreBackup: () => ipcRenderer.invoke('backup:restore'),
+
+  getAppInfo: () => ipcRenderer.invoke('app:getInfo'),
+  getUpdateStatus: () => ipcRenderer.invoke('updates:getStatus'),
+  checkForUpdates: () => ipcRenderer.invoke('updates:check'),
+  installUpdate: () => ipcRenderer.invoke('updates:install'),
+  onUpdateStatus: (callback: (status: UpdateStatus) => void) => {
+    const listener = (_event: IpcRendererEvent, status: UpdateStatus) => callback(status)
+    ipcRenderer.on('updates:status', listener)
+    return () => {
+      ipcRenderer.removeListener('updates:status', listener)
+    }
+  },
 }
 
 contextBridge.exposeInMainWorld('estoque', api)
