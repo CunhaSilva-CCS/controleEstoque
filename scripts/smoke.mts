@@ -44,6 +44,12 @@ async function main() {
 
   const report = await unwrap(api.getReport('posicao'))
   console.log('report rows', report.rows.length)
+  const backup = await unwrap(api.exportBackup())
+  console.log('backup', backup.saved, backup.path)
+  const info = await unwrap(api.getAppInfo())
+  console.log('appInfo', info.version, info.packaged)
+  const update = await unwrap(api.checkForUpdates())
+  console.log('update', update.state)
   console.log('SMOKE_OK')
 }
 

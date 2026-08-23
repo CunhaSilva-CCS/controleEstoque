@@ -16,7 +16,7 @@ export default defineConfig({
               build: {
                 outDir: 'dist-electron',
                 rollupOptions: {
-                  external: ['better-sqlite3', 'electron', '@sentry/electron/main'],
+                  external: ['better-sqlite3', 'electron', '@sentry/electron/main', 'electron-updater'],
                 },
               },
             },

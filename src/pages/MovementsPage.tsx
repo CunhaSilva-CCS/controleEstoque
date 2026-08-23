@@ -79,13 +79,13 @@ export function MovementsPage() {
   }
 
   return (
-    <div>
+    <div data-testid="movements-page">
       <div className="page-header">
         <div>
           <h2>Movimentações</h2>
           <p>Histórico imutável de entradas, saídas e ajustes</p>
         </div>
-        <button className="btn btn-primary" onClick={openCreate} disabled={products.length === 0}>
+        <button className="btn btn-primary" data-testid="btn-new-movement" onClick={openCreate} disabled={products.length === 0}>
           Nova movimentação
         </button>
       </div>
@@ -183,7 +183,7 @@ export function MovementsPage() {
             <div className="field full">
               <label htmlFor="mprod">Produto *</label>
               <select
-                id="mprod"
+                id="mprod" data-testid="select-movement-product"
                 required
                 value={formProductId}
                 onChange={(e) => {
@@ -202,7 +202,7 @@ export function MovementsPage() {
             <div className="field">
               <label htmlFor="mtype2">Tipo</label>
               <select
-                id="mtype2"
+                id="mtype2" data-testid="select-movement-type"
                 value={formType}
                 onChange={(e) => setFormType(e.target.value as MovementType)}
               >
@@ -215,7 +215,7 @@ export function MovementsPage() {
               <div className="field">
                 <label htmlFor="mnew2">Novo saldo *</label>
                 <input
-                  id="mnew2"
+                  id="mnew2" data-testid="input-movement-new-stock"
                   type="number"
                   min="0"
                   step="0.001"
@@ -228,7 +228,7 @@ export function MovementsPage() {
               <div className="field">
                 <label htmlFor="mqty2">Quantidade *</label>
                 <input
-                  id="mqty2"
+                  id="mqty2" data-testid="input-movement-qty"
                   type="number"
                   min="0.001"
                   step="0.001"
@@ -241,7 +241,7 @@ export function MovementsPage() {
             <div className="field full">
               <label htmlFor="mreason2">Motivo *</label>
               <input
-                id="mreason2"
+                id="mreason2" data-testid="input-movement-reason"
                 required
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}

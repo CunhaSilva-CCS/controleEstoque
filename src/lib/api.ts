@@ -12,6 +12,7 @@ import type {
   ReportType,
   StockMovement,
   Supplier,
+  UpdateStatus,
 } from '@shared/types'
 
 function computeStatus(stock: number, minStock: number): ProductStatus {
@@ -528,6 +529,28 @@ function createMemoryApi() {
       URL.revokeObjectURL(url)
       return ok({ saved: true, path: payload.defaultName })
     },
+    async exportBackup() {
+      return ok({ saved: true, path: 'memory-backup.db' })
+    },
+    async restoreBackup() {
+      return ok({ restored: true, path: ':memory:' })
+    },
+    async getAppInfo() {
+      return ok({ version: '1.0.0-web', dbPath: ':memory:', packaged: false })
+    },
+    async getUpdateStatus() {
+      return ok({ state: 'disabled' as const, reason: 'Atualizações indisponíveis no modo web' })
+    },
+    async checkForUpdates() {
+      return ok({ state: 'disabled' as const, reason: 'Atualizações indisponíveis no modo web' })
+    },
+    async installUpdate() {
+      return fail('Atualizações indisponíveis no modo web')
+    },
+    onUpdateStatus(_callback: (status: UpdateStatus) => void) {
+      return () => undefined
+    },
+
   }
 }
 

@@ -8,6 +8,7 @@ import { DashboardPage } from './pages/DashboardPage'
 import { MovementsPage } from './pages/MovementsPage'
 import { ProductsPage } from './pages/ProductsPage'
 import { ReportsPage } from './pages/ReportsPage'
+import { SettingsPage } from './pages/SettingsPage'
 import { SuppliersPage } from './pages/SuppliersPage'
 
 export default function App() {
@@ -47,6 +48,7 @@ export default function App() {
         <Route path="fornecedores" element={<SuppliersPage />} />
         <Route path="movimentacoes" element={<MovementsPage />} />
         <Route path="relatorios" element={<ReportsPage />} />
+        <Route path="configuracoes" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

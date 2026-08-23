@@ -8,13 +8,14 @@ const links = [
   { to: '/fornecedores', label: 'Fornecedores' },
   { to: '/movimentacoes', label: 'Movimentações' },
   { to: '/relatorios', label: 'Relatórios' },
+  { to: '/configuracoes', label: 'Configurações' },
 ]
 
 export function AppLayout() {
   const { toasts, dismiss } = useToast()
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-testid="app-shell">
       <aside className="sidebar">
         <div className="brand">
           <div className="brand-mark">CE</div>
@@ -23,7 +24,7 @@ export function AppLayout() {
         </div>
         <nav className="nav">
           {links.map((link) => (
-            <NavLink key={link.to} to={link.to} end={link.end}>
+            <NavLink key={link.to} to={link.to} end={link.end} data-testid={`nav-${link.to.replace(/^\//, '') || 'dashboard'}`}>
               {link.label}
             </NavLink>
           ))}

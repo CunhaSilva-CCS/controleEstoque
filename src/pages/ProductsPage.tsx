@@ -187,13 +187,13 @@ export function ProductsPage() {
   }
 
   return (
-    <div>
+    <div data-testid="products-page">
       <div className="page-header">
         <div>
           <h2>Produtos</h2>
           <p>Cadastro, saldos e status de estoque</p>
         </div>
-        <button className="btn btn-primary" onClick={openCreate}>
+        <button className="btn btn-primary" data-testid="btn-new-product" onClick={openCreate}>
           Novo produto
         </button>
       </div>
@@ -316,7 +316,7 @@ export function ProductsPage() {
             <div className="field">
               <label htmlFor="sku">SKU *</label>
               <input
-                id="sku"
+                id="sku" data-testid="input-product-sku"
                 required
                 value={form.sku}
                 onChange={(e) => setForm({ ...form, sku: e.target.value })}
@@ -325,7 +325,7 @@ export function ProductsPage() {
             <div className="field">
               <label htmlFor="unit">Unidade *</label>
               <input
-                id="unit"
+                id="unit" data-testid="input-product-unit"
                 required
                 value={form.unit}
                 onChange={(e) => setForm({ ...form, unit: e.target.value })}
@@ -334,7 +334,7 @@ export function ProductsPage() {
             <div className="field full">
               <label htmlFor="name">Nome *</label>
               <input
-                id="name"
+                id="name" data-testid="input-product-name"
                 required
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -381,7 +381,7 @@ export function ProductsPage() {
             <div className="field">
               <label htmlFor="cost">Preço de custo *</label>
               <input
-                id="cost"
+                id="cost" data-testid="input-product-cost"
                 type="number"
                 min="0"
                 step="0.01"
@@ -393,7 +393,7 @@ export function ProductsPage() {
             <div className="field">
               <label htmlFor="sale">Preço de venda</label>
               <input
-                id="sale"
+                id="sale" data-testid="input-product-sale"
                 type="number"
                 min="0"
                 step="0.01"
@@ -404,7 +404,7 @@ export function ProductsPage() {
             <div className="field">
               <label htmlFor="min">Estoque mínimo *</label>
               <input
-                id="min"
+                id="min" data-testid="input-product-min"
                 type="number"
                 min="0"
                 step="0.001"
@@ -417,7 +417,7 @@ export function ProductsPage() {
               <div className="field">
                 <label htmlFor="ini">Estoque inicial</label>
                 <input
-                  id="ini"
+                  id="ini" data-testid="input-product-initial"
                   type="number"
                   min="0"
                   step="0.001"
