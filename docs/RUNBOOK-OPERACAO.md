@@ -287,3 +287,18 @@ Eventos capturados automaticamente:
 - [CHECKLIST-GO-NOGO.md](./CHECKLIST-GO-NOGO.md)
 - [REQUISITOS.md](./REQUISITOS.md)
 - [FLUXOS.md](./FLUXOS.md)
+
+
+## Backup e restauração pelo aplicativo
+
+A partir de **Configurações**:
+
+1. **Exportar backup** — gera arquivo `.db` (cópia WAL-safe via better-sqlite3).
+2. **Restaurar backup** — seleciona `.db` e confirma; o app recarrega os dados.
+
+> Feche movimentações em andamento antes de restaurar. A restauração substitui o banco atual.
+
+## Auto-update
+
+Em builds empacotados e publicados no GitHub Releases, o app verifica atualizações na abertura.
+Em **Configurações → Verificar atualizações** é possível checar manualmente. Quando o download terminar, use **Reiniciar e atualizar**.

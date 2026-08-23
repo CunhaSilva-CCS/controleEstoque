@@ -31,4 +31,11 @@ module.exports = {
     process.env.LINUX_GPG_PRIVATE_KEY || process.env.DEB_SIGN_KEY_ID
       ? { sign: 'Controle Estoque' }
       : undefined,
+  publish: [
+    {
+      provider: 'github',
+      owner: 'CunhaSilva-CCS',
+      repo: 'controleEstoque',
+    },
+  ],
 }

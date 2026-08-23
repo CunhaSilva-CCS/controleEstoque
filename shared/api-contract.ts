@@ -11,6 +11,7 @@ import type {
   ReportType,
   StockMovement,
   Supplier,
+  UpdateStatus,
 } from './types'
 
 export interface EstoqueApi {
@@ -63,4 +64,11 @@ export interface EstoqueApi {
     filters?: MovementFilters
     defaultName: string
   }) => Promise<ApiResponse<{ saved: boolean; path?: string }>>
+  exportBackup: () => Promise<ApiResponse<{ saved: boolean; path?: string }>>
+  restoreBackup: () => Promise<ApiResponse<{ restored: boolean; path?: string }>>
+  getAppInfo: () => Promise<ApiResponse<{ version: string; dbPath: string; packaged: boolean }>>
+  getUpdateStatus: () => Promise<ApiResponse<UpdateStatus>>
+  checkForUpdates: () => Promise<ApiResponse<UpdateStatus>>
+  installUpdate: () => Promise<ApiResponse<boolean>>
+  onUpdateStatus: (callback: (status: UpdateStatus) => void) => () => void
 }

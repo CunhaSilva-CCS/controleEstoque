@@ -101,13 +101,13 @@ export function SuppliersPage() {
   }
 
   return (
-    <div>
+    <div data-testid="suppliers-page">
       <div className="page-header">
         <div>
           <h2>Fornecedores</h2>
           <p>Cadastro de parceiros de compra</p>
         </div>
-        <button className="btn btn-primary" onClick={openCreate}>
+        <button className="btn btn-primary" data-testid="btn-new-supplier" onClick={openCreate}>
           Novo fornecedor
         </button>
       </div>
@@ -168,7 +168,7 @@ export function SuppliersPage() {
             <div className="field full">
               <label htmlFor="sname">Nome *</label>
               <input
-                id="sname"
+                id="sname" data-testid="input-supplier-name"
                 required
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}

@@ -8,11 +8,13 @@ import {
 import fs from 'node:fs'
 import path from 'node:path'
 import {
+  backupDatabase,
   buildReport,
   createCategory,
   createProduct,
   createSupplier,
   getDashboard,
+  getDbPath,
   getProduct,
   initDatabase,
   listCategories,
@@ -21,12 +23,14 @@ import {
   listSuppliers,
   markSeedOffered,
   registerMovement,
+  restoreDatabase,
   seedDemoData,
   setProductActive,
   updateCategory,
   updateProduct,
   updateSupplier,
 } from './db'
+import { initAutoUpdater, registerUpdateIpc } from './updater'
 import {
   captureError,
   initMainTelemetry,
@@ -282,11 +286,79 @@ function registerIpc(): void {
       }
     },
   )
+
+  ipcMain.handle('backup:export', async () => {
+    try {
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const result = await dialog.showSaveDialog(mainWindow!, {
+        title: 'Exportar backup do estoque',
+        defaultPath: `estoque-backup-${stamp}.db`,
+        filters: [{ name: 'SQLite', extensions: ['db'] }],
+      })
+      if (result.canceled || !result.filePath) {
+        return ok({ saved: false })
+      }
+      await backupDatabase(result.filePath)
+      return ok({ saved: true, path: result.filePath })
+    } catch (error) {
+      captureError(error, { handler: 'backup:export' })
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('backup:restore', async () => {
+    try {
+      const result = await dialog.showOpenDialog(mainWindow!, {
+        title: 'Restaurar backup do estoque',
+        properties: ['openFile'],
+        filters: [{ name: 'SQLite', extensions: ['db'] }],
+      })
+      if (result.canceled || !result.filePaths[0]) {
+        return ok({ restored: false })
+      }
+
+      const confirm = await dialog.showMessageBox(mainWindow!, {
+        type: 'warning',
+        buttons: ['Cancelar', 'Restaurar'],
+        defaultId: 0,
+        cancelId: 0,
+        title: 'Confirmar restauração',
+        message: 'A restauração substitui todos os dados atuais pelo backup selecionado.',
+        detail: 'Esta ação não pode ser desfeita. Feche outras operações antes de continuar.',
+      })
+      if (confirm.response !== 1) {
+        return ok({ restored: false })
+      }
+
+      const info = restoreDatabase(result.filePaths[0])
+      // Reload UI so all pages see the restored data
+      mainWindow?.webContents.reload()
+      return ok({ restored: true, path: info.path })
+    } catch (error) {
+      captureError(error, { handler: 'backup:restore' })
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('app:getInfo', () => {
+    try {
+      return ok({
+        version: app.getVersion(),
+        dbPath: getDbPath(),
+        packaged: app.isPackaged,
+      })
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
 }
 
 app.whenReady().then(() => {
+  registerUpdateIpc()
   registerIpc()
   createWindow()
+  if (mainWindow) initAutoUpdater(mainWindow)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

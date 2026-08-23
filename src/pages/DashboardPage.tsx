@@ -43,7 +43,7 @@ export function DashboardPage({ needsSeed, onSeedDone }: Props) {
   }
 
   return (
-    <div>
+    <div data-testid="dashboard-page">
       <div className="page-header">
         <div>
           <h2>Dashboard</h2>
@@ -55,7 +55,7 @@ export function DashboardPage({ needsSeed, onSeedDone }: Props) {
       </div>
 
       {needsSeed ? (
-        <div className="seed-banner">
+        <div className="seed-banner" data-testid="seed-banner">
           <div>
             <strong>Primeiro uso</strong>
             <p className="muted" style={{ margin: '6px 0 0' }}>
@@ -63,10 +63,10 @@ export function DashboardPage({ needsSeed, onSeedDone }: Props) {
             </p>
           </div>
           <div className="row-actions">
-            <button className="btn btn-ghost" onClick={() => void handleSeed(false)}>
+            <button className="btn btn-ghost" data-testid="btn-seed-skip" onClick={() => void handleSeed(false)}>
               Começar vazio
             </button>
-            <button className="btn btn-primary" onClick={() => void handleSeed(true)}>
+            <button className="btn btn-primary" data-testid="btn-seed-accept" onClick={() => void handleSeed(true)}>
               Carregar demo
             </button>
           </div>

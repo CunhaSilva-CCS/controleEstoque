@@ -140,10 +140,10 @@ Plano de ação para release de produção do aplicativo **desktop** Controle de
   - Documentar caminho: `{app.getPath('userData')}/data/estoque.db`
   - Backup manual: copiar `estoque.db` + `estoque.db-wal` + `estoque.db-shm`
   - WAL mode já habilitado (`journal_mode = WAL`)
-- [ ] **[Alta]** Implementar export/import de backup (evolução v1.1 — documentar workaround manual na v1)
+- [x] **[Alta]** Implementar export/import de backup (Configurações → Exportar/Restaurar)
 - [ ] **[Média]** Cache de dependências npm no CI (reduzir tempo de build)
 - [ ] **[Média]** Builds reproducíveis: Node 20.x LTS, npm ci (não npm install)
-- [ ] **[Média]** Configurar auto-update (electron-updater) — pode ficar para v1.1; documentar update manual na v1
+- [x] **[Média]** Configurar auto-update (electron-updater + GitHub Releases)
 - [ ] **[Baixa]** Mirror de artefatos em CDN/storage (S3, GitHub Releases)
 
 ### Ações para Engenharia (suporte ao pipeline)
