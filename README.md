@@ -7,6 +7,13 @@ Aplicativo **desktop** (Electron + React + TypeScript + SQLite) para gestão de 
 - [Requisitos detalhados](docs/REQUISITOS.md)
 - [Fluxos do sistema](docs/FLUXOS.md)
 
+### Release e operação
+
+- [Plano de produção corporativo](docs/PLANO-PRODUCAO.md)
+- [Política de cobertura de testes](docs/POLITICA-COBERTURA-TESTES.md)
+- [Checklist Go/No-Go](docs/CHECKLIST-GO-NOGO.md)
+- [Runbook de operação](docs/RUNBOOK-OPERACAO.md)
+
 ## Funcionalidades
 
 - Dashboard com indicadores e alertas de estoque baixo
