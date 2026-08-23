@@ -36,6 +36,9 @@ jobs:
       - name: Smoke test
         run: npm run smoke
 
+      - name: Teste de fluxo (fatura + fabricação)
+        run: npm run test:flow
+
       - name: Build
         run: npm run build
 

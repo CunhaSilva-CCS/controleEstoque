@@ -399,7 +399,7 @@ export function seedDemoData(): void {
         cost: 18,
         sale: 32,
         min: 15,
-        stock: 0,
+        stock: 30,
       },
       {
         sku: 'FITA-DUP',
@@ -412,6 +412,18 @@ export function seedDemoData(): void {
         sale: 9.9,
         min: 12,
         stock: 12,
+      },
+      {
+        sku: 'KIT-ESCR',
+        name: 'Kit material de escritório',
+        productType: 'produto_final' as ProductType,
+        categoryId: catEscritorio,
+        supplierId: null,
+        unit: 'un',
+        cost: 35,
+        sale: 69.9,
+        min: 3,
+        stock: 0,
       },
     ]
 
@@ -426,9 +438,16 @@ export function seedDemoData(): void {
         id, product_id, type, quantity, previous_stock, new_stock, reason, reference, created_at
       ) VALUES (?, ?, 'entrada', ?, 0, ?, 'Estoque inicial', 'SEED', ?)`,
     )
+    const insertRecipe = database.prepare(
+      `INSERT INTO product_recipes (id, finished_product_id, material_product_id, quantity)
+       VALUES (?, ?, ?, ?)`,
+    )
+
+    const productIds = new Map<string, string>()
 
     for (const p of products) {
       const id = randomUUID()
+      productIds.set(p.sku, id)
       insertProd.run(
         id,
         p.sku,
@@ -448,6 +467,12 @@ export function seedDemoData(): void {
         insertMov.run(randomUUID(), id, p.stock, p.stock, ts)
       }
     }
+
+    const kitId = productIds.get('KIT-ESCR')!
+    const resmaId = productIds.get('RESMA-A4')!
+    const fitaId = productIds.get('FITA-DUP')!
+    insertRecipe.run(randomUUID(), kitId, resmaId, 1)
+    insertRecipe.run(randomUUID(), kitId, fitaId, 1)
 
     markSeedOffered()
   })

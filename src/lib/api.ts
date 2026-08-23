@@ -238,7 +238,7 @@ function createMemoryApi() {
           costPrice: 18,
           salePrice: 32,
           minStock: 15,
-          stock: 0,
+          stock: 30,
         },
         {
           sku: 'FITA-DUP',
@@ -252,9 +252,23 @@ function createMemoryApi() {
           minStock: 12,
           stock: 12,
         },
+        {
+          sku: 'KIT-ESCR',
+          name: 'Kit material de escritório',
+          productType: 'produto_final' as ProductType,
+          categoryId: catEscritorio,
+          supplierId: null as string | null,
+          unit: 'un',
+          costPrice: 35,
+          salePrice: 69.9,
+          minStock: 3,
+          stock: 0,
+        },
       ]
+      const productIds = new Map<string, string>()
       for (const item of demo) {
         const id = uid()
+        productIds.set(item.sku, id)
         const product = enrich({
           id,
           description: '',
@@ -280,6 +294,25 @@ function createMemoryApi() {
           })
         }
       }
+
+      const kitId = productIds.get('KIT-ESCR')!
+      const resmaId = productIds.get('RESMA-A4')!
+      const fitaId = productIds.get('FITA-DUP')!
+      recipes.push(
+        {
+          id: uid(),
+          finishedProductId: kitId,
+          materialProductId: resmaId,
+          quantity: 1,
+        },
+        {
+          id: uid(),
+          finishedProductId: kitId,
+          materialProductId: fitaId,
+          quantity: 1,
+        },
+      )
+
       return ok(true)
     },
     async listCategories(activeOnly?: boolean) {

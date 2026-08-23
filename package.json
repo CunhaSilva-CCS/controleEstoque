@@ -14,6 +14,7 @@
     "electron:build:release": "npm run build && electron-builder",
     "start": "electron .",
     "smoke": "tsx scripts/smoke.mts",
+    "test:flow": "tsx scripts/flow-test.mts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit"
