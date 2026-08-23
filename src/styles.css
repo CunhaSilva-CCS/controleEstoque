@@ -464,6 +464,27 @@ tr:hover td {
   color: var(--muted);
 }
 
+.section-title {
+  margin: 1rem 0 0.75rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.btn-sm {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.85rem;
+}
+
+.row-warn td {
+  color: #e07a5f;
+}
+
+.item-row hr {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 0.5rem 0;
+}
+
 @media (max-width: 1100px) {
   .app-shell {
     grid-template-columns: 1fr;

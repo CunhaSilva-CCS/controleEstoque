@@ -123,6 +123,75 @@ export interface ReportRow {
 
 export type ReportType = 'posicao' | 'movimentacoes' | 'baixo'
 
+export interface InvoiceItem {
+  id: string
+  invoiceId: string
+  productId: string
+  quantity: number
+  unitCost: number
+  productName?: string
+  productSku?: string
+}
+
+export interface Invoice {
+  id: string
+  number: string
+  supplierId: string | null
+  issueDate: string
+  notes: string
+  createdAt: string
+  supplierName?: string | null
+  items?: InvoiceItem[]
+  itemCount?: number
+  totalValue?: number
+}
+
+export interface InvoiceItemInput {
+  productId: string
+  quantity: number
+  unitCost?: number
+}
+
+export interface InvoiceInput {
+  number: string
+  supplierId?: string | null
+  issueDate: string
+  notes?: string
+  items: InvoiceItemInput[]
+}
+
+export interface ProductRecipeItem {
+  id: string
+  finishedProductId: string
+  materialProductId: string
+  quantity: number
+  materialName?: string
+  materialSku?: string
+  materialUnit?: string
+  materialStock?: number
+}
+
+export interface ProductRecipeInput {
+  finishedProductId: string
+  items: { materialProductId: string; quantity: number }[]
+}
+
+export interface ManufacturingOrder {
+  id: string
+  finishedProductId: string
+  quantity: number
+  notes: string
+  createdAt: string
+  finishedProductName?: string
+  finishedProductSku?: string
+}
+
+export interface ManufacturingInput {
+  finishedProductId: string
+  quantity: number
+  notes?: string
+}
+
 export interface ApiResult<T> {
   ok: true
   data: T

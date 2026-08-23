@@ -2,11 +2,17 @@ import type {
   ApiResponse,
   Category,
   DashboardData,
+  Invoice,
+  InvoiceInput,
+  ManufacturingInput,
+  ManufacturingOrder,
   MovementFilters,
   MovementInput,
   Product,
   ProductFilters,
   ProductInput,
+  ProductRecipeInput,
+  ProductRecipeItem,
   ProductUpdateInput,
   ReportType,
   StockMovement,
@@ -63,4 +69,11 @@ export interface EstoqueApi {
     filters?: MovementFilters
     defaultName: string
   }) => Promise<ApiResponse<{ saved: boolean; path?: string }>>
+  listInvoices: () => Promise<ApiResponse<Invoice[]>>
+  getInvoice: (id: string) => Promise<ApiResponse<Invoice | null>>
+  createInvoice: (input: InvoiceInput) => Promise<ApiResponse<Invoice>>
+  getProductRecipe: (finishedProductId: string) => Promise<ApiResponse<ProductRecipeItem[]>>
+  saveProductRecipe: (input: ProductRecipeInput) => Promise<ApiResponse<ProductRecipeItem[]>>
+  listManufacturingOrders: () => Promise<ApiResponse<ManufacturingOrder[]>>
+  createManufacturingOrder: (input: ManufacturingInput) => Promise<ApiResponse<ManufacturingOrder>>
 }

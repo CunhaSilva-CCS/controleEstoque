@@ -6,6 +6,8 @@ const links = [
   { to: '/produtos', label: 'Produtos' },
   { to: '/categorias', label: 'Categorias' },
   { to: '/fornecedores', label: 'Fornecedores' },
+  { to: '/faturas', label: 'Faturas' },
+  { to: '/fabricacao', label: 'Fabricação' },
   { to: '/movimentacoes', label: 'Movimentações' },
   { to: '/relatorios', label: 'Relatórios' },
 ]

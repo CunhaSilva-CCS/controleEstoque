@@ -2,11 +2,18 @@ import type {
   ApiResponse,
   Category,
   DashboardData,
+  Invoice,
+  InvoiceInput,
+  InvoiceItem,
+  ManufacturingInput,
+  ManufacturingOrder,
   MovementFilters,
   MovementInput,
   Product,
   ProductFilters,
   ProductInput,
+  ProductRecipeInput,
+  ProductRecipeItem,
   ProductStatus,
   ProductUpdateInput,
   ReportType,
@@ -34,6 +41,10 @@ function createMemoryApi() {
   const suppliers: Supplier[] = []
   const products: Product[] = []
   const movements: StockMovement[] = []
+  const invoices: Invoice[] = []
+  const invoiceItems: InvoiceItem[] = []
+  const recipes: ProductRecipeItem[] = []
+  const manufacturingOrders: ManufacturingOrder[] = []
   let seeded = false
 
   function enrich(p: Product): Product {
@@ -52,6 +63,62 @@ function createMemoryApi() {
 
   function fail(error: string): ApiResponse<never> {
     return { ok: false, error }
+  }
+
+  function registerMovementInternal(input: MovementInput, ts: string = now()): StockMovement {
+    const p = products.find((x) => x.id === input.productId)
+    if (!p) throw new Error('Produto não encontrado')
+    if (!p.active) throw new Error('Produto inativo não pode receber movimentações')
+    if (!input.reason.trim()) throw new Error('Motivo é obrigatório')
+
+    const previous = p.stock
+    let quantity = input.quantity
+    let newStock: number
+
+    if (input.type === 'entrada') {
+      if (!(quantity > 0)) throw new Error('Quantidade da entrada deve ser maior que zero')
+      newStock = previous + quantity
+    } else if (input.type === 'saida') {
+      if (!(quantity > 0)) throw new Error('Quantidade da saída deve ser maior que zero')
+      if (quantity > previous) throw new Error(`Saldo insuficiente. Disponível: ${previous}`)
+      newStock = previous - quantity
+    } else {
+      if (input.newStock === undefined || input.newStock < 0) {
+        throw new Error('Informe o novo saldo (≥ 0) para o ajuste')
+      }
+      newStock = input.newStock
+      quantity = newStock - previous
+    }
+
+    p.stock = newStock
+    p.updatedAt = ts
+    const m: StockMovement = {
+      id: uid(),
+      productId: p.id,
+      type: input.type,
+      quantity,
+      previousStock: previous,
+      newStock,
+      reason: input.reason.trim(),
+      reference: input.reference?.trim() ?? '',
+      createdAt: ts,
+      productName: p.name,
+      productSku: p.sku,
+    }
+    movements.unshift(m)
+    return m
+  }
+
+  function getInvoiceById(id: string): Invoice | null {
+    const invoice = invoices.find((i) => i.id === id)
+    if (!invoice) return null
+    const items = invoiceItems.filter((ii) => ii.invoiceId === id)
+    return {
+      ...invoice,
+      items,
+      itemCount: items.length,
+      totalValue: items.reduce((sum, i) => sum + i.quantity * i.unitCost, 0),
+    }
   }
 
   return {
@@ -385,47 +452,11 @@ function createMemoryApi() {
       return ok(list)
     },
     async createMovement(input: MovementInput) {
-      const p = products.find((x) => x.id === input.productId)
-      if (!p) return fail('Produto não encontrado')
-      if (!p.active) return fail('Produto inativo não pode receber movimentações')
-      if (!input.reason.trim()) return fail('Motivo é obrigatório')
-
-      const previous = p.stock
-      let quantity = input.quantity
-      let newStock: number
-
-      if (input.type === 'entrada') {
-        if (!(quantity > 0)) return fail('Quantidade da entrada deve ser maior que zero')
-        newStock = previous + quantity
-      } else if (input.type === 'saida') {
-        if (!(quantity > 0)) return fail('Quantidade da saída deve ser maior que zero')
-        if (quantity > previous) return fail(`Saldo insuficiente. Disponível: ${previous}`)
-        newStock = previous - quantity
-      } else {
-        if (input.newStock === undefined || input.newStock < 0) {
-          return fail('Informe o novo saldo (≥ 0) para o ajuste')
-        }
-        newStock = input.newStock
-        quantity = newStock - previous
+      try {
+        return ok(registerMovementInternal(input))
+      } catch (err) {
+        return fail(err instanceof Error ? err.message : String(err))
       }
-
-      p.stock = newStock
-      p.updatedAt = now()
-      const m: StockMovement = {
-        id: uid(),
-        productId: p.id,
-        type: input.type,
-        quantity,
-        previousStock: previous,
-        newStock,
-        reason: input.reason.trim(),
-        reference: input.reference?.trim() ?? '',
-        createdAt: now(),
-        productName: p.name,
-        productSku: p.sku,
-      }
-      movements.unshift(m)
-      return ok(m)
     },
     async getDashboard(): Promise<ApiResponse<DashboardData>> {
       const active = products.filter((p) => p.active).map(enrich)
@@ -527,6 +558,216 @@ function createMemoryApi() {
       a.click()
       URL.revokeObjectURL(url)
       return ok({ saved: true, path: payload.defaultName })
+    },
+    async listInvoices() {
+      const list = invoices
+        .map((invoice) => getInvoiceById(invoice.id)!)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      return ok(list)
+    },
+    async getInvoice(id: string) {
+      return ok(getInvoiceById(id))
+    },
+    async createInvoice(input: InvoiceInput) {
+      const number = input.number.trim()
+      if (!number) return fail('Número da fatura é obrigatório')
+      if (!input.issueDate.trim()) return fail('Data da fatura é obrigatória')
+      if (!input.items.length) return fail('Informe ao menos um item na fatura')
+      if (invoices.some((i) => i.number.toLowerCase() === number.toLowerCase())) {
+        return fail('Já existe uma fatura com este número')
+      }
+
+      const ts = now()
+      const invoiceId = uid()
+      const createdItems: InvoiceItem[] = []
+
+      try {
+        for (const item of input.items) {
+          if (!(item.quantity > 0)) {
+            return fail('Quantidade do item deve ser maior que zero')
+          }
+          const product = products.find((p) => p.id === item.productId)
+          if (!product) return fail('Produto não encontrado')
+          if (!product.active) return fail(`Produto inativo: ${product.name}`)
+
+          const unitCost = item.unitCost ?? product.costPrice
+          if (unitCost < 0) return fail('Custo unitário não pode ser negativo')
+
+          const invoiceItem: InvoiceItem = {
+            id: uid(),
+            invoiceId,
+            productId: item.productId,
+            quantity: item.quantity,
+            unitCost,
+            productName: product.name,
+            productSku: product.sku,
+          }
+          createdItems.push(invoiceItem)
+          registerMovementInternal(
+            {
+              productId: item.productId,
+              type: 'entrada',
+              quantity: item.quantity,
+              reason: 'Entrada por fatura',
+              reference: number,
+            },
+            ts,
+          )
+        }
+      } catch (err) {
+        return fail(err instanceof Error ? err.message : String(err))
+      }
+
+      const supplier = input.supplierId
+        ? suppliers.find((s) => s.id === input.supplierId)
+        : undefined
+      const invoice: Invoice = {
+        id: invoiceId,
+        number,
+        supplierId: input.supplierId || null,
+        issueDate: input.issueDate.trim(),
+        notes: input.notes?.trim() ?? '',
+        createdAt: ts,
+        supplierName: supplier?.name ?? null,
+      }
+      invoices.push(invoice)
+      invoiceItems.push(...createdItems)
+      return ok(getInvoiceById(invoiceId)!)
+    },
+    async getProductRecipe(finishedProductId: string) {
+      const list = recipes
+        .filter((r) => r.finishedProductId === finishedProductId)
+        .map((r) => {
+          const material = products.find((p) => p.id === r.materialProductId)
+          return {
+            ...r,
+            materialName: material?.name,
+            materialSku: material?.sku,
+            materialUnit: material?.unit,
+            materialStock: material?.stock,
+          }
+        })
+        .sort((a, b) => (a.materialName ?? '').localeCompare(b.materialName ?? ''))
+      return ok(list)
+    },
+    async saveProductRecipe(input: ProductRecipeInput) {
+      const finished = products.find((p) => p.id === input.finishedProductId)
+      if (!finished) return fail('Produto acabado não encontrado')
+      if (!finished.active) return fail('Produto acabado inativo não pode ter ficha técnica')
+
+      const seen = new Set<string>()
+      for (const item of input.items) {
+        if (!(item.quantity > 0)) {
+          return fail('Quantidade da matéria-prima deve ser maior que zero')
+        }
+        if (item.materialProductId === input.finishedProductId) {
+          return fail('O produto acabado não pode ser matéria-prima de si mesmo')
+        }
+        if (seen.has(item.materialProductId)) {
+          return fail('Matéria-prima duplicada na ficha técnica')
+        }
+        seen.add(item.materialProductId)
+        const material = products.find((p) => p.id === item.materialProductId)
+        if (!material) return fail('Matéria-prima não encontrada')
+        if (!material.active) return fail(`Matéria-prima inativa: ${material.name}`)
+      }
+
+      for (let i = recipes.length - 1; i >= 0; i--) {
+        if (recipes[i].finishedProductId === input.finishedProductId) {
+          recipes.splice(i, 1)
+        }
+      }
+
+      for (const item of input.items) {
+        recipes.push({
+          id: uid(),
+          finishedProductId: input.finishedProductId,
+          materialProductId: item.materialProductId,
+          quantity: item.quantity,
+        })
+      }
+
+      return this.getProductRecipe(input.finishedProductId)
+    },
+    async listManufacturingOrders() {
+      const list = manufacturingOrders
+        .map((order) => {
+          const product = products.find((p) => p.id === order.finishedProductId)
+          return {
+            ...order,
+            finishedProductName: product?.name,
+            finishedProductSku: product?.sku,
+          }
+        })
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      return ok(list)
+    },
+    async createManufacturingOrder(input: ManufacturingInput) {
+      if (!(input.quantity > 0)) return fail('Quantidade produzida deve ser maior que zero')
+
+      const finished = products.find((p) => p.id === input.finishedProductId)
+      if (!finished) return fail('Produto acabado não encontrado')
+      if (!finished.active) return fail('Produto acabado inativo não pode ser fabricado')
+
+      const recipeRes = await this.getProductRecipe(input.finishedProductId)
+      if (!recipeRes.ok) return recipeRes
+      const recipe = recipeRes.data
+      if (!recipe.length) {
+        return fail('Cadastre a ficha técnica (matérias-primas) antes de fabricar')
+      }
+
+      for (const item of recipe) {
+        const required = item.quantity * input.quantity
+        const stock = item.materialStock ?? 0
+        if (required > stock) {
+          return fail(
+            `Saldo insuficiente de ${item.materialName ?? 'matéria-prima'}. Necessário: ${required}, disponível: ${stock}`,
+          )
+        }
+      }
+
+      const ts = now()
+      const orderId = uid()
+      const reference = `FAB-${orderId.slice(0, 8).toUpperCase()}`
+
+      try {
+        for (const item of recipe) {
+          registerMovementInternal(
+            {
+              productId: item.materialProductId,
+              type: 'saida',
+              quantity: item.quantity * input.quantity,
+              reason: 'Baixa por fabricação',
+              reference,
+            },
+            ts,
+          )
+        }
+        registerMovementInternal(
+          {
+            productId: input.finishedProductId,
+            type: 'entrada',
+            quantity: input.quantity,
+            reason: 'Entrada por fabricação',
+            reference,
+          },
+          ts,
+        )
+      } catch (err) {
+        return fail(err instanceof Error ? err.message : String(err))
+      }
+
+      const order: ManufacturingOrder = {
+        id: orderId,
+        finishedProductId: input.finishedProductId,
+        quantity: input.quantity,
+        notes: input.notes?.trim() ?? '',
+        createdAt: ts,
+        finishedProductName: finished.name,
+        finishedProductSku: finished.sku,
+      }
+      manufacturingOrders.unshift(order)
+      return ok(order)
     },
   }
 }
