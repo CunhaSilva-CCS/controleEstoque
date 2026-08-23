@@ -56,11 +56,12 @@ Artefatos gerados em `release/`:
 ### 2.2 Publicar release
 
 1. Garantir checklist [CHECKLIST-GO-NOGO.md](./CHECKLIST-GO-NOGO.md) aprovado
-2. Criar tag: `git tag -a v1.0.0 -m "Release v1.0.0"`
-3. Push tag: `git push origin v1.0.0`
-4. CI gera artefatos assinados
-5. Publicar no GitHub Releases (ou canal interno)
-6. Executar smoke test pós-publicação
+2. Configurar secrets de assinatura — ver [CODE-SIGNING.md](./CODE-SIGNING.md)
+3. Criar tag: `git tag -a v1.0.0 -m "Release v1.0.0"`
+4. Push tag: `git push origin v1.0.0`
+5. CI gera artefatos (assinados se secrets configurados)
+6. Revisar draft no GitHub Releases e publicar
+7. Executar smoke test pós-publicação
 
 ### 2.3 Rollback
 

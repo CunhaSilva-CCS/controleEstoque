@@ -13,6 +13,7 @@ Aplicativo **desktop** (Electron + React + TypeScript + SQLite) para gestão de 
 - [Política de cobertura de testes](docs/POLITICA-COBERTURA-TESTES.md)
 - [Checklist Go/No-Go](docs/CHECKLIST-GO-NOGO.md)
 - [Runbook de operação](docs/RUNBOOK-OPERACAO.md)
+- [Code signing e notarização](docs/CODE-SIGNING.md)
 
 ## Funcionalidades
 
@@ -74,6 +75,19 @@ SENTRY_ENVIRONMENT=production
 ```
 
 Sem `SENTRY_DSN`, o app funciona normalmente sem enviar eventos. Em desenvolvimento, use `SENTRY_ENABLED=true` para testar.
+
+## Code signing (produção)
+
+Para releases corporativos, configure os secrets no GitHub conforme [docs/CODE-SIGNING.md](docs/CODE-SIGNING.md):
+
+| Secret | Plataforma |
+|--------|------------|
+| `WIN_CSC_LINK` + `WIN_CSC_KEY_PASSWORD` | Windows (Authenticode) |
+| `MAC_CSC_LINK` + `MAC_CSC_KEY_PASSWORD` | macOS (Developer ID) |
+| `APPLE_ID` + `APPLE_APP_SPECIFIC_PASSWORD` + `APPLE_TEAM_ID` | macOS (notarização) |
+| `LINUX_GPG_PRIVATE_KEY` | Linux (.deb) |
+
+Sem secrets, o CI gera instaladores **sem assinatura** (OK para QA).
 
 ## Fluxo rápido sugerido
 
