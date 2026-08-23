@@ -1,10 +1,13 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { EstoqueApi } from '../shared/api-contract'
 import type {
+  InvoiceInput,
+  ManufacturingInput,
   MovementFilters,
   MovementInput,
   ProductFilters,
   ProductInput,
+  ProductRecipeInput,
   ProductUpdateInput,
   ReportType,
 } from '../shared/types'
@@ -37,6 +40,18 @@ const api: EstoqueApi = {
     ipcRenderer.invoke('reports:get', type, filters),
 
   exportReportCsv: (payload) => ipcRenderer.invoke('reports:exportCsv', payload),
+
+  listInvoices: () => ipcRenderer.invoke('invoices:list'),
+  getInvoice: (id: string) => ipcRenderer.invoke('invoices:get', id),
+  createInvoice: (input: InvoiceInput) => ipcRenderer.invoke('invoices:create', input),
+
+  getProductRecipe: (finishedProductId: string) =>
+    ipcRenderer.invoke('recipes:get', finishedProductId),
+  saveProductRecipe: (input: ProductRecipeInput) => ipcRenderer.invoke('recipes:save', input),
+
+  listManufacturingOrders: () => ipcRenderer.invoke('manufacturing:list'),
+  createManufacturingOrder: (input: ManufacturingInput) =>
+    ipcRenderer.invoke('manufacturing:create', input),
 }
 
 contextBridge.exposeInMainWorld('estoque', api)

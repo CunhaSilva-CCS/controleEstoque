@@ -6,16 +6,30 @@ import { randomUUID } from 'node:crypto'
 import type {
   Category,
   DashboardData,
+  Invoice,
+  InvoiceInput,
+  InvoiceItem,
+  ManufacturingInput,
+  ManufacturingOrder,
   MovementFilters,
   MovementInput,
   Product,
   ProductFilters,
   ProductInput,
+  ProductRecipeInput,
+  ProductRecipeItem,
   ProductStatus,
   ProductUpdateInput,
   StockMovement,
   Supplier,
 } from '../shared/types'
+import {
+  FINISHED_PRODUCT_TYPES,
+  isProductType,
+  MATERIAL_PRODUCT_TYPES,
+  productTypeLabel,
+  type ProductType,
+} from '../shared/product-types'
 
 type Db = Database.Database
 
@@ -35,11 +49,13 @@ function mapProduct(row: Record<string, unknown>): Product {
   const stock = Number(row.stock)
   const minStock = Number(row.min_stock)
   const costPrice = Number(row.cost_price)
+  const rawType = String(row.product_type ?? 'revenda')
   return {
     id: String(row.id),
     sku: String(row.sku),
     name: String(row.name),
     description: String(row.description ?? ''),
+    productType: isProductType(rawType) ? rawType : 'revenda',
     categoryId: row.category_id ? String(row.category_id) : null,
     supplierId: row.supplier_id ? String(row.supplier_id) : null,
     unit: String(row.unit),
@@ -98,6 +114,65 @@ function mapMovement(row: Record<string, unknown>): StockMovement {
   }
 }
 
+function mapInvoiceItem(row: Record<string, unknown>): InvoiceItem {
+  return {
+    id: String(row.id),
+    invoiceId: String(row.invoice_id),
+    productId: String(row.product_id),
+    quantity: Number(row.quantity),
+    unitCost: Number(row.unit_cost),
+    productName: row.product_name != null ? String(row.product_name) : undefined,
+    productSku: row.product_sku != null ? String(row.product_sku) : undefined,
+  }
+}
+
+function mapInvoice(row: Record<string, unknown>, items?: InvoiceItem[]): Invoice {
+  const itemCount = row.item_count != null ? Number(row.item_count) : items?.length
+  const totalValue =
+    row.total_value != null
+      ? Number(row.total_value)
+      : items?.reduce((sum, i) => sum + i.quantity * i.unitCost, 0)
+  return {
+    id: String(row.id),
+    number: String(row.number),
+    supplierId: row.supplier_id ? String(row.supplier_id) : null,
+    issueDate: String(row.issue_date),
+    notes: String(row.notes ?? ''),
+    createdAt: String(row.created_at),
+    supplierName: row.supplier_name != null ? String(row.supplier_name) : null,
+    items,
+    itemCount,
+    totalValue,
+  }
+}
+
+function mapRecipeItem(row: Record<string, unknown>): ProductRecipeItem {
+  return {
+    id: String(row.id),
+    finishedProductId: String(row.finished_product_id),
+    materialProductId: String(row.material_product_id),
+    quantity: Number(row.quantity),
+    materialName: row.material_name != null ? String(row.material_name) : undefined,
+    materialSku: row.material_sku != null ? String(row.material_sku) : undefined,
+    materialUnit: row.material_unit != null ? String(row.material_unit) : undefined,
+    materialStock: row.material_stock != null ? Number(row.material_stock) : undefined,
+  }
+}
+
+function mapManufacturingOrder(row: Record<string, unknown>): ManufacturingOrder {
+  return {
+    id: String(row.id),
+    finishedProductId: String(row.finished_product_id),
+    quantity: Number(row.quantity),
+    notes: String(row.notes ?? ''),
+    createdAt: String(row.created_at),
+    finishedProductName:
+      row.finished_product_name != null ? String(row.finished_product_name) : undefined,
+    finishedProductSku:
+      row.finished_product_sku != null ? String(row.finished_product_sku) : undefined,
+  }
+}
+
 export function getDbPath(): string {
   const dir = path.join(app.getPath('userData'), 'data')
   fs.mkdirSync(dir, { recursive: true })
@@ -145,6 +220,7 @@ export function initDatabase(): { path: string; seeded: boolean } {
       sale_price REAL NOT NULL DEFAULT 0 CHECK(sale_price >= 0),
       min_stock REAL NOT NULL DEFAULT 0 CHECK(min_stock >= 0),
       stock REAL NOT NULL DEFAULT 0 CHECK(stock >= 0),
+      product_type TEXT NOT NULL DEFAULT 'revenda',
       active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -170,9 +246,51 @@ export function initDatabase(): { path: string; seeded: boolean } {
 
     CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
     CREATE INDEX IF NOT EXISTS idx_products_active ON products(active);
+    CREATE INDEX IF NOT EXISTS idx_products_type ON products(product_type);
     CREATE INDEX IF NOT EXISTS idx_movements_created ON stock_movements(created_at);
     CREATE INDEX IF NOT EXISTS idx_movements_product ON stock_movements(product_id);
+
+    CREATE TABLE IF NOT EXISTS invoices (
+      id TEXT PRIMARY KEY,
+      number TEXT NOT NULL COLLATE NOCASE,
+      supplier_id TEXT REFERENCES suppliers(id),
+      issue_date TEXT NOT NULL,
+      notes TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL,
+      UNIQUE(number)
+    );
+
+    CREATE TABLE IF NOT EXISTS invoice_items (
+      id TEXT PRIMARY KEY,
+      invoice_id TEXT NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+      product_id TEXT NOT NULL REFERENCES products(id),
+      quantity REAL NOT NULL CHECK(quantity > 0),
+      unit_cost REAL NOT NULL DEFAULT 0 CHECK(unit_cost >= 0)
+    );
+
+    CREATE TABLE IF NOT EXISTS product_recipes (
+      id TEXT PRIMARY KEY,
+      finished_product_id TEXT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+      material_product_id TEXT NOT NULL REFERENCES products(id),
+      quantity REAL NOT NULL CHECK(quantity > 0),
+      UNIQUE(finished_product_id, material_product_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS manufacturing_orders (
+      id TEXT PRIMARY KEY,
+      finished_product_id TEXT NOT NULL REFERENCES products(id),
+      quantity REAL NOT NULL CHECK(quantity > 0),
+      notes TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_invoices_created ON invoices(created_at);
+    CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice ON invoice_items(invoice_id);
+    CREATE INDEX IF NOT EXISTS idx_recipes_finished ON product_recipes(finished_product_id);
+    CREATE INDEX IF NOT EXISTS idx_manufacturing_created ON manufacturing_orders(created_at);
   `)
+
+  migrateProductsTable(db)
 
   const count = db.prepare('SELECT COUNT(*) AS c FROM products').get() as { c: number }
   const meta = db.prepare("SELECT value FROM app_meta WHERE key = 'seed_offered'").get() as
@@ -185,6 +303,18 @@ export function initDatabase(): { path: string; seeded: boolean } {
 function requireDb(): Db {
   if (!db) throw new Error('Banco de dados não inicializado')
   return db
+}
+
+function migrateProductsTable(database: Db): void {
+  const cols = database.prepare('PRAGMA table_info(products)').all() as { name: string }[]
+  if (!cols.some((c) => c.name === 'product_type')) {
+    database.exec(`ALTER TABLE products ADD COLUMN product_type TEXT NOT NULL DEFAULT 'revenda'`)
+  }
+}
+
+function normalizeProductType(type: ProductType | string | undefined): ProductType {
+  if (type && isProductType(type)) return type
+  throw new Error('Tipo de produto inválido')
 }
 
 export function markSeedOffered(): void {
@@ -226,6 +356,7 @@ export function seedDemoData(): void {
       {
         sku: 'CAB-USB-C',
         name: 'Cabo USB-C 1m',
+        productType: 'revenda' as ProductType,
         categoryId: catEletronicos,
         supplierId: sup1,
         unit: 'un',
@@ -237,6 +368,7 @@ export function seedDemoData(): void {
       {
         sku: 'MOUSE-OP',
         name: 'Mouse óptico USB',
+        productType: 'revenda' as ProductType,
         categoryId: catEletronicos,
         supplierId: sup1,
         unit: 'un',
@@ -248,6 +380,7 @@ export function seedDemoData(): void {
       {
         sku: 'CANETA-AZ',
         name: 'Caneta esferográfica azul',
+        productType: 'revenda' as ProductType,
         categoryId: catEscritorio,
         supplierId: sup2,
         unit: 'cx',
@@ -259,6 +392,7 @@ export function seedDemoData(): void {
       {
         sku: 'RESMA-A4',
         name: 'Resma papel A4 500 folhas',
+        productType: 'materia_prima' as ProductType,
         categoryId: catEscritorio,
         supplierId: sup2,
         unit: 'un',
@@ -270,6 +404,7 @@ export function seedDemoData(): void {
       {
         sku: 'FITA-DUP',
         name: 'Fita adesiva dupla face',
+        productType: 'insumo' as ProductType,
         categoryId: catGeral,
         supplierId: null,
         unit: 'un',
@@ -283,8 +418,8 @@ export function seedDemoData(): void {
     const insertProd = database.prepare(
       `INSERT INTO products (
         id, sku, name, description, category_id, supplier_id, unit,
-        cost_price, sale_price, min_stock, stock, active, created_at, updated_at
-      ) VALUES (?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+        cost_price, sale_price, min_stock, stock, product_type, active, created_at, updated_at
+      ) VALUES (?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
     )
     const insertMov = database.prepare(
       `INSERT INTO stock_movements (
@@ -305,6 +440,7 @@ export function seedDemoData(): void {
         p.sale,
         p.min,
         p.stock,
+        p.productType,
         ts,
         ts,
       )
@@ -469,6 +605,10 @@ export function listProducts(filters: ProductFilters = {}): Product[] {
   if (filters.lowStockOnly) {
     clauses.push('p.stock <= p.min_stock')
   }
+  if (filters.productType) {
+    clauses.push('p.product_type = ?')
+    params.push(filters.productType)
+  }
 
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
   const rows = requireDb()
@@ -502,6 +642,7 @@ function validateProductFields(input: {
   sku: string
   name: string
   unit: string
+  productType: ProductType | string
   costPrice: number
   salePrice: number
   minStock: number
@@ -509,12 +650,14 @@ function validateProductFields(input: {
   if (!input.sku.trim()) throw new Error('SKU é obrigatório')
   if (!input.name.trim()) throw new Error('Nome do produto é obrigatório')
   if (!input.unit.trim()) throw new Error('Unidade é obrigatória')
+  normalizeProductType(input.productType)
   if (input.costPrice < 0 || input.salePrice < 0) throw new Error('Preços não podem ser negativos')
   if (input.minStock < 0) throw new Error('Estoque mínimo não pode ser negativo')
 }
 
 export function createProduct(input: ProductInput): Product {
   validateProductFields(input)
+  const productType = normalizeProductType(input.productType)
   const initial = input.initialStock ?? 0
   if (initial < 0) throw new Error('Estoque inicial não pode ser negativo')
 
@@ -528,8 +671,8 @@ export function createProduct(input: ProductInput): Product {
         .prepare(
           `INSERT INTO products (
             id, sku, name, description, category_id, supplier_id, unit,
-            cost_price, sale_price, min_stock, stock, active, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+            cost_price, sale_price, min_stock, stock, product_type, active, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
         )
         .run(
           id,
@@ -543,6 +686,7 @@ export function createProduct(input: ProductInput): Product {
           input.salePrice,
           input.minStock,
           initial,
+          productType,
           ts,
           ts,
         )
@@ -568,13 +712,14 @@ export function createProduct(input: ProductInput): Product {
 
 export function updateProduct(input: ProductUpdateInput): Product {
   validateProductFields(input)
+  const productType = normalizeProductType(input.productType)
   const ts = nowIso()
   try {
     const result = requireDb()
       .prepare(
         `UPDATE products SET
           sku = ?, name = ?, description = ?, category_id = ?, supplier_id = ?,
-          unit = ?, cost_price = ?, sale_price = ?, min_stock = ?, updated_at = ?
+          unit = ?, cost_price = ?, sale_price = ?, min_stock = ?, product_type = ?, updated_at = ?
          WHERE id = ?`,
       )
       .run(
@@ -587,6 +732,7 @@ export function updateProduct(input: ProductUpdateInput): Product {
         input.costPrice,
         input.salePrice,
         input.minStock,
+        productType,
         ts,
         input.id,
       )
@@ -607,11 +753,14 @@ export function setProductActive(id: string, active: boolean): Product {
   return getProduct(id)!
 }
 
-export function registerMovement(input: MovementInput): StockMovement {
+function registerMovementInternal(
+  database: Db,
+  input: MovementInput,
+  ts: string = nowIso(),
+): string {
   const reason = input.reason.trim()
   if (!reason) throw new Error('Motivo é obrigatório')
 
-  const database = requireDb()
   const product = database.prepare('SELECT * FROM products WHERE id = ?').get(input.productId) as
     | Record<string, unknown>
     | undefined
@@ -643,32 +792,35 @@ export function registerMovement(input: MovementInput): StockMovement {
   }
 
   const id = randomUUID()
+
+  database
+    .prepare(
+      `INSERT INTO stock_movements (
+        id, product_id, type, quantity, previous_stock, new_stock, reason, reference, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+    .run(
+      id,
+      input.productId,
+      input.type,
+      quantity,
+      previous,
+      newStock,
+      reason,
+      input.reference?.trim() ?? '',
+      ts,
+    )
+  database
+    .prepare('UPDATE products SET stock = ?, updated_at = ? WHERE id = ?')
+    .run(newStock, ts, input.productId)
+
+  return id
+}
+
+export function registerMovement(input: MovementInput): StockMovement {
+  const database = requireDb()
   const ts = nowIso()
-
-  const tx = database.transaction(() => {
-    database
-      .prepare(
-        `INSERT INTO stock_movements (
-          id, product_id, type, quantity, previous_stock, new_stock, reason, reference, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .run(
-        id,
-        input.productId,
-        input.type,
-        quantity,
-        previous,
-        newStock,
-        reason,
-        input.reference?.trim() ?? '',
-        ts,
-      )
-    database
-      .prepare('UPDATE products SET stock = ?, updated_at = ? WHERE id = ?')
-      .run(newStock, ts, input.productId)
-  })
-
-  tx()
+  const id = registerMovementInternal(database, input, ts)
 
   const row = database
     .prepare(
@@ -774,10 +926,11 @@ export function buildReport(
   if (type === 'posicao') {
     const products = listProducts({ active: true })
     return {
-      columns: ['SKU', 'Nome', 'Categoria', 'Saldo', 'Unidade', 'Custo', 'Valor', 'Status'],
+      columns: ['SKU', 'Nome', 'Tipo', 'Categoria', 'Saldo', 'Unidade', 'Custo', 'Valor', 'Status'],
       rows: products.map((p) => ({
         SKU: p.sku,
         Nome: p.name,
+        Tipo: productTypeLabel(p.productType),
         Categoria: p.categoryName ?? '',
         Saldo: p.stock,
         Unidade: p.unit,
@@ -817,4 +970,288 @@ export function buildReport(
       Motivo: m.reason,
     })),
   }
+}
+
+export function listInvoices(): Invoice[] {
+  const rows = requireDb()
+    .prepare(
+      `SELECT i.*, s.name AS supplier_name,
+              COUNT(ii.id) AS item_count,
+              COALESCE(SUM(ii.quantity * ii.unit_cost), 0) AS total_value
+       FROM invoices i
+       LEFT JOIN suppliers s ON s.id = i.supplier_id
+       LEFT JOIN invoice_items ii ON ii.invoice_id = i.id
+       GROUP BY i.id
+       ORDER BY i.created_at DESC
+       LIMIT 200`,
+    )
+    .all() as Record<string, unknown>[]
+
+  return rows.map((row) => mapInvoice(row))
+}
+
+export function getInvoice(id: string): Invoice | null {
+  const database = requireDb()
+  const row = database
+    .prepare(
+      `SELECT i.*, s.name AS supplier_name
+       FROM invoices i
+       LEFT JOIN suppliers s ON s.id = i.supplier_id
+       WHERE i.id = ?`,
+    )
+    .get(id) as Record<string, unknown> | undefined
+
+  if (!row) return null
+
+  const items = (
+    database
+      .prepare(
+        `SELECT ii.*, p.name AS product_name, p.sku AS product_sku
+         FROM invoice_items ii
+         JOIN products p ON p.id = ii.product_id
+         WHERE ii.invoice_id = ?
+         ORDER BY p.name`,
+      )
+      .all(id) as Record<string, unknown>[]
+  ).map(mapInvoiceItem)
+
+  return mapInvoice(row, items)
+}
+
+export function createInvoice(input: InvoiceInput): Invoice {
+  const number = input.number.trim()
+  if (!number) throw new Error('Número da fatura é obrigatório')
+  if (!input.issueDate.trim()) throw new Error('Data da fatura é obrigatória')
+  if (!input.items.length) throw new Error('Informe ao menos um item na fatura')
+
+  const database = requireDb()
+  const invoiceId = randomUUID()
+  const ts = nowIso()
+
+  const tx = database.transaction(() => {
+    try {
+      database
+        .prepare(
+          `INSERT INTO invoices (id, number, supplier_id, issue_date, notes, created_at)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          invoiceId,
+          number,
+          input.supplierId || null,
+          input.issueDate.trim(),
+          input.notes?.trim() ?? '',
+          ts,
+        )
+    } catch (err) {
+      if (String(err).includes('UNIQUE')) throw new Error('Já existe uma fatura com este número')
+      throw err
+    }
+
+    const insertItem = database.prepare(
+      `INSERT INTO invoice_items (id, invoice_id, product_id, quantity, unit_cost)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+
+    for (const item of input.items) {
+      if (!(item.quantity > 0)) {
+        throw new Error('Quantidade do item deve ser maior que zero')
+      }
+
+      const product = database.prepare('SELECT * FROM products WHERE id = ?').get(item.productId) as
+        | Record<string, unknown>
+        | undefined
+      if (!product) throw new Error('Produto não encontrado')
+      if (!product.active) throw new Error(`Produto inativo: ${product.name}`)
+
+      const unitCost = item.unitCost ?? Number(product.cost_price)
+      if (unitCost < 0) throw new Error('Custo unitário não pode ser negativo')
+
+      insertItem.run(randomUUID(), invoiceId, item.productId, item.quantity, unitCost)
+
+      registerMovementInternal(database, {
+        productId: item.productId,
+        type: 'entrada',
+        quantity: item.quantity,
+        reason: 'Entrada por fatura',
+        reference: number,
+      }, ts)
+    }
+  })
+
+  tx()
+  return getInvoice(invoiceId)!
+}
+
+export function getProductRecipe(finishedProductId: string): ProductRecipeItem[] {
+  const rows = requireDb()
+    .prepare(
+      `SELECT r.*, p.name AS material_name, p.sku AS material_sku, p.unit AS material_unit, p.stock AS material_stock
+       FROM product_recipes r
+       JOIN products p ON p.id = r.material_product_id
+       WHERE r.finished_product_id = ?
+       ORDER BY p.name`,
+    )
+    .all(finishedProductId) as Record<string, unknown>[]
+
+  return rows.map(mapRecipeItem)
+}
+
+export function saveProductRecipe(input: ProductRecipeInput): ProductRecipeItem[] {
+  const database = requireDb()
+  const finished = database
+    .prepare('SELECT * FROM products WHERE id = ?')
+    .get(input.finishedProductId) as Record<string, unknown> | undefined
+
+  if (!finished) throw new Error('Produto acabado não encontrado')
+  if (!finished.active) throw new Error('Produto acabado inativo não pode ter ficha técnica')
+  const finishedType = String(finished.product_type ?? 'revenda')
+  if (!FINISHED_PRODUCT_TYPES.includes(finishedType as ProductType)) {
+    throw new Error('A ficha técnica só pode ser cadastrada para produto final')
+  }
+
+  const seen = new Set<string>()
+  for (const item of input.items) {
+    if (!(item.quantity > 0)) {
+      throw new Error('Quantidade da matéria-prima deve ser maior que zero')
+    }
+    if (item.materialProductId === input.finishedProductId) {
+      throw new Error('O produto acabado não pode ser matéria-prima de si mesmo')
+    }
+    if (seen.has(item.materialProductId)) {
+      throw new Error('Matéria-prima duplicada na ficha técnica')
+    }
+    seen.add(item.materialProductId)
+
+    const material = database
+      .prepare('SELECT * FROM products WHERE id = ?')
+      .get(item.materialProductId) as Record<string, unknown> | undefined
+    if (!material) throw new Error('Matéria-prima não encontrada')
+    if (!material.active) throw new Error(`Matéria-prima inativa: ${material.name}`)
+    const materialType = String(material.product_type ?? 'revenda')
+    if (!MATERIAL_PRODUCT_TYPES.includes(materialType as ProductType)) {
+      throw new Error(`${material.name} deve ser matéria-prima ou insumo`)
+    }
+  }
+
+  const tx = database.transaction(() => {
+    database
+      .prepare('DELETE FROM product_recipes WHERE finished_product_id = ?')
+      .run(input.finishedProductId)
+
+    const insert = database.prepare(
+      `INSERT INTO product_recipes (id, finished_product_id, material_product_id, quantity)
+       VALUES (?, ?, ?, ?)`,
+    )
+
+    for (const item of input.items) {
+      insert.run(randomUUID(), input.finishedProductId, item.materialProductId, item.quantity)
+    }
+  })
+
+  tx()
+  return getProductRecipe(input.finishedProductId)
+}
+
+export function listManufacturingOrders(): ManufacturingOrder[] {
+  const rows = requireDb()
+    .prepare(
+      `SELECT mo.*, p.name AS finished_product_name, p.sku AS finished_product_sku
+       FROM manufacturing_orders mo
+       JOIN products p ON p.id = mo.finished_product_id
+       ORDER BY mo.created_at DESC
+       LIMIT 200`,
+    )
+    .all() as Record<string, unknown>[]
+
+  return rows.map(mapManufacturingOrder)
+}
+
+export function createManufacturingOrder(input: ManufacturingInput): ManufacturingOrder {
+  if (!(input.quantity > 0)) throw new Error('Quantidade produzida deve ser maior que zero')
+
+  const database = requireDb()
+  const finished = database
+    .prepare('SELECT * FROM products WHERE id = ?')
+    .get(input.finishedProductId) as Record<string, unknown> | undefined
+
+  if (!finished) throw new Error('Produto acabado não encontrado')
+  if (!finished.active) throw new Error('Produto acabado inativo não pode ser fabricado')
+  const finishedType = String(finished.product_type ?? 'revenda')
+  if (!FINISHED_PRODUCT_TYPES.includes(finishedType as ProductType)) {
+    throw new Error('Somente produto final pode ser fabricado')
+  }
+
+  const recipe = getProductRecipe(input.finishedProductId)
+  if (!recipe.length) {
+    throw new Error('Cadastre a ficha técnica (matérias-primas) antes de fabricar')
+  }
+
+  for (const item of recipe) {
+    const required = item.quantity * input.quantity
+    const stock = item.materialStock ?? 0
+    if (required > stock) {
+      throw new Error(
+        `Saldo insuficiente de ${item.materialName ?? 'matéria-prima'}. Necessário: ${required}, disponível: ${stock}`,
+      )
+    }
+  }
+
+  const orderId = randomUUID()
+  const ts = nowIso()
+  const reference = `FAB-${orderId.slice(0, 8).toUpperCase()}`
+
+  const tx = database.transaction(() => {
+    database
+      .prepare(
+        `INSERT INTO manufacturing_orders (id, finished_product_id, quantity, notes, created_at)
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+      .run(
+        orderId,
+        input.finishedProductId,
+        input.quantity,
+        input.notes?.trim() ?? '',
+        ts,
+      )
+
+    for (const item of recipe) {
+      registerMovementInternal(
+        database,
+        {
+          productId: item.materialProductId,
+          type: 'saida',
+          quantity: item.quantity * input.quantity,
+          reason: 'Baixa por fabricação',
+          reference,
+        },
+        ts,
+      )
+    }
+
+    registerMovementInternal(
+      database,
+      {
+        productId: input.finishedProductId,
+        type: 'entrada',
+        quantity: input.quantity,
+        reason: 'Entrada por fabricação',
+        reference,
+      },
+      ts,
+    )
+  })
+
+  tx()
+
+  const row = database
+    .prepare(
+      `SELECT mo.*, p.name AS finished_product_name, p.sku AS finished_product_sku
+       FROM manufacturing_orders mo
+       JOIN products p ON p.id = mo.finished_product_id
+       WHERE mo.id = ?`,
+    )
+    .get(orderId) as Record<string, unknown>
+
+  return mapManufacturingOrder(row)
 }

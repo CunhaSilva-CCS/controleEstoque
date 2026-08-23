@@ -3,14 +3,15 @@ import { useSearchParams } from 'react-router-dom'
 import { ModalForm } from '../components/ModalForm'
 import { StatusBadge } from '../components/StatusBadge'
 import { api, unwrap } from '../lib/api'
-import { formatCurrency, formatNumber } from '../lib/format'
+import { formatCurrency, formatNumber, productTypeLabel } from '../lib/format'
 import { useToast } from '../lib/toast'
-import type { Category, Product, Supplier } from '@shared/types'
+import { PRODUCT_TYPES, type Category, type Product, type ProductType, type Supplier } from '@shared/types'
 
 type ProductForm = {
   sku: string
   name: string
   description: string
+  productType: ProductType
   categoryId: string
   supplierId: string
   unit: string
@@ -24,6 +25,7 @@ const emptyForm: ProductForm = {
   sku: '',
   name: '',
   description: '',
+  productType: 'revenda',
   categoryId: '',
   supplierId: '',
   unit: 'un',
@@ -41,6 +43,7 @@ export function ProductsPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [search, setSearch] = useState('')
   const [categoryId, setCategoryId] = useState('')
+  const [productType, setProductType] = useState<'' | ProductType>('')
   const [lowOnly, setLowOnly] = useState(params.get('low') === '1')
   const [showInactive, setShowInactive] = useState(false)
   const [open, setOpen] = useState(false)
@@ -60,6 +63,7 @@ export function ProductsPage() {
         unwrap(api.listProducts({
           search,
           categoryId: categoryId || undefined,
+          productType: productType || undefined,
           active: showInactive ? undefined : true,
           lowStockOnly: lowOnly || undefined,
         })),
@@ -72,7 +76,7 @@ export function ProductsPage() {
     } catch (err) {
       push(err instanceof Error ? err.message : 'Erro ao listar produtos', 'err')
     }
-  }, [search, categoryId, lowOnly, showInactive, push])
+  }, [search, categoryId, productType, lowOnly, showInactive, push])
 
   useEffect(() => {
     void load()
@@ -100,6 +104,7 @@ export function ProductsPage() {
       sku: p.sku,
       name: p.name,
       description: p.description,
+      productType: p.productType,
       categoryId: p.categoryId ?? '',
       supplierId: p.supplierId ?? '',
       unit: p.unit,
@@ -118,6 +123,7 @@ export function ProductsPage() {
         sku: form.sku,
         name: form.name,
         description: form.description,
+        productType: form.productType,
         categoryId: form.categoryId || null,
         supplierId: form.supplierId || null,
         unit: form.unit,
@@ -219,6 +225,21 @@ export function ProductsPage() {
             ))}
           </select>
         </div>
+        <div className="field-inline">
+          <label htmlFor="ptype">Tipo</label>
+          <select
+            id="ptype"
+            value={productType}
+            onChange={(e) => setProductType(e.target.value as '' | ProductType)}
+          >
+            <option value="">Todos</option>
+            {PRODUCT_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </div>
         <label className="field-inline" style={{ justifyContent: 'flex-end' }}>
           <span>&nbsp;</span>
           <span className="btn btn-ghost" style={{ display: 'inline-flex', gap: 8 }}>
@@ -253,6 +274,7 @@ export function ProductsPage() {
                 <tr>
                   <th>SKU</th>
                   <th>Nome</th>
+                  <th>Tipo</th>
                   <th>Categoria</th>
                   <th>Saldo</th>
                   <th>Mín.</th>
@@ -269,6 +291,7 @@ export function ProductsPage() {
                       {p.name}
                       {!p.active ? <span className="muted"> · inativo</span> : null}
                     </td>
+                    <td>{productTypeLabel(p.productType)}</td>
                     <td>{p.categoryName ?? '—'}</td>
                     <td>
                       {formatNumber(p.stock)} {p.unit}
@@ -339,6 +362,23 @@ export function ProductsPage() {
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
               />
+            </div>
+            <div className="field">
+              <label htmlFor="ptype2">Tipo *</label>
+              <select
+                id="ptype2"
+                required
+                value={form.productType}
+                onChange={(e) =>
+                  setForm({ ...form, productType: e.target.value as ProductType })
+                }
+              >
+                {PRODUCT_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="field full">
               <label htmlFor="desc">Descrição</label>

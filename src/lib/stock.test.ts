@@ -8,6 +8,7 @@ describe('regras de estoque (API em memória)', () => {
       api.createProduct({
         sku: 'SKU-A',
         name: 'Produto A',
+        productType: 'revenda',
         unit: 'un',
         costPrice: 1,
         salePrice: 2,
@@ -17,6 +18,7 @@ describe('regras de estoque (API em memória)', () => {
     const dup = await api.createProduct({
       sku: 'sku-a',
       name: 'Outro',
+      productType: 'revenda',
       unit: 'un',
       costPrice: 1,
       salePrice: 2,
@@ -31,6 +33,7 @@ describe('regras de estoque (API em memória)', () => {
       api.createProduct({
         sku: `SKU-${crypto.randomUUID().slice(0, 8)}`,
         name: 'Cabo',
+        productType: 'revenda',
         unit: 'un',
         costPrice: 5,
         salePrice: 10,
@@ -69,6 +72,7 @@ describe('regras de estoque (API em memória)', () => {
       api.createProduct({
         sku: `SKU-${crypto.randomUUID().slice(0, 8)}`,
         name: 'Mouse',
+        productType: 'revenda',
         unit: 'un',
         costPrice: 20,
         salePrice: 40,

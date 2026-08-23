@@ -11,6 +11,7 @@ async function main() {
     api.createProduct({
       sku: 'TEST-001',
       name: 'Produto Teste',
+      productType: 'revenda',
       unit: 'un',
       costPrice: 10,
       salePrice: 20,

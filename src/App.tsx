@@ -5,6 +5,8 @@ import { api, unwrap } from './lib/api'
 import { useToast } from './lib/toast'
 import { CategoriesPage } from './pages/CategoriesPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { InvoicesPage } from './pages/InvoicesPage'
+import { ManufacturingPage } from './pages/ManufacturingPage'
 import { MovementsPage } from './pages/MovementsPage'
 import { ProductsPage } from './pages/ProductsPage'
 import { ReportsPage } from './pages/ReportsPage'
@@ -45,6 +47,8 @@ export default function App() {
         <Route path="produtos" element={<ProductsPage />} />
         <Route path="categorias" element={<CategoriesPage />} />
         <Route path="fornecedores" element={<SuppliersPage />} />
+        <Route path="faturas" element={<InvoicesPage />} />
+        <Route path="fabricacao" element={<ManufacturingPage />} />
         <Route path="movimentacoes" element={<MovementsPage />} />
         <Route path="relatorios" element={<ReportsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -10,17 +10,24 @@ import path from 'node:path'
 import {
   buildReport,
   createCategory,
+  createInvoice,
+  createManufacturingOrder,
   createProduct,
   createSupplier,
   getDashboard,
+  getInvoice,
   getProduct,
+  getProductRecipe,
   initDatabase,
   listCategories,
+  listInvoices,
+  listManufacturingOrders,
   listMovements,
   listProducts,
   listSuppliers,
   markSeedOffered,
   registerMovement,
+  saveProductRecipe,
   seedDemoData,
   setProductActive,
   updateCategory,
@@ -33,10 +40,13 @@ import {
   registerProcessErrorHandlers,
 } from './telemetry'
 import type {
+  InvoiceInput,
+  ManufacturingInput,
   MovementFilters,
   MovementInput,
   ProductFilters,
   ProductInput,
+  ProductRecipeInput,
   ProductUpdateInput,
 } from '../shared/types'
 
@@ -282,6 +292,62 @@ function registerIpc(): void {
       }
     },
   )
+
+  ipcMain.handle('invoices:list', () => {
+    try {
+      return ok(listInvoices())
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('invoices:get', (_e, id: string) => {
+    try {
+      return ok(getInvoice(id))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('invoices:create', (_e, input: InvoiceInput) => {
+    try {
+      return ok(createInvoice(input))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('recipes:get', (_e, finishedProductId: string) => {
+    try {
+      return ok(getProductRecipe(finishedProductId))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('recipes:save', (_e, input: ProductRecipeInput) => {
+    try {
+      return ok(saveProductRecipe(input))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('manufacturing:list', () => {
+    try {
+      return ok(listManufacturingOrders())
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('manufacturing:create', (_e, input: ManufacturingInput) => {
+    try {
+      return ok(createManufacturingOrder(input))
+    } catch (error) {
+      return fail(error)
+    }
+  })
 }
 
 app.whenReady().then(() => {

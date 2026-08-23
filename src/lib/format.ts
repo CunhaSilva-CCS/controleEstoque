@@ -27,3 +27,5 @@ export function movementLabel(type: string): string {
   if (type === 'saida') return 'Saída'
   return 'Ajuste'
 }
+
+export { productTypeLabel } from '@shared/product-types'
