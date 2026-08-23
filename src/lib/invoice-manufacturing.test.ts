@@ -7,6 +7,7 @@ describe('faturas e fabricação (API em memória)', () => {
       api.createProduct({
         sku,
         name: `Material ${sku}`,
+        productType: 'materia_prima',
         unit: 'un',
         costPrice: 2,
         salePrice: 5,
@@ -21,6 +22,7 @@ describe('faturas e fabricação (API em memória)', () => {
       api.createProduct({
         sku,
         name: `Acabado ${sku}`,
+        productType: 'produto_final',
         unit: 'un',
         costPrice: 10,
         salePrice: 25,

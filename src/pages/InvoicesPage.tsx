@@ -365,6 +365,7 @@ export function InvoicesPage() {
         }}
         onCreated={handleProductCreated}
         defaultSupplierId={supplierId}
+        defaultProductType="materia_prima"
         zeroInitialStock
       />
 

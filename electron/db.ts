@@ -23,6 +23,13 @@ import type {
   StockMovement,
   Supplier,
 } from '../shared/types'
+import {
+  FINISHED_PRODUCT_TYPES,
+  isProductType,
+  MATERIAL_PRODUCT_TYPES,
+  productTypeLabel,
+  type ProductType,
+} from '../shared/product-types'
 
 type Db = Database.Database
 
@@ -42,11 +49,13 @@ function mapProduct(row: Record<string, unknown>): Product {
   const stock = Number(row.stock)
   const minStock = Number(row.min_stock)
   const costPrice = Number(row.cost_price)
+  const rawType = String(row.product_type ?? 'revenda')
   return {
     id: String(row.id),
     sku: String(row.sku),
     name: String(row.name),
     description: String(row.description ?? ''),
+    productType: isProductType(rawType) ? rawType : 'revenda',
     categoryId: row.category_id ? String(row.category_id) : null,
     supplierId: row.supplier_id ? String(row.supplier_id) : null,
     unit: String(row.unit),
@@ -211,6 +220,7 @@ export function initDatabase(): { path: string; seeded: boolean } {
       sale_price REAL NOT NULL DEFAULT 0 CHECK(sale_price >= 0),
       min_stock REAL NOT NULL DEFAULT 0 CHECK(min_stock >= 0),
       stock REAL NOT NULL DEFAULT 0 CHECK(stock >= 0),
+      product_type TEXT NOT NULL DEFAULT 'revenda',
       active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -236,6 +246,7 @@ export function initDatabase(): { path: string; seeded: boolean } {
 
     CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
     CREATE INDEX IF NOT EXISTS idx_products_active ON products(active);
+    CREATE INDEX IF NOT EXISTS idx_products_type ON products(product_type);
     CREATE INDEX IF NOT EXISTS idx_movements_created ON stock_movements(created_at);
     CREATE INDEX IF NOT EXISTS idx_movements_product ON stock_movements(product_id);
 
@@ -279,6 +290,8 @@ export function initDatabase(): { path: string; seeded: boolean } {
     CREATE INDEX IF NOT EXISTS idx_manufacturing_created ON manufacturing_orders(created_at);
   `)
 
+  migrateProductsTable(db)
+
   const count = db.prepare('SELECT COUNT(*) AS c FROM products').get() as { c: number }
   const meta = db.prepare("SELECT value FROM app_meta WHERE key = 'seed_offered'").get() as
     | { value: string }
@@ -290,6 +303,18 @@ export function initDatabase(): { path: string; seeded: boolean } {
 function requireDb(): Db {
   if (!db) throw new Error('Banco de dados não inicializado')
   return db
+}
+
+function migrateProductsTable(database: Db): void {
+  const cols = database.prepare('PRAGMA table_info(products)').all() as { name: string }[]
+  if (!cols.some((c) => c.name === 'product_type')) {
+    database.exec(`ALTER TABLE products ADD COLUMN product_type TEXT NOT NULL DEFAULT 'revenda'`)
+  }
+}
+
+function normalizeProductType(type: ProductType | string | undefined): ProductType {
+  if (type && isProductType(type)) return type
+  throw new Error('Tipo de produto inválido')
 }
 
 export function markSeedOffered(): void {
@@ -331,6 +356,7 @@ export function seedDemoData(): void {
       {
         sku: 'CAB-USB-C',
         name: 'Cabo USB-C 1m',
+        productType: 'revenda' as ProductType,
         categoryId: catEletronicos,
         supplierId: sup1,
         unit: 'un',
@@ -342,6 +368,7 @@ export function seedDemoData(): void {
       {
         sku: 'MOUSE-OP',
         name: 'Mouse óptico USB',
+        productType: 'revenda' as ProductType,
         categoryId: catEletronicos,
         supplierId: sup1,
         unit: 'un',
@@ -353,6 +380,7 @@ export function seedDemoData(): void {
       {
         sku: 'CANETA-AZ',
         name: 'Caneta esferográfica azul',
+        productType: 'revenda' as ProductType,
         categoryId: catEscritorio,
         supplierId: sup2,
         unit: 'cx',
@@ -364,6 +392,7 @@ export function seedDemoData(): void {
       {
         sku: 'RESMA-A4',
         name: 'Resma papel A4 500 folhas',
+        productType: 'materia_prima' as ProductType,
         categoryId: catEscritorio,
         supplierId: sup2,
         unit: 'un',
@@ -375,6 +404,7 @@ export function seedDemoData(): void {
       {
         sku: 'FITA-DUP',
         name: 'Fita adesiva dupla face',
+        productType: 'insumo' as ProductType,
         categoryId: catGeral,
         supplierId: null,
         unit: 'un',
@@ -388,8 +418,8 @@ export function seedDemoData(): void {
     const insertProd = database.prepare(
       `INSERT INTO products (
         id, sku, name, description, category_id, supplier_id, unit,
-        cost_price, sale_price, min_stock, stock, active, created_at, updated_at
-      ) VALUES (?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+        cost_price, sale_price, min_stock, stock, product_type, active, created_at, updated_at
+      ) VALUES (?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
     )
     const insertMov = database.prepare(
       `INSERT INTO stock_movements (
@@ -410,6 +440,7 @@ export function seedDemoData(): void {
         p.sale,
         p.min,
         p.stock,
+        p.productType,
         ts,
         ts,
       )
@@ -574,6 +605,10 @@ export function listProducts(filters: ProductFilters = {}): Product[] {
   if (filters.lowStockOnly) {
     clauses.push('p.stock <= p.min_stock')
   }
+  if (filters.productType) {
+    clauses.push('p.product_type = ?')
+    params.push(filters.productType)
+  }
 
   const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
   const rows = requireDb()
@@ -607,6 +642,7 @@ function validateProductFields(input: {
   sku: string
   name: string
   unit: string
+  productType: ProductType | string
   costPrice: number
   salePrice: number
   minStock: number
@@ -614,12 +650,14 @@ function validateProductFields(input: {
   if (!input.sku.trim()) throw new Error('SKU é obrigatório')
   if (!input.name.trim()) throw new Error('Nome do produto é obrigatório')
   if (!input.unit.trim()) throw new Error('Unidade é obrigatória')
+  normalizeProductType(input.productType)
   if (input.costPrice < 0 || input.salePrice < 0) throw new Error('Preços não podem ser negativos')
   if (input.minStock < 0) throw new Error('Estoque mínimo não pode ser negativo')
 }
 
 export function createProduct(input: ProductInput): Product {
   validateProductFields(input)
+  const productType = normalizeProductType(input.productType)
   const initial = input.initialStock ?? 0
   if (initial < 0) throw new Error('Estoque inicial não pode ser negativo')
 
@@ -633,8 +671,8 @@ export function createProduct(input: ProductInput): Product {
         .prepare(
           `INSERT INTO products (
             id, sku, name, description, category_id, supplier_id, unit,
-            cost_price, sale_price, min_stock, stock, active, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+            cost_price, sale_price, min_stock, stock, product_type, active, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
         )
         .run(
           id,
@@ -648,6 +686,7 @@ export function createProduct(input: ProductInput): Product {
           input.salePrice,
           input.minStock,
           initial,
+          productType,
           ts,
           ts,
         )
@@ -673,13 +712,14 @@ export function createProduct(input: ProductInput): Product {
 
 export function updateProduct(input: ProductUpdateInput): Product {
   validateProductFields(input)
+  const productType = normalizeProductType(input.productType)
   const ts = nowIso()
   try {
     const result = requireDb()
       .prepare(
         `UPDATE products SET
           sku = ?, name = ?, description = ?, category_id = ?, supplier_id = ?,
-          unit = ?, cost_price = ?, sale_price = ?, min_stock = ?, updated_at = ?
+          unit = ?, cost_price = ?, sale_price = ?, min_stock = ?, product_type = ?, updated_at = ?
          WHERE id = ?`,
       )
       .run(
@@ -692,6 +732,7 @@ export function updateProduct(input: ProductUpdateInput): Product {
         input.costPrice,
         input.salePrice,
         input.minStock,
+        productType,
         ts,
         input.id,
       )
@@ -885,10 +926,11 @@ export function buildReport(
   if (type === 'posicao') {
     const products = listProducts({ active: true })
     return {
-      columns: ['SKU', 'Nome', 'Categoria', 'Saldo', 'Unidade', 'Custo', 'Valor', 'Status'],
+      columns: ['SKU', 'Nome', 'Tipo', 'Categoria', 'Saldo', 'Unidade', 'Custo', 'Valor', 'Status'],
       rows: products.map((p) => ({
         SKU: p.sku,
         Nome: p.name,
+        Tipo: productTypeLabel(p.productType),
         Categoria: p.categoryName ?? '',
         Saldo: p.stock,
         Unidade: p.unit,
@@ -1063,6 +1105,10 @@ export function saveProductRecipe(input: ProductRecipeInput): ProductRecipeItem[
 
   if (!finished) throw new Error('Produto acabado não encontrado')
   if (!finished.active) throw new Error('Produto acabado inativo não pode ter ficha técnica')
+  const finishedType = String(finished.product_type ?? 'revenda')
+  if (!FINISHED_PRODUCT_TYPES.includes(finishedType as ProductType)) {
+    throw new Error('A ficha técnica só pode ser cadastrada para produto final')
+  }
 
   const seen = new Set<string>()
   for (const item of input.items) {
@@ -1082,6 +1128,10 @@ export function saveProductRecipe(input: ProductRecipeInput): ProductRecipeItem[
       .get(item.materialProductId) as Record<string, unknown> | undefined
     if (!material) throw new Error('Matéria-prima não encontrada')
     if (!material.active) throw new Error(`Matéria-prima inativa: ${material.name}`)
+    const materialType = String(material.product_type ?? 'revenda')
+    if (!MATERIAL_PRODUCT_TYPES.includes(materialType as ProductType)) {
+      throw new Error(`${material.name} deve ser matéria-prima ou insumo`)
+    }
   }
 
   const tx = database.transaction(() => {
@@ -1127,6 +1177,10 @@ export function createManufacturingOrder(input: ManufacturingInput): Manufacturi
 
   if (!finished) throw new Error('Produto acabado não encontrado')
   if (!finished.active) throw new Error('Produto acabado inativo não pode ser fabricado')
+  const finishedType = String(finished.product_type ?? 'revenda')
+  if (!FINISHED_PRODUCT_TYPES.includes(finishedType as ProductType)) {
+    throw new Error('Somente produto final pode ser fabricado')
+  }
 
   const recipe = getProductRecipe(input.finishedProductId)
   if (!recipe.length) {

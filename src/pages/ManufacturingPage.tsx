@@ -4,7 +4,11 @@ import { QuickProductModal } from '../components/QuickProductModal'
 import { api, unwrap } from '../lib/api'
 import { formatDateTime, formatNumber } from '../lib/format'
 import { useToast } from '../lib/toast'
-import type { ManufacturingOrder, Product, ProductRecipeItem } from '@shared/types'
+import {
+  FINISHED_PRODUCT_TYPES,
+  MATERIAL_PRODUCT_TYPES,
+} from '@shared/product-types'
+import type { ManufacturingOrder, Product, ProductRecipeItem, ProductType } from '@shared/types'
 
 type RecipeDraft = {
   key: string
@@ -12,8 +16,8 @@ type RecipeDraft = {
   quantity: string
 }
 
-function newRecipeRow(products: Product[], excludeId: string): RecipeDraft {
-  const material = products.find((p) => p.id !== excludeId)
+function newRecipeRow(materials: Product[]): RecipeDraft {
+  const material = materials[0]
   return {
     key: crypto.randomUUID(),
     materialProductId: material?.id ?? '',
@@ -33,9 +37,11 @@ export function ManufacturingPage() {
   const [produceQty, setProduceQty] = useState('1')
   const [produceNotes, setProduceNotes] = useState('')
   const [productModalOpen, setProductModalOpen] = useState(false)
+  const [productModalType, setProductModalType] = useState<ProductType>('produto_final')
 
-  const finishedProduct = products.find((p) => p.id === finishedProductId)
-  const materials = products.filter((p) => p.id !== finishedProductId)
+  const finishedProducts = products.filter((p) => FINISHED_PRODUCT_TYPES.includes(p.productType))
+  const materials = products.filter((p) => MATERIAL_PRODUCT_TYPES.includes(p.productType))
+  const finishedProduct = finishedProducts.find((p) => p.id === finishedProductId)
 
   const load = useCallback(async () => {
     try {
@@ -45,8 +51,11 @@ export function ManufacturingPage() {
       ])
       setProducts(prods)
       setOrders(list)
-      if (!finishedProductId && prods[0]) {
-        setFinishedProductId(prods[0].id)
+      const finished = prods.filter((p) => FINISHED_PRODUCT_TYPES.includes(p.productType))
+      if (!finishedProductId && finished[0]) {
+        setFinishedProductId(finished[0].id)
+      } else if (finishedProductId && !finished.some((p) => p.id === finishedProductId)) {
+        setFinishedProductId(finished[0]?.id ?? '')
       }
     } catch (err) {
       push(err instanceof Error ? err.message : 'Erro ao carregar fabricação', 'err')
@@ -83,7 +92,7 @@ export function ManufacturingPage() {
             materialProductId: item.materialProductId,
             quantity: String(item.quantity),
           }))
-        : [newRecipeRow(products, finishedProductId)],
+        : [newRecipeRow(materials)],
     )
     setRecipeOpen(true)
   }
@@ -93,7 +102,19 @@ export function ManufacturingPage() {
   }
 
   function addDraftRow() {
-    setRecipeDraft((prev) => [...prev, newRecipeRow(products, finishedProductId)])
+    setRecipeDraft((prev) => [...prev, newRecipeRow(materials)])
+  }
+
+  function openProductModal(type: ProductType) {
+    setProductModalType(type)
+    setProductModalOpen(true)
+  }
+
+  function handleProductCreated(product: Product) {
+    setProducts((prev) => [...prev, product].sort((a, b) => a.name.localeCompare(b.name)))
+    if (FINISHED_PRODUCT_TYPES.includes(product.productType)) {
+      setFinishedProductId(product.id)
+    }
   }
 
   function removeDraftRow(key: string) {
@@ -141,11 +162,6 @@ export function ManufacturingPage() {
     }
   }
 
-  function handleProductCreated(product: Product) {
-    setProducts((prev) => [...prev, product].sort((a, b) => a.name.localeCompare(b.name)))
-    setFinishedProductId(product.id)
-  }
-
   const batchQty = Number(produceQty) || 0
 
   return (
@@ -156,8 +172,11 @@ export function ManufacturingPage() {
           <p>Baixa automática de matérias-primas e entrada do produto acabado</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-          <button type="button" className="btn btn-ghost" onClick={() => setProductModalOpen(true)}>
-            Novo produto
+          <button type="button" className="btn btn-ghost" onClick={() => openProductModal('produto_final')}>
+            Novo produto final
+          </button>
+          <button type="button" className="btn btn-ghost" onClick={() => openProductModal('materia_prima')}>
+            Nova matéria-prima
           </button>
           <button
             className="btn btn-ghost"
@@ -184,7 +203,7 @@ export function ManufacturingPage() {
             value={finishedProductId}
             onChange={(e) => setFinishedProductId(e.target.value)}
           >
-            {products.map((p) => (
+            {finishedProducts.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.sku} · {p.name} (saldo: {formatNumber(p.stock)} {p.unit})
               </option>
@@ -193,6 +212,13 @@ export function ManufacturingPage() {
         </div>
       </div>
 
+      {finishedProducts.length === 0 ? (
+        <div className="panel">
+          <div className="empty">
+            Cadastre um produto final para configurar a fabricação.
+          </div>
+        </div>
+      ) : (
       <div className="panel">
         <h3>Ficha técnica</h3>
         {recipe.length === 0 ? (
@@ -228,6 +254,7 @@ export function ManufacturingPage() {
           </div>
         )}
       </div>
+      )}
 
       <div className="panel" style={{ padding: 0, marginTop: '1rem' }}>
         <h3 style={{ padding: '1rem 1rem 0' }}>Histórico de fabricação</h3>
@@ -273,18 +300,27 @@ export function ManufacturingPage() {
             <div key={row.key} className="form-grid item-row">
               <div className="field full">
                 <label htmlFor={`mat-${row.key}`}>Matéria-prima *</label>
-                <select
-                  id={`mat-${row.key}`}
-                  required
-                  value={row.materialProductId}
-                  onChange={(e) => updateDraft(row.key, { materialProductId: e.target.value })}
-                >
-                  {materials.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.sku} · {p.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="field-with-action">
+                  <select
+                    id={`mat-${row.key}`}
+                    required
+                    value={row.materialProductId}
+                    onChange={(e) => updateDraft(row.key, { materialProductId: e.target.value })}
+                  >
+                    {materials.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.sku} · {p.name}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => openProductModal('materia_prima')}
+                  >
+                    + Novo
+                  </button>
+                </div>
               </div>
               <div className="field">
                 <label htmlFor={`rqty-${row.key}`}>Qtd por unidade *</label>
@@ -386,6 +422,7 @@ export function ManufacturingPage() {
         open={productModalOpen}
         onClose={() => setProductModalOpen(false)}
         onCreated={handleProductCreated}
+        defaultProductType={productModalType}
         zeroInitialStock
       />
     </div>

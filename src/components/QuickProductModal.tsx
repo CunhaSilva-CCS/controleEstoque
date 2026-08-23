@@ -2,13 +2,15 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { ModalForm } from './ModalForm'
 import { api, unwrap } from '../lib/api'
 import { useToast } from '../lib/toast'
-import type { Category, Product, Supplier } from '@shared/types'
+import type { Category, Product, ProductType, Supplier } from '@shared/types'
+import { PRODUCT_TYPES } from '@shared/product-types'
 
 type Props = {
   open: boolean
   onClose: () => void
   onCreated: (product: Product) => void
   defaultSupplierId?: string
+  defaultProductType?: ProductType
   /** When true, product starts with zero stock (e.g. stock will come from invoice). */
   zeroInitialStock?: boolean
 }
@@ -18,6 +20,7 @@ export function QuickProductModal({
   onClose,
   onCreated,
   defaultSupplierId = '',
+  defaultProductType = 'revenda',
   zeroInitialStock = false,
 }: Props) {
   const { push } = useToast()
@@ -26,6 +29,7 @@ export function QuickProductModal({
   const [sku, setSku] = useState('')
   const [name, setName] = useState('')
   const [unit, setUnit] = useState('un')
+  const [productType, setProductType] = useState<ProductType>(defaultProductType)
   const [categoryId, setCategoryId] = useState('')
   const [supplierId, setSupplierId] = useState(defaultSupplierId)
   const [costPrice, setCostPrice] = useState('0')
@@ -35,6 +39,7 @@ export function QuickProductModal({
   useEffect(() => {
     if (!open) return
     setSupplierId(defaultSupplierId)
+    setProductType(defaultProductType)
     void (async () => {
       try {
         const [cats, sups] = await Promise.all([
@@ -47,7 +52,7 @@ export function QuickProductModal({
         push(err instanceof Error ? err.message : 'Erro ao carregar dados', 'err')
       }
     })()
-  }, [open, defaultSupplierId, push])
+  }, [open, defaultSupplierId, defaultProductType, push])
 
   if (!open) return null
 
@@ -59,6 +64,7 @@ export function QuickProductModal({
           sku,
           name,
           unit,
+          productType,
           categoryId: categoryId || null,
           supplierId: supplierId || null,
           costPrice: Number(costPrice) || 0,
@@ -72,6 +78,7 @@ export function QuickProductModal({
       setSku('')
       setName('')
       setUnit('un')
+      setProductType(defaultProductType)
       setCategoryId('')
       setCostPrice('0')
       setSalePrice('0')
@@ -106,6 +113,21 @@ export function QuickProductModal({
         <div className="field full">
           <label htmlFor="qpname">Nome *</label>
           <input id="qpname" required value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+        <div className="field">
+          <label htmlFor="qpptype">Tipo *</label>
+          <select
+            id="qpptype"
+            required
+            value={productType}
+            onChange={(e) => setProductType(e.target.value as ProductType)}
+          >
+            {PRODUCT_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="field">
           <label htmlFor="qpcat">Categoria</label>

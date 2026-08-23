@@ -20,6 +20,13 @@ import type {
   StockMovement,
   Supplier,
 } from '@shared/types'
+import {
+  FINISHED_PRODUCT_TYPES,
+  isProductType,
+  MATERIAL_PRODUCT_TYPES,
+  productTypeLabel,
+  type ProductType,
+} from '@shared/product-types'
 
 function computeStatus(stock: number, minStock: number): ProductStatus {
   if (stock <= 0) return 'zero'
@@ -188,6 +195,7 @@ function createMemoryApi() {
         {
           sku: 'CAB-USB-C',
           name: 'Cabo USB-C 1m',
+          productType: 'revenda' as ProductType,
           categoryId: catEletronicos,
           supplierId: sup1,
           unit: 'un',
@@ -199,6 +207,7 @@ function createMemoryApi() {
         {
           sku: 'MOUSE-OP',
           name: 'Mouse óptico USB',
+          productType: 'revenda' as ProductType,
           categoryId: catEletronicos,
           supplierId: sup1,
           unit: 'un',
@@ -210,6 +219,7 @@ function createMemoryApi() {
         {
           sku: 'CANETA-AZ',
           name: 'Caneta esferográfica azul',
+          productType: 'revenda' as ProductType,
           categoryId: catEscritorio,
           supplierId: sup2,
           unit: 'cx',
@@ -221,6 +231,7 @@ function createMemoryApi() {
         {
           sku: 'RESMA-A4',
           name: 'Resma papel A4 500 folhas',
+          productType: 'materia_prima' as ProductType,
           categoryId: catEscritorio,
           supplierId: sup2,
           unit: 'un',
@@ -232,6 +243,7 @@ function createMemoryApi() {
         {
           sku: 'FITA-DUP',
           name: 'Fita adesiva dupla face',
+          productType: 'insumo' as ProductType,
           categoryId: catGeral,
           supplierId: null as string | null,
           unit: 'un',
@@ -364,6 +376,7 @@ function createMemoryApi() {
       if (filters.categoryId) list = list.filter((p) => p.categoryId === filters.categoryId)
       if (filters.active !== undefined) list = list.filter((p) => p.active === filters.active)
       if (filters.lowStockOnly) list = list.filter((p) => p.stock <= p.minStock)
+      if (filters.productType) list = list.filter((p) => p.productType === filters.productType)
       return ok(list.sort((a, b) => a.name.localeCompare(b.name)))
     },
     async getProduct(id: string) {
@@ -376,6 +389,7 @@ function createMemoryApi() {
       if (products.some((p) => p.sku.toLowerCase() === input.sku.trim().toLowerCase())) {
         return fail('Já existe um produto com este SKU')
       }
+      if (!isProductType(input.productType)) return fail('Tipo de produto inválido')
       const initial = input.initialStock ?? 0
       const ts = now()
       const p: Product = enrich({
@@ -383,6 +397,7 @@ function createMemoryApi() {
         sku: input.sku.trim(),
         name: input.name.trim(),
         description: input.description?.trim() ?? '',
+        productType: input.productType,
         categoryId: input.categoryId || null,
         supplierId: input.supplierId || null,
         unit: input.unit.trim(),
@@ -422,10 +437,12 @@ function createMemoryApi() {
       ) {
         return fail('Já existe um produto com este SKU')
       }
+      if (!isProductType(input.productType)) return fail('Tipo de produto inválido')
       Object.assign(p, {
         sku: input.sku.trim(),
         name: input.name.trim(),
         description: input.description?.trim() ?? '',
+        productType: input.productType,
         categoryId: input.categoryId || null,
         supplierId: input.supplierId || null,
         unit: input.unit.trim(),
@@ -482,10 +499,11 @@ function createMemoryApi() {
         const res = await this.listProducts({ active: true })
         const list = res.ok ? res.data : []
         return ok({
-          columns: ['SKU', 'Nome', 'Categoria', 'Saldo', 'Unidade', 'Custo', 'Valor', 'Status'],
+          columns: ['SKU', 'Nome', 'Tipo', 'Categoria', 'Saldo', 'Unidade', 'Custo', 'Valor', 'Status'],
           rows: list.map((p) => ({
             SKU: p.sku,
             Nome: p.name,
+            Tipo: productTypeLabel(p.productType),
             Categoria: p.categoryName ?? '',
             Saldo: p.stock,
             Unidade: p.unit,
@@ -654,6 +672,9 @@ function createMemoryApi() {
       const finished = products.find((p) => p.id === input.finishedProductId)
       if (!finished) return fail('Produto acabado não encontrado')
       if (!finished.active) return fail('Produto acabado inativo não pode ter ficha técnica')
+      if (!FINISHED_PRODUCT_TYPES.includes(finished.productType)) {
+        return fail('A ficha técnica só pode ser cadastrada para produto final')
+      }
 
       const seen = new Set<string>()
       for (const item of input.items) {
@@ -670,6 +691,9 @@ function createMemoryApi() {
         const material = products.find((p) => p.id === item.materialProductId)
         if (!material) return fail('Matéria-prima não encontrada')
         if (!material.active) return fail(`Matéria-prima inativa: ${material.name}`)
+        if (!MATERIAL_PRODUCT_TYPES.includes(material.productType)) {
+          return fail(`${material.name} deve ser matéria-prima ou insumo`)
+        }
       }
 
       for (let i = recipes.length - 1; i >= 0; i--) {
@@ -708,6 +732,9 @@ function createMemoryApi() {
       const finished = products.find((p) => p.id === input.finishedProductId)
       if (!finished) return fail('Produto acabado não encontrado')
       if (!finished.active) return fail('Produto acabado inativo não pode ser fabricado')
+      if (!FINISHED_PRODUCT_TYPES.includes(finished.productType)) {
+        return fail('Somente produto final pode ser fabricado')
+      }
 
       const recipeRes = await this.getProductRecipe(input.finishedProductId)
       if (!recipeRes.ok) return recipeRes
