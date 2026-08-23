@@ -3,7 +3,10 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, HashRouter } from 'react-router-dom'
 import App from './App'
 import { ToastProvider } from './lib/toast'
+import { initRendererTelemetry } from './lib/telemetry'
 import './styles.css'
+
+initRendererTelemetry()
 
 const isFileProtocol = window.location.protocol === 'file:'
 const Router = isFileProtocol ? HashRouter : BrowserRouter

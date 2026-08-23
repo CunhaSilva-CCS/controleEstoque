@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validar (typecheck, testes, build)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Testes unitários
+        run: npm test
+
+      - name: Smoke test
+        run: npm run smoke
+
+      - name: Build
+        run: npm run build
+
+      - name: Audit de dependências (produção)
+        run: npm audit --omit=dev --audit-level=high
+
+  build-linux:
+    name: Build Electron (Linux)
+    runs-on: ubuntu-latest
+    needs: validate
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Dependências nativas (SQLite)
+        run: sudo apt-get update && sudo apt-get install -y libsqlite3-dev
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Empacotar (Linux)
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+        run: npm run electron:build
+
+      - name: Upload artefatos Linux
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: release/
+          if-no-files-found: error
+          retention-days: 14

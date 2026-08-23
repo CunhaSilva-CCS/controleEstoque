@@ -1,4 +1,4 @@
-import { api, unwrap } from './src/lib/api'
+import { api, unwrap } from '../src/lib/api'
 
 async function main() {
   await unwrap(api.init())
