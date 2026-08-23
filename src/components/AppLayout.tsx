@@ -20,7 +20,7 @@ export function AppLayout() {
         <div className="brand">
           <div className="brand-mark">CE</div>
           <h1>Controle de Estoque</h1>
-          <p>Gestão local · offline-first</p>
+          <p>Gestão corporativa</p>
         </div>
         <nav className="nav">
           {links.map((link) => (
