@@ -479,6 +479,24 @@ tr:hover td {
   color: #e07a5f;
 }
 
+.field-with-action {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.field-with-action select,
+.field-with-action input {
+  flex: 1;
+}
+
+.row-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .item-row hr {
   border: none;
   border-top: 1px solid var(--line);

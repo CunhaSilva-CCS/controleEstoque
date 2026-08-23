@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { ModalForm } from '../components/ModalForm'
+import { QuickProductModal } from '../components/QuickProductModal'
 import { api, unwrap } from '../lib/api'
 import { formatDateTime, formatNumber } from '../lib/format'
 import { useToast } from '../lib/toast'
@@ -31,6 +32,7 @@ export function ManufacturingPage() {
   const [produceOpen, setProduceOpen] = useState(false)
   const [produceQty, setProduceQty] = useState('1')
   const [produceNotes, setProduceNotes] = useState('')
+  const [productModalOpen, setProductModalOpen] = useState(false)
 
   const finishedProduct = products.find((p) => p.id === finishedProductId)
   const materials = products.filter((p) => p.id !== finishedProductId)
@@ -139,6 +141,11 @@ export function ManufacturingPage() {
     }
   }
 
+  function handleProductCreated(product: Product) {
+    setProducts((prev) => [...prev, product].sort((a, b) => a.name.localeCompare(b.name)))
+    setFinishedProductId(product.id)
+  }
+
   const batchQty = Number(produceQty) || 0
 
   return (
@@ -148,7 +155,10 @@ export function ManufacturingPage() {
           <h2>Fabricação</h2>
           <p>Baixa automática de matérias-primas e entrada do produto acabado</p>
         </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button type="button" className="btn btn-ghost" onClick={() => setProductModalOpen(true)}>
+            Novo produto
+          </button>
           <button
             className="btn btn-ghost"
             onClick={openRecipeEditor}
@@ -371,6 +381,13 @@ export function ManufacturingPage() {
           ) : null}
         </ModalForm>
       ) : null}
+
+      <QuickProductModal
+        open={productModalOpen}
+        onClose={() => setProductModalOpen(false)}
+        onCreated={handleProductCreated}
+        zeroInitialStock
+      />
     </div>
   )
 }

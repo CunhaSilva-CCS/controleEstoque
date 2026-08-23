@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { ModalForm } from '../components/ModalForm'
+import { QuickProductModal } from '../components/QuickProductModal'
+import { QuickSupplierModal } from '../components/QuickSupplierModal'
 import { api, unwrap } from '../lib/api'
 import { formatCurrency, formatDateTime, formatNumber } from '../lib/format'
 import { useToast } from '../lib/toast'
@@ -34,6 +36,9 @@ export function InvoicesPage() {
   const [issueDate, setIssueDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [notes, setNotes] = useState('')
   const [items, setItems] = useState<ItemDraft[]>([])
+  const [supplierModalOpen, setSupplierModalOpen] = useState(false)
+  const [productModalOpen, setProductModalOpen] = useState(false)
+  const [productModalItemKey, setProductModalItemKey] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -120,6 +125,35 @@ export function InvoicesPage() {
     }
   }
 
+  function openProductModal(itemKey: string | null = null) {
+    setProductModalItemKey(itemKey)
+    setProductModalOpen(true)
+  }
+
+  function handleProductCreated(product: Product) {
+    setProducts((prev) => [...prev, product].sort((a, b) => a.name.localeCompare(b.name)))
+    if (productModalItemKey) {
+      updateItem(productModalItemKey, {
+        productId: product.id,
+        unitCost: String(product.costPrice),
+      })
+    } else if (items.length === 0) {
+      setItems([
+        {
+          key: crypto.randomUUID(),
+          productId: product.id,
+          quantity: '1',
+          unitCost: String(product.costPrice),
+        },
+      ])
+    }
+  }
+
+  function handleSupplierCreated(supplier: Supplier) {
+    setSuppliers((prev) => [...prev, supplier].sort((a, b) => a.name.localeCompare(b.name)))
+    setSupplierId(supplier.id)
+  }
+
   return (
     <div>
       <div className="page-header">
@@ -127,9 +161,17 @@ export function InvoicesPage() {
           <h2>Faturas</h2>
           <p>Entrada automática no estoque ao registrar a nota fiscal</p>
         </div>
-        <button className="btn btn-primary" onClick={openCreate} disabled={products.length === 0}>
-          Nova fatura
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button type="button" className="btn btn-ghost" onClick={() => setSupplierModalOpen(true)}>
+            Novo fornecedor
+          </button>
+          <button type="button" className="btn btn-ghost" onClick={() => openProductModal()}>
+            Novo produto
+          </button>
+          <button className="btn btn-primary" onClick={openCreate}>
+            Nova fatura
+          </button>
+        </div>
       </div>
 
       <div className="panel" style={{ padding: 0 }}>
@@ -202,18 +244,27 @@ export function InvoicesPage() {
             </div>
             <div className="field full">
               <label htmlFor="invsup">Fornecedor</label>
-              <select
-                id="invsup"
-                value={supplierId}
-                onChange={(e) => setSupplierId(e.target.value)}
-              >
-                <option value="">Sem fornecedor</option>
-                {suppliers.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
+              <div className="field-with-action">
+                <select
+                  id="invsup"
+                  value={supplierId}
+                  onChange={(e) => setSupplierId(e.target.value)}
+                >
+                  <option value="">Sem fornecedor</option>
+                  {suppliers.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setSupplierModalOpen(true)}
+                >
+                  + Novo
+                </button>
+              </div>
             </div>
             <div className="field full">
               <label htmlFor="invnotes">Observações</label>
@@ -221,23 +272,42 @@ export function InvoicesPage() {
             </div>
           </div>
 
-          <div className="section-title">Itens</div>
+          <div className="section-title row-between">
+            <span>Itens</span>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => openProductModal()}>
+              + Novo produto
+            </button>
+          </div>
+          {products.length === 0 ? (
+            <div className="empty" style={{ marginBottom: '1rem' }}>
+              Cadastre um produto para incluir itens na fatura.
+            </div>
+          ) : null}
           {items.map((item, index) => (
             <div key={item.key} className="form-grid item-row">
               <div className="field full">
                 <label htmlFor={`prod-${item.key}`}>Produto *</label>
-                <select
-                  id={`prod-${item.key}`}
-                  required
-                  value={item.productId}
-                  onChange={(e) => updateItem(item.key, { productId: e.target.value })}
-                >
-                  {products.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.sku} · {p.name} (saldo: {formatNumber(p.stock)} {p.unit})
-                    </option>
-                  ))}
-                </select>
+                <div className="field-with-action">
+                  <select
+                    id={`prod-${item.key}`}
+                    required
+                    value={item.productId}
+                    onChange={(e) => updateItem(item.key, { productId: e.target.value })}
+                  >
+                    {products.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.sku} · {p.name} (saldo: {formatNumber(p.stock)} {p.unit})
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => openProductModal(item.key)}
+                  >
+                    + Novo
+                  </button>
+                </div>
               </div>
               <div className="field">
                 <label htmlFor={`qty-${item.key}`}>Quantidade *</label>
@@ -276,11 +346,27 @@ export function InvoicesPage() {
               {index < items.length - 1 ? <div className="field full"><hr /></div> : null}
             </div>
           ))}
-          <button type="button" className="btn btn-ghost" onClick={addItem}>
+          <button type="button" className="btn btn-ghost" onClick={addItem} disabled={products.length === 0}>
             + Adicionar item
           </button>
         </ModalForm>
       ) : null}
+
+      <QuickSupplierModal
+        open={supplierModalOpen}
+        onClose={() => setSupplierModalOpen(false)}
+        onCreated={handleSupplierCreated}
+      />
+      <QuickProductModal
+        open={productModalOpen}
+        onClose={() => {
+          setProductModalOpen(false)
+          setProductModalItemKey(null)
+        }}
+        onCreated={handleProductCreated}
+        defaultSupplierId={supplierId}
+        zeroInitialStock
+      />
 
       {detail ? (
         <div className="modal-backdrop" onClick={() => setDetail(null)}>
