@@ -176,15 +176,26 @@ Se `saldo_atual ≠ ultimo_movimento` → inconsistência detectada → ajuste m
 
 ### 5.2 Crash reporting (Sentry)
 
-Configurar no `electron/main.ts` (evolução):
+Integrado em `electron/telemetry.ts` (main) e `src/lib/telemetry.ts` (renderer).
 
-```typescript
-// Exemplo — não implementado na v1
-import * as Sentry from '@sentry/electron'
-Sentry.init({ dsn: '...' })
+**Configuração:**
+
+```bash
+cp .env.example .env
+# Editar SENTRY_DSN com o DSN do projeto Sentry
 ```
 
-**Dashboard:** monitorar diariamente nas primeiras 72h pós-release.
+| Variável | Descrição |
+|----------|-----------|
+| `SENTRY_DSN` | DSN do projeto (obrigatório para ativar) |
+| `SENTRY_ENVIRONMENT` | Ambiente (`production`, `staging`) |
+| `SENTRY_ENABLED` | `true` para testar em dev |
+
+**Dashboard:** monitorar diariamente nas primeiras 72h pós-release em [sentry.io](https://sentry.io).
+
+Eventos capturados automaticamente:
+- Exceções não tratadas (`uncaughtException`, `unhandledRejection`)
+- Falha ao abrir banco de dados (`app:init`)
 
 ### 5.3 Logs
 

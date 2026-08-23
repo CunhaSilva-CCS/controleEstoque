@@ -11,12 +11,15 @@
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "preview": "vite preview",
     "electron:build": "npm run build && electron-builder --dir",
+    "electron:build:release": "npm run build && electron-builder",
     "start": "electron .",
+    "smoke": "tsx scripts/smoke.mts",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit"
   },
   "dependencies": {
+    "@sentry/electron": "^6.11.0",
     "better-sqlite3": "^11.8.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -29,6 +32,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "electron": "^33.3.1",
     "electron-builder": "^25.1.8",
+    "tsx": "^4.23.12",
     "typescript": "^5.7.2",
     "vite": "^6.0.7",
     "vite-plugin-electron": "^0.28.8",
@@ -46,14 +50,21 @@
       "dist-electron/**/*"
     ],
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "category": "Office"
     },
     "win": {
-      "target": ["nsis"]
+      "target": [
+        "nsis"
+      ]
     },
     "mac": {
-      "target": ["dmg"]
+      "target": [
+        "dmg"
+      ]
     }
   }
 }

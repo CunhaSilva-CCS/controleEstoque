@@ -103,7 +103,7 @@ Checklist de aprovação final antes da publicação do Controle de Estoque em p
 | I04 | Versão N-1 disponível para rollback | Alta | ☐ | | |
 | I05 | Dry-run: instalação limpa → smoke test | Alta | ☐ | | |
 | I06 | Documentação de backup SQLite publicada | Média | ☐ | | |
-| I07 | Crash reporting (Sentry) configurado | Média | ☐ | | |
+| I07 | Crash reporting (Sentry) — `SENTRY_DSN` configurado | Alta | ☐ | | |
 
 **Aprovador DevOps:** _______________ **Assinatura/Data:** _______________
 

@@ -27,6 +27,11 @@ import {
   updateProduct,
   updateSupplier,
 } from './db'
+import {
+  captureError,
+  initMainTelemetry,
+  registerProcessErrorHandlers,
+} from './telemetry'
 import type {
   MovementFilters,
   MovementInput,
@@ -34,6 +39,9 @@ import type {
   ProductInput,
   ProductUpdateInput,
 } from '../shared/types'
+
+initMainTelemetry()
+registerProcessErrorHandlers()
 
 process.env.DIST = path.join(__dirname, '../dist')
 process.env.VITE_PUBLIC = app.isPackaged
@@ -78,6 +86,15 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(path.join(process.env.DIST!, 'index.html'))
   }
+
+  if (app.isPackaged) {
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+      const devToolsShortcut =
+        input.key === 'F12' ||
+        (input.control && input.shift && (input.key === 'I' || input.key === 'i'))
+      if (devToolsShortcut) event.preventDefault()
+    })
+  }
 }
 
 function registerIpc(): void {
@@ -86,6 +103,7 @@ function registerIpc(): void {
       const info = initDatabase()
       return ok(info)
     } catch (error) {
+      captureError(error, { handler: 'app:init' })
       return fail(error)
     }
   })

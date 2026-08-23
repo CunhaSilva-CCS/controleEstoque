@@ -55,7 +55,7 @@ Script existente: `scripts/smoke.mts`
 **Critério de aprovação:** execução completa com saída `SMOKE_OK`.
 
 ```bash
-npx tsx scripts/smoke.mts
+npm run smoke
 ```
 
 Cenários cobertos:
@@ -76,7 +76,7 @@ Todo PR e tag de release **deve** passar:
 npm ci
 npm run typecheck    # TypeScript strict — zero erros
 npm test             # Vitest — zero falhas
-npx tsx scripts/smoke.mts  # Smoke — SMOKE_OK
+npm run smoke        # Smoke — SMOKE_OK
 npm run build        # Build renderer + main — zero erros
 ```
 

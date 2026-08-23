@@ -50,8 +50,30 @@ npm run dev
 | `npm run build` | Build de produção (renderer + main) |
 | `npm start` | Abre o app a partir do build |
 | `npm test` | Testes unitários das regras de estoque |
+| `npm run smoke` | Smoke test automatizado (API em memória) |
 | `npm run typecheck` | Verificação TypeScript |
 | `npm run electron:build` | Empacota instalador (electron-builder) |
+
+## CI/CD
+
+- **CI** (`.github/workflows/ci.yml`): roda em PRs e push na `main` — typecheck, testes, smoke, build e empacotamento Linux.
+- **Release** (`.github/workflows/release.yml`): roda ao criar tag `v*` — build matrix (Linux, Windows, macOS) e publica draft no GitHub Releases.
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+## Telemetria (Sentry)
+
+Crash reporting opcional via `@sentry/electron`. Copie `.env.example` para `.env` e configure:
+
+```bash
+SENTRY_DSN=https://...@sentry.io/...
+SENTRY_ENVIRONMENT=production
+```
+
+Sem `SENTRY_DSN`, o app funciona normalmente sem enviar eventos. Em desenvolvimento, use `SENTRY_ENABLED=true` para testar.
 
 ## Fluxo rápido sugerido
 

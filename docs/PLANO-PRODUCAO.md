@@ -161,7 +161,7 @@ Plano de ação para release de produção do aplicativo **desktop** Controle de
 
 ### Ações para SRE / DevOps
 
-- [ ] **[Alta]** Integrar crash reporting (Sentry ou similar) no processo main + renderer
+- [ ] **[Alta]** Configurar `SENTRY_DSN` e validar crash reporting (integrado em `electron/telemetry.ts`)
 - [ ] **[Alta]** Definir SLOs:
   - **Disponibilidade:** app inicia em < 5s em 99% dos casos (hardware referência: 4GB RAM, SSD)
   - **Integridade:** zero perda de dados em crash durante transação (SQLite WAL + transações)
