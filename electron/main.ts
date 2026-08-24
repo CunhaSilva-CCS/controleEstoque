@@ -3,10 +3,12 @@ import {
   BrowserWindow,
   dialog,
   ipcMain,
+  session,
   shell,
 } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import {
   backupDatabase,
   buildReport,
@@ -76,6 +78,49 @@ process.env.VITE_PUBLIC = app.isPackaged
 let mainWindow: BrowserWindow | null = null
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
 let currentUser: User | null = null
+const loginAttempts = new Map<string, { failures: number; firstFailureAt: number; blockedUntil: number }>()
+const LOGIN_WINDOW_MS = 60_000
+const LOGIN_BLOCK_MS = 30_000
+const LOGIN_MAX_FAILURES = 5
+
+function normalizeLoginKey(username: unknown): string {
+  return typeof username === 'string' ? username.trim().toLocaleLowerCase('pt-BR').slice(0, 120) : ''
+}
+
+function assertLoginAllowed(key: string): void {
+  const attempt = loginAttempts.get(key)
+  if (!attempt) return
+  const now = Date.now()
+  if (attempt.blockedUntil > now) {
+    throw new Error('Muitas tentativas. Aguarde 30 segundos e tente novamente.')
+  }
+  if (now - attempt.firstFailureAt > LOGIN_WINDOW_MS) loginAttempts.delete(key)
+}
+
+function recordLoginFailure(key: string): void {
+  const now = Date.now()
+  const previous = loginAttempts.get(key)
+  const failures = !previous || now - previous.firstFailureAt > LOGIN_WINDOW_MS
+    ? 1
+    : previous.failures + 1
+  loginAttempts.set(key, {
+    failures,
+    firstFailureAt: previous && now - previous.firstFailureAt <= LOGIN_WINDOW_MS
+      ? previous.firstFailureAt
+      : now,
+    blockedUntil: failures >= LOGIN_MAX_FAILURES ? now + LOGIN_BLOCK_MS : 0,
+  })
+}
+
+function openTrustedExternalUrl(rawUrl: string): void {
+  try {
+    const url = new URL(rawUrl)
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return
+    void shell.openExternal(url.toString())
+  } catch {
+    // Ignora URLs inválidas ou protocolos perigosos.
+  }
+}
 
 function ok<T>(data: T) {
   return { ok: true as const, data }
@@ -117,7 +162,7 @@ function createWindow(): void {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: true,
       zoomFactor: 1,
     },
   })
@@ -135,8 +180,26 @@ function createWindow(): void {
   })
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url)
+    openTrustedExternalUrl(url)
     return { action: 'deny' }
+  })
+
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    let allowed = false
+    try {
+      if (VITE_DEV_SERVER_URL) {
+        allowed = new URL(url).origin === new URL(VITE_DEV_SERVER_URL).origin
+      } else {
+        const appEntry = pathToFileURL(path.join(process.env.DIST!, 'index.html')).toString()
+        allowed = url.split('#')[0] === appEntry
+      }
+    } catch {
+      allowed = false
+    }
+    if (!allowed) {
+      event.preventDefault()
+      openTrustedExternalUrl(url)
+    }
   })
 
   if (VITE_DEV_SERVER_URL) {
@@ -186,8 +249,15 @@ function registerIpc(): void {
 
   ipcMain.handle('auth:login', (_e, input: { username: string; password: string }) => {
     try {
-      const user = authenticateUser(input.username, input.password)
-      if (!user) throw new Error('Usuário ou senha inválidos')
+      const key = normalizeLoginKey(input?.username)
+      assertLoginAllowed(key)
+      const password = typeof input?.password === 'string' ? input.password : ''
+      const user = authenticateUser(key, password)
+      if (!user) {
+        recordLoginFailure(key)
+        throw new Error('Usuário ou senha inválidos')
+      }
+      loginAttempts.delete(key)
       currentUser = user
       const session: AuthSession = { authenticated: true, user }
       return ok(session)
@@ -575,6 +645,10 @@ function registerIpc(): void {
 }
 
 app.whenReady().then(() => {
+  session.defaultSession.setPermissionCheckHandler(() => false)
+  session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
+    callback(false)
+  })
   registerUpdateIpc(requireAdmin)
   registerIpc()
   createWindow()

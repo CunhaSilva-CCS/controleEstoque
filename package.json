@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "electron:build": "npm run build && electron-builder --config electron-builder.config.cjs --dir",
     "electron:build:release": "npm run build && electron-builder --config electron-builder.config.cjs --publish never",
+    "electron:build:release:signed": "node scripts/require-signing-env.mjs && npm run electron:build:release -- --win --x64",
     "start": "electron .",
     "smoke": "tsx scripts/smoke.mts",
     "test": "vitest run",
@@ -23,8 +24,8 @@
     "logo:prepare": "python3 scripts/prepare-logo.py"
   },
   "dependencies": {
-    "@sentry/electron": "^6.11.0",
-    "better-sqlite3": "^11.8.1",
+    "@sentry/electron": "^7.17.0",
+    "better-sqlite3-multiple-ciphers": "^12.11.1",
     "electron-updater": "^6.8.9",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -36,14 +37,14 @@
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
     "@vitejs/plugin-react": "^4.3.4",
-    "electron": "^33.3.1",
-    "electron-builder": "^25.1.8",
+    "electron": "^42.10.0",
+    "electron-builder": "^26.15.3",
     "playwright": "^1.62.1",
     "tsx": "^4.23.12",
     "typescript": "^5.7.2",
     "vite": "^6.0.7",
     "vite-plugin-electron": "^0.28.8",
     "vite-plugin-electron-renderer": "^0.14.6",
-    "vitest": "^2.1.8"
+    "vitest": "^4.1.11"
   }
 }

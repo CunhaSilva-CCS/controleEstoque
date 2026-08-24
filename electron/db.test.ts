@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import type { TaskContext } from '@vitest/runner'
+import type { TestContext } from '@vitest/runner'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 
 vi.mock('electron', () => ({
@@ -10,12 +10,15 @@ vi.mock('electron', () => ({
 
 import {
   closeDatabase,
+  authenticateUser,
+  backupDatabase,
   createProduct,
   createProduction,
   createPurchaseInvoice,
   getProduct,
   initDatabaseAtPath,
   listMovements,
+  restoreDatabase,
   saveRecipe,
 } from './db'
 
@@ -23,7 +26,7 @@ const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'controle-estoque-db-'))
 const dbPath = path.join(testDir, 'integration.db')
 let initialized = false
 
-function ensureDatabase(context: TaskContext): boolean {
+function ensureDatabase(context: TestContext): boolean {
   if (initialized) return true
   try {
     initDatabaseAtPath(dbPath)
@@ -146,5 +149,55 @@ describe('integração SQLite de estoque', () => {
     )
     expect(getProduct(input.id)?.stock).toBe(0)
     expect(getProduct(finalProduct.id)?.stock).toBe(0)
+  })
+
+  it('rejeita tentativa de injeção SQL no login', (context) => {
+    if (!ensureDatabase(context)) return
+    expect(authenticateUser("admin' OR 1=1 --", 'qualquer')).toBeNull()
+    expect(authenticateUser('admin', "' OR '1'='1")).toBeNull()
+  })
+
+  it('rejeita restauração inválida sem fechar ou substituir o banco ativo', (context) => {
+    if (!ensureDatabase(context)) return
+    const product = createProduct({
+      sku: 'SQL-RESTORE-SAFE',
+      name: 'Produto preservado',
+      kind: 'insumo',
+      unit: 'un',
+      costPrice: 1,
+      salePrice: 1,
+      minStock: 0,
+    })
+    const invalidBackup = path.join(testDir, 'backup-invalido.db')
+    fs.writeFileSync(invalidBackup, 'conteúdo que não é SQLite')
+
+    expect(() => restoreDatabase(invalidBackup)).toThrow(/não é um banco de dados válido/)
+    expect(getProduct(product.id)?.name).toBe('Produto preservado')
+  })
+
+  it('criptografa o arquivo e também produz backup criptografado', async (context) => {
+    if (!ensureDatabase(context)) return
+    const encryptedPath = path.join(testDir, 'encrypted.db')
+    const encryptedBackup = path.join(testDir, 'encrypted-backup.db')
+    const key = Buffer.alloc(32, 0x5a)
+    initDatabaseAtPath(encryptedPath, key)
+    const product = createProduct({
+      sku: 'SQL-ENCRYPTED',
+      name: 'Produto criptografado',
+      kind: 'insumo',
+      unit: 'un',
+      costPrice: 1,
+      salePrice: 1,
+      minStock: 0,
+    })
+    await backupDatabase(encryptedBackup)
+    closeDatabase()
+
+    expect(fs.readFileSync(encryptedPath).subarray(0, 16).toString()).not.toBe('SQLite format 3\0')
+    expect(fs.readFileSync(encryptedBackup).subarray(0, 16).toString()).not.toBe('SQLite format 3\0')
+    expect(() => initDatabaseAtPath(encryptedPath, Buffer.alloc(32, 0x33))).toThrow()
+
+    initDatabaseAtPath(encryptedBackup, key)
+    expect(getProduct(product.id)?.name).toBe('Produto criptografado')
   })
 })

@@ -1,5 +1,5 @@
-import Database from 'better-sqlite3'
-import { app } from 'electron'
+import Database from 'better-sqlite3-multiple-ciphers'
+import { app, safeStorage } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 import { createHash, randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto'
@@ -34,6 +34,115 @@ import { movementLabel, statusLabel } from '../shared/labels'
 type Db = Database.Database
 
 let db: Db | null = null
+let activeDatabaseKey: Buffer | null = null
+
+const SQLITE_HEADER = Buffer.from('SQLite format 3\0', 'utf8')
+
+function isPlaintextDatabase(filePath: string): boolean {
+  if (!fs.existsSync(filePath) || fs.statSync(filePath).size === 0) return true
+  const handle = fs.openSync(filePath, 'r')
+  try {
+    const header = Buffer.alloc(SQLITE_HEADER.length)
+    fs.readSync(handle, header, 0, header.length, 0)
+    return header.equals(SQLITE_HEADER)
+  } finally {
+    fs.closeSync(handle)
+  }
+}
+
+function configureCipher(database: Db): void {
+  database.pragma("cipher='sqlcipher'")
+  database.pragma('legacy=4')
+}
+
+function openDatabase(filePath: string, key?: Buffer): Db {
+  const database = new Database(filePath)
+  if (key) {
+    configureCipher(database)
+    database.key(key)
+  }
+  return database
+}
+
+function assertDatabaseIntegrity(database: Db): void {
+  const result = database.pragma('integrity_check', { simple: true })
+  if (result !== 'ok') throw new Error('Falha na verificação de integridade do banco')
+}
+
+function getOrCreateDatabaseKey(dbPath: string): Buffer {
+  const keyPath = path.join(path.dirname(dbPath), 'estoque.key')
+  if (fs.existsSync(keyPath)) {
+    if (!safeStorage.isEncryptionAvailable()) {
+      throw new Error('O cofre seguro do sistema operacional não está disponível')
+    }
+    const protectedKey = Buffer.from(fs.readFileSync(keyPath, 'utf8'), 'base64')
+    const keyHex = safeStorage.decryptString(protectedKey)
+    if (!/^[a-f0-9]{64}$/i.test(keyHex)) throw new Error('A chave protegida do banco é inválida')
+    return Buffer.from(keyHex, 'hex')
+  }
+
+  if (fs.existsSync(dbPath) && !isPlaintextDatabase(dbPath)) {
+    throw new Error('A chave de criptografia do banco não foi encontrada. Restaure-a antes de continuar.')
+  }
+  if (!safeStorage.isEncryptionAvailable()) {
+    throw new Error('O cofre seguro do sistema operacional não está disponível')
+  }
+  const key = randomBytes(32)
+  const protectedKey = safeStorage.encryptString(key.toString('hex'))
+  const tempKeyPath = `${keyPath}.tmp`
+  fs.writeFileSync(tempKeyPath, protectedKey.toString('base64'), { encoding: 'utf8', mode: 0o600 })
+  fs.renameSync(tempKeyPath, keyPath)
+  return key
+}
+
+function migratePlaintextDatabase(dbPath: string, key: Buffer): void {
+  if (!fs.existsSync(dbPath) || fs.statSync(dbPath).size === 0 || !isPlaintextDatabase(dbPath)) return
+  const encryptedPath = `${dbPath}.encrypting`
+  const originalPath = `${dbPath}.pre-encryption`
+  fs.rmSync(encryptedPath, { force: true })
+
+  const source = new Database(dbPath)
+  try {
+    assertDatabaseIntegrity(source)
+    source.pragma('wal_checkpoint(TRUNCATE)')
+  } finally {
+    source.close()
+  }
+  fs.copyFileSync(dbPath, encryptedPath)
+
+  const candidate = new Database(encryptedPath)
+  try {
+    configureCipher(candidate)
+    candidate.rekey(key)
+    assertDatabaseIntegrity(candidate)
+  } finally {
+    candidate.close()
+  }
+
+  const verification = openDatabase(encryptedPath, key)
+  try {
+    assertDatabaseIntegrity(verification)
+  } finally {
+    verification.close()
+  }
+
+  fs.rmSync(originalPath, { force: true })
+  fs.renameSync(dbPath, originalPath)
+  try {
+    fs.renameSync(encryptedPath, dbPath)
+    const finalCheck = openDatabase(dbPath, key)
+    try {
+      assertDatabaseIntegrity(finalCheck)
+    } finally {
+      finalCheck.close()
+    }
+    fs.rmSync(originalPath, { force: true })
+  } catch (error) {
+    fs.rmSync(dbPath, { force: true })
+    if (fs.existsSync(originalPath)) fs.renameSync(originalPath, dbPath)
+    throw error
+  }
+}
 
 function nowIso(): string {
   return new Date().toISOString()
@@ -134,14 +243,18 @@ export function getDbPath(): string {
 }
 
 export function initDatabase(): { path: string; seeded: boolean } {
-  return initDatabaseAtPath(getDbPath())
+  const dbPath = getDbPath()
+  const key = getOrCreateDatabaseKey(dbPath)
+  migratePlaintextDatabase(dbPath, key)
+  return initDatabaseAtPath(dbPath, key)
 }
 
 /** Inicializa um banco em caminho explícito para testes e diagnósticos seguros. */
-export function initDatabaseAtPath(dbPath: string): { path: string; seeded: boolean } {
+export function initDatabaseAtPath(dbPath: string, encryptionKey?: Buffer): { path: string; seeded: boolean } {
   closeDatabase()
   fs.mkdirSync(path.dirname(dbPath), { recursive: true })
-  db = new Database(dbPath)
+  db = openDatabase(dbPath, encryptionKey)
+  activeDatabaseKey = encryptionKey ?? null
   db.pragma('journal_mode = WAL')
   db.pragma('foreign_keys = ON')
 
@@ -373,18 +486,57 @@ export function closeDatabase(): void {
     db.close()
     db = null
   }
+  activeDatabaseKey = null
 }
 
 /** Online-safe backup using better-sqlite3 backup API (WAL-aware). */
 export async function backupDatabase(destPath: string): Promise<void> {
   const database = requireDb()
-  await database.backup(destPath)
+  const tempPath = `${destPath}.tmp`
+  fs.rmSync(tempPath, { force: true })
+  if (activeDatabaseKey) {
+    database.pragma('wal_checkpoint(TRUNCATE)')
+    fs.copyFileSync(database.name, tempPath)
+    const backup = openDatabase(tempPath, activeDatabaseKey)
+    try {
+      assertDatabaseIntegrity(backup)
+    } finally {
+      backup.close()
+    }
+  } else {
+    await database.backup(tempPath)
+  }
+  fs.rmSync(destPath, { force: true })
+  fs.renameSync(tempPath, destPath)
 }
 
 /** Replace the live database with a backup file and reopen. */
 export function restoreDatabase(sourcePath: string): { path: string; seeded: boolean } {
   if (!fs.existsSync(sourcePath)) {
     throw new Error('Arquivo de cópia de segurança não encontrado')
+  }
+
+  let candidate: Database.Database | null = null
+  try {
+    candidate = new Database(sourcePath, { readonly: true, fileMustExist: true })
+    if (!isPlaintextDatabase(sourcePath)) {
+      if (!activeDatabaseKey) throw new Error('chave indisponível')
+      configureCipher(candidate)
+      candidate.key(activeDatabaseKey)
+    }
+    assertDatabaseIntegrity(candidate)
+    const requiredTables = ['app_meta', 'categories', 'products', 'stock_movements', 'users']
+    const rows = candidate
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
+      .all() as { name: string }[]
+    const names = new Set(rows.map((row) => row.name))
+    if (!requiredTables.every((table) => names.has(table))) {
+      throw new Error('estrutura obrigatória ausente')
+    }
+  } catch {
+    throw new Error('A cópia selecionada não é um banco de dados válido deste sistema')
+  } finally {
+    candidate?.close()
   }
 
   closeDatabase()

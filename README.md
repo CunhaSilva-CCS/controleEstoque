@@ -126,7 +126,7 @@ Sem secrets, o CI gera instaladores **sem assinatura** (OK para QA).
 - Electron 33
 - React 19 + React Router
 - Vite 6
-- better-sqlite3
+- better-sqlite3-multiple-ciphers (SQLite com criptografia AES-256 compatível com SQLCipher)
 - TypeScript 5
 
 ## Cópia de segurança e atualizações

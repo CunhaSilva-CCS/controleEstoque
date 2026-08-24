@@ -15,7 +15,10 @@ module.exports = {
     target: ['nsis'],
     icon: 'build/icon.ico',
     signAndEditExecutable: true,
-    publisherName: 'Cortexis Tech',
+    signtoolOptions: {
+      publisherName: 'Cortexis Tech',
+      signingHashAlgorithms: ['sha256'],
+    },
   },
   mac: {
     target: ['dmg'],
