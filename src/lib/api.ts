@@ -26,6 +26,7 @@ import type {
   LoginInput,
   ChangePasswordInput,
   AuthSession,
+  LicenseStatus,
 } from '@shared/types'
 import { movementLabel, statusLabel } from '@shared/labels'
 
@@ -57,6 +58,18 @@ function createMemoryApi() {
   const passwords = new Map<string, string>()
   let sessionUserId = ''
   let seeded = false
+  const previewLicense: LicenseStatus = {
+    active: true,
+    details: {
+      version: 1,
+      licenseId: 'preview-web',
+      installationId: 'preview-web-installation',
+      customer: 'Demonstração local',
+      edition: 'professional',
+      issuedAt: new Date(0).toISOString(),
+      expiresAt: null,
+    },
+  }
   const DEFAULT_PASSWORD = 'admin123'
 
   function sessionUser(): User | undefined {
@@ -172,6 +185,12 @@ function createMemoryApi() {
       const user = users.find((u) => u.id === sessionUserId) ?? null
       const payload: AuthSession = { authenticated: Boolean(user), user }
       return ok(payload)
+    },
+    async getLicenseStatus() {
+      return ok(previewLicense)
+    },
+    async activateLicense(_licenseKey: string) {
+      return ok(previewLicense)
     },
     async login(input: LoginInput) {
       const user = users.find(

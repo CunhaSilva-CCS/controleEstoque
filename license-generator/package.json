@@ -1,0 +1,23 @@
+{
+  "name": "cortexis-license-generator",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Gerador independente de licenças do ERP Cortexis Tech",
+  "main": "main.cjs",
+  "author": "Cortexis Tech",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win --x64 --publish never"
+  },
+  "devDependencies": {
+    "electron": "42.10.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.cortexistech.licensegenerator",
+    "productName": "Gerador de Licenças Cortexis",
+    "directories": { "output": "release" },
+    "files": ["main.cjs", "preload.cjs", "renderer.js", "index.html", "styles.css", "expected-public-key.pem", "assets/**/*"],
+    "win": { "target": ["portable"], "icon": "assets/icon.ico" }
+  }
+}

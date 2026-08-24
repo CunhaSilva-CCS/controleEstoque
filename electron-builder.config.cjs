@@ -7,18 +7,17 @@ module.exports = {
     output: 'release',
   },
   files: ['dist/**/*', 'dist-electron/**/*'],
+  extraResources: [{ from: 'build/icon.png', to: 'icon.png' }],
   linux: {
     target: ['AppImage', 'deb'],
     category: 'Office',
   },
   win: {
     target: ['nsis'],
-    icon: 'build/icon.ico',
+    // Usa a logo em alta resolução para o executável, atalhos e barra de tarefas.
+    // O electron-builder gera internamente as resoluções necessárias do ICO.
+    icon: 'build/icon.png',
     signAndEditExecutable: true,
-    signtoolOptions: {
-      publisherName: 'Cortexis Tech',
-      signingHashAlgorithms: ['sha256'],
-    },
   },
   mac: {
     target: ['dmg'],

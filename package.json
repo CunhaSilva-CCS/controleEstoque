@@ -12,7 +12,6 @@
     "preview": "vite preview",
     "electron:build": "npm run build && electron-builder --config electron-builder.config.cjs --dir",
     "electron:build:release": "npm run build && electron-builder --config electron-builder.config.cjs --publish never",
-    "electron:build:release:signed": "node scripts/require-signing-env.mjs && npm run electron:build:release -- --win --x64",
     "start": "electron .",
     "smoke": "tsx scripts/smoke.mts",
     "test": "vitest run",
@@ -22,6 +21,8 @@
     "test:e2e:ui": "playwright test --ui",
     "icons": "python3 scripts/generate-icons.py",
     "logo:prepare": "python3 scripts/prepare-logo.py"
+    ,"license:keypair": "node scripts/license-keypair.mjs"
+    ,"license:generate": "node scripts/license-generate.mjs"
   },
   "dependencies": {
     "@sentry/electron": "^7.17.0",

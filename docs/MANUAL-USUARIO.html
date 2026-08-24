@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <title>Manual do Usuário — ERP Cortexis Tech</title>
+  <style>
+    @page { size: A4; margin: 18mm 16mm 18mm; }
+    * { box-sizing: border-box; }
+    html, body { background: #fff; }
+    body { margin: 0; color: #172033; font: 10.5pt/1.55 Arial, sans-serif; }
+    h1, h2, h3, h4 { color: #083344; break-after: avoid; }
+    h1 { font-size: 28pt; line-height: 1.1; margin: 0 0 12px; }
+    h2 { margin: 26px 0 10px; padding-bottom: 6px; border-bottom: 2px solid #0891b2; font-size: 18pt; }
+    h3 { margin: 20px 0 7px; font-size: 13pt; }
+    h4 { margin: 14px 0 5px; font-size: 11pt; }
+    p { margin: 6px 0 10px; }
+    ul, ol { margin: 6px 0 12px; padding-left: 22px; }
+    li { margin: 3px 0; }
+    table { width: 100%; border-collapse: collapse; margin: 10px 0 16px; break-inside: avoid; }
+    th, td { padding: 7px 8px; border: 1px solid #cbd5e1; vertical-align: top; text-align: left; }
+    th { color: #083344; background: #ecfeff; }
+    code { padding: 1px 4px; border-radius: 4px; background: #f1f5f9; font-family: Consolas, monospace; }
+    .cover { min-height: 245mm; display: flex; flex-direction: column; justify-content: center; text-align: center; page-break-after: always; }
+    .cover img { width: 310px; max-height: 150px; margin: 0 auto 34px; object-fit: contain; border-radius: 14px; background: #111827; }
+    .cover .tag { color: #0891b2; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+    .cover .subtitle { max-width: 520px; margin: 0 auto 30px; color: #64748b; font-size: 14pt; }
+    .cover .version { color: #64748b; }
+    .toc { page-break-after: always; }
+    .toc a { display: flex; justify-content: space-between; padding: 5px 0; color: #164e63; text-decoration: none; border-bottom: 1px dotted #cbd5e1; }
+    .chapter { page-break-before: always; }
+    .note, .warning, .success { margin: 12px 0; padding: 10px 12px; border-left: 4px solid #0891b2; border-radius: 4px; background: #ecfeff; break-inside: avoid; }
+    .warning { border-color: #d97706; background: #fffbeb; }
+    .success { border-color: #059669; background: #ecfdf5; }
+    .label { font-weight: 700; color: #0e7490; }
+    .steps { counter-reset: step; padding-left: 0; list-style: none; }
+    .steps > li { position: relative; min-height: 26px; margin: 9px 0; padding-left: 34px; }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 23px; height: 23px; border-radius: 50%; color: white; background: #0891b2; text-align: center; font-weight: bold; line-height: 23px; }
+    .flow { margin: 12px 0; padding: 13px; border: 1px solid #bae6fd; border-radius: 8px; background: #f8fafc; text-align: center; font-weight: 700; color: #164e63; }
+    .flow span { color: #0891b2; padding: 0 6px; }
+    .small { color: #64748b; font-size: 9pt; }
+    .keep { break-inside: avoid; }
+    footer { position: fixed; right: 0; bottom: -11mm; left: 0; color: #64748b; font-size: 8pt; text-align: center; }
+  </style>
+</head>
+<body>
+  <footer>ERP Cortexis Tech · Controle de Estoque — Manual do Usuário</footer>
+
+  <section class="cover">
+    <img src="../public/branding/cortexis-logo.png" alt="Cortexis Tech">
+    <div class="tag">ERP Cortexis Tech</div>
+    <h1>Manual do Usuário</h1>
+    <p class="subtitle">Módulo Controle de Estoque — cadastros, compras, fabricação, inventário, relatórios e administração</p>
+    <p class="version">Versão 1.0 · Agosto de 2026</p>
+  </section>
+
+  <section class="toc">
+    <h2>Índice</h2>
+    <a href="#apresentacao"><span>1. Apresentação e conceitos</span><span>3</span></a>
+    <a href="#instalacao"><span>2. Instalação e primeiro acesso</span><span>4</span></a>
+    <a href="#navegacao"><span>3. Navegação e Painel</span><span>6</span></a>
+    <a href="#cadastros"><span>4. Cadastros básicos</span><span>8</span></a>
+    <a href="#produtos"><span>5. Produtos: insumo e produto final</span><span>10</span></a>
+    <a href="#faturas"><span>6. Entrada por fatura de compra</span><span>13</span></a>
+    <a href="#receitas"><span>7. Receitas de fabricação</span><span>16</span></a>
+    <a href="#fabricacao"><span>8. Fabricação e baixa de insumos</span><span>18</span></a>
+    <a href="#inventario"><span>9. Ajustes e histórico</span><span>21</span></a>
+    <a href="#relatorios"><span>10. Relatórios e exportação</span><span>23</span></a>
+    <a href="#configuracoes"><span>11. Configurações e usuários</span><span>25</span></a>
+    <a href="#backup"><span>12. Backup, restauração e criptografia</span><span>28</span></a>
+    <a href="#rotina"><span>13. Rotinas recomendadas</span><span>31</span></a>
+    <a href="#problemas"><span>14. Solução de problemas</span><span>33</span></a>
+    <a href="#glossario"><span>15. Glossário e checklist</span><span>36</span></a>
+  </section>
+
+  <section id="apresentacao" class="chapter">
+    <h2>1. Apresentação e conceitos</h2>
+    <p>O ERP Cortexis Tech — Controle de Estoque é um aplicativo desktop para registrar materiais, fornecedores, compras, receitas e fabricação. Os dados ficam no computador onde o sistema está instalado e continuam disponíveis sem conexão com a internet.</p>
+    <h3>1.1 Como o saldo é alterado</h3>
+    <div class="flow">Fatura de compra <span>→</span> entrada de insumos <span>→</span> fabricação <span>→</span> saída de insumos + entrada do produto final</div>
+    <table>
+      <thead><tr><th>Operação</th><th>Efeito no estoque</th><th>Quando utilizar</th></tr></thead>
+      <tbody>
+        <tr><td>Cadastro de produto</td><td>Nenhum. O saldo inicial é zero.</td><td>Para registrar a existência do item.</td></tr>
+        <tr><td>Fatura de compra</td><td>Aumenta o saldo dos insumos.</td><td>Quando materiais são comprados e recebidos.</td></tr>
+        <tr><td>Fabricação</td><td>Baixa os insumos da receita e aumenta o produto final.</td><td>Quando uma quantidade foi efetivamente produzida.</td></tr>
+        <tr><td>Ajuste de inventário</td><td>Define diretamente o novo saldo físico.</td><td>Somente para corrigir divergências confirmadas.</td></tr>
+      </tbody>
+    </table>
+    <div class="warning"><strong>Importante:</strong> não use ajuste de inventário para simular compras ou fabricação. Isso prejudica a rastreabilidade.</div>
+    <h3>1.2 Perfis de acesso</h3>
+    <table>
+      <thead><tr><th>Perfil</th><th>Permissões principais</th></tr></thead>
+      <tbody>
+        <tr><td>Administrador</td><td>Todas as operações, usuários, marca, backup, restauração e atualizações.</td></tr>
+        <tr><td>Operador</td><td>Cadastros e operações do estoque, relatórios, tema e troca da própria senha.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="instalacao" class="chapter">
+    <h2>2. Instalação e primeiro acesso</h2>
+    <h3>2.1 Instalar no Windows</h3>
+    <ol class="steps">
+      <li>Localize o arquivo <code>ERP Cortexis Tech - Estoque Setup 1.0.0.exe</code>.</li>
+      <li>Dê dois cliques no instalador.</li>
+      <li>Se o SmartScreen aparecer, confira a origem do arquivo. Como o instalador não possui assinatura digital, o Windows poderá mostrar “Editor desconhecido”.</li>
+      <li>Conclua a instalação e abra o aplicativo pelo atalho criado.</li>
+    </ol>
+    <div class="note">O aplicativo abre maximizado. O tamanho mínimo da janela evita que formulários fiquem desorganizados.</div>
+    <h3>2.2 Ativação da licença</h3>
+    <ol class="steps">
+      <li>Na primeira abertura, copie o <strong>Código da instalação</strong> exibido.</li>
+      <li>Envie o código à Cortexis Tech junto ao nome da empresa e período contratado.</li>
+      <li>Ao receber a chave iniciada por <code>CTX1-</code>, cole-a completa no campo indicado.</li>
+      <li>Clique em <strong>Ativar sistema</strong>. Não é necessária conexão com a internet.</li>
+    </ol>
+    <p>A chave é assinada digitalmente e vinculada à instalação. Alterações manuais ou uso em outro computador são recusados. Os dados da licença podem ser consultados posteriormente em Configurações.</p>
+    <h3>2.3 Credenciais iniciais</h3>
+    <table><tbody><tr><th>Usuário</th><td><code>admin</code></td></tr><tr><th>Senha inicial</th><td><code>admin123</code></td></tr></tbody></table>
+    <p>No primeiro acesso, a senha padrão deve ser alterada antes de usar qualquer outra tela.</p>
+    <ol class="steps">
+      <li>Digite <code>admin</code> no campo Usuário.</li>
+      <li>Digite <code>admin123</code> no campo Senha e clique em <strong>Entrar</strong>.</li>
+      <li>Na tela de troca, informe a senha atual, a nova senha e a confirmação.</li>
+      <li>Clique em <strong>Salvar senha</strong> e aguarde a confirmação.</li>
+    </ol>
+    <div class="warning"><strong>Proteja a conta administrativa.</strong> Não compartilhe a senha e não reutilize uma senha pessoal.</div>
+    <h3>2.4 Primeiro uso</h3>
+    <p>O administrador pode carregar dados de demonstração para conhecer o fluxo ou escolher <strong>Começar vazio</strong> para iniciar a operação real. Dados de demonstração não devem ser usados como dados oficiais.</p>
+    <h3>2.5 Proteção contra tentativas</h3>
+    <p>Após cinco falhas de login em um minuto, o sistema bloqueia novas tentativas por 30 segundos. Aguarde e confira usuário, senha e estado da tecla Caps Lock.</p>
+  </section>
+
+  <section id="navegacao" class="chapter">
+    <h2>3. Navegação e Painel</h2>
+    <h3>3.1 Menu principal</h3>
+    <table>
+      <thead><tr><th>Grupo</th><th>Telas</th><th>Finalidade</th></tr></thead>
+      <tbody>
+        <tr><td>Painel</td><td>Resumo operacional</td><td>Indicadores, alertas e atalhos.</td></tr>
+        <tr><td>Cadastro</td><td>Produtos, Categorias, Fornecedores, Receitas</td><td>Dados utilizados nos lançamentos.</td></tr>
+        <tr><td>Operações</td><td>Faturas, Fabricação, Ajustes</td><td>Movimentações que alteram saldos.</td></tr>
+        <tr><td>Relatórios</td><td>Posição, movimentações, estoque baixo</td><td>Consulta e exportação.</td></tr>
+        <tr><td>Configurações</td><td>Senha, marca, usuários, aparência, backup</td><td>Administração do aplicativo.</td></tr>
+      </tbody>
+    </table>
+    <h3>3.2 Indicadores do Painel</h3>
+    <ul>
+      <li><strong>Produtos ativos:</strong> quantidade disponível para uso.</li>
+      <li><strong>Valor em estoque:</strong> soma de saldo × custo dos produtos ativos.</li>
+      <li><strong>Estoque baixo/zerado:</strong> itens abaixo do mínimo ou sem saldo.</li>
+      <li><strong>Movimentações hoje:</strong> entradas, saídas e ajustes do dia.</li>
+    </ul>
+    <p>O bloco <strong>Estoque crítico</strong> prioriza reposições. O bloco <strong>Últimas movimentações</strong> facilita a conferência do trabalho recente.</p>
+    <h3>3.3 Ações rápidas</h3>
+    <p>No cabeçalho do painel existem atalhos para lançar uma fatura, registrar fabricação e consultar movimentações. Eles abrem a mesma tela disponível no menu lateral.</p>
+  </section>
+
+  <section id="cadastros" class="chapter">
+    <h2>4. Cadastros básicos</h2>
+    <h3>4.1 Categorias</h3>
+    <ol class="steps">
+      <li>Acesse <strong>Cadastro → Categorias</strong>.</li>
+      <li>Clique em <strong>Nova categoria</strong>.</li>
+      <li>Informe um nome único e, se necessário, uma descrição.</li>
+      <li>Clique em <strong>Salvar</strong>.</li>
+    </ol>
+    <p>Uma categoria pode ser inativada e reativada. A inativação evita novos vínculos, mas mantém o histórico.</p>
+    <h3>4.2 Fornecedores</h3>
+    <ol class="steps">
+      <li>Acesse <strong>Cadastro → Fornecedores</strong> e clique em <strong>Novo fornecedor</strong>.</li>
+      <li>Preencha Nome; Documento, Telefone, E-mail e Observações são opcionais.</li>
+      <li>Salve e confira o registro na lista.</li>
+    </ol>
+    <p>O fornecedor poderá ser selecionado no produto e na fatura. Use <strong>Editar</strong> para atualizar os contatos; use <strong>Inativar</strong> quando não houver mais relacionamento.</p>
+    <div class="note"><strong>Atalho contextual:</strong> formulários de produtos e faturas possuem “Abrir fornecedores”, permitindo ir ao cadastro correspondente.</div>
+  </section>
+
+  <section id="produtos" class="chapter">
+    <h2>5. Produtos: insumo e produto final</h2>
+    <h3>5.1 Diferença entre os tipos</h3>
+    <table>
+      <thead><tr><th>Tipo</th><th>Exemplo</th><th>Como entra</th><th>Como sai</th></tr></thead>
+      <tbody>
+        <tr><td>Insumo</td><td>Farinha, parafuso, embalagem</td><td>Fatura ou ajuste</td><td>Fabricação ou ajuste</td></tr>
+        <tr><td>Produto final</td><td>Pão, móvel montado, kit</td><td>Fabricação ou ajuste</td><td>Ajuste; futura operação de venda, se adicionada</td></tr>
+      </tbody>
+    </table>
+    <h3>5.2 Cadastrar</h3>
+    <ol class="steps">
+      <li>Acesse <strong>Cadastro → Produtos</strong> e clique em <strong>Novo produto</strong>.</li>
+      <li>Informe <strong>Código</strong> único e <strong>Unidade</strong> (un, kg, m, l etc.).</li>
+      <li>Escolha <strong>Insumo</strong> ou <strong>Produto final</strong>.</li>
+      <li>Preencha Nome, descrição, categoria e fornecedor.</li>
+      <li>Informe preço de custo, preço de venda e estoque mínimo.</li>
+      <li>Salve. O saldo começará em zero.</li>
+    </ol>
+    <h3>5.3 Campos e boas práticas</h3>
+    <table>
+      <thead><tr><th>Campo</th><th>Orientação</th></tr></thead>
+      <tbody>
+        <tr><td>Código</td><td>Use padrão estável, por exemplo <code>INS-001</code> ou <code>PF-001</code>.</td></tr>
+        <tr><td>Unidade</td><td>Cadastre na mesma unidade usada na compra e na receita.</td></tr>
+        <tr><td>Custo</td><td>É atualizado pela fatura conforme o custo informado.</td></tr>
+        <tr><td>Estoque mínimo</td><td>Gera alerta quando o saldo for menor ou igual ao limite.</td></tr>
+      </tbody>
+    </table>
+    <div class="warning">Evite trocar a unidade depois que o produto possuir movimentações. Isso pode tornar o histórico difícil de interpretar.</div>
+    <h3>5.4 Buscar, editar e inativar</h3>
+    <p>Use a busca por nome/código e o filtro de categoria. Editar dados cadastrais não altera o estoque. Produtos inativos deixam de aparecer nos seletores operacionais, mas permanecem no histórico.</p>
+  </section>
+
+  <section id="faturas" class="chapter">
+    <h2>6. Entrada por fatura de compra</h2>
+    <p>A fatura é a operação normal para aumentar o estoque de insumos comprados.</p>
+    <h3>6.1 Pré-condições</h3>
+    <ul><li>Fornecedor cadastrado, quando aplicável.</li><li>Insumos ativos cadastrados.</li><li>Quantidade e custo unitário conferidos.</li></ul>
+    <h3>6.2 Lançar uma fatura</h3>
+    <ol class="steps">
+      <li>Acesse <strong>Operações → Faturas de compra</strong>.</li>
+      <li>Clique em <strong>Lançar fatura</strong>.</li>
+      <li>Informe número, data, fornecedor e observações.</li>
+      <li>No Item 1, selecione o insumo e preencha quantidade e custo unitário.</li>
+      <li>Use <strong>Adicionar item</strong> para incluir outros materiais.</li>
+      <li>Se necessário, use <strong>Remover</strong> no item incorreto.</li>
+      <li>Revise os dados e confirme o lançamento.</li>
+    </ol>
+    <div class="success">Ao concluir, o sistema grava a fatura, aumenta todos os saldos e registra as movimentações em uma única transação. Se um item falhar, nada é lançado.</div>
+    <h3>6.3 Validações</h3>
+    <ul>
+      <li>Somente insumos podem ser selecionados.</li>
+      <li>Quantidade deve ser maior que zero.</li>
+      <li>Custo não pode ser negativo.</li>
+      <li>O mesmo número não pode ser repetido para o mesmo fornecedor.</li>
+    </ul>
+    <h3>6.4 Conferência</h3>
+    <p>Depois de salvar, verifique a fatura na lista e consulte <strong>Ajustes de inventário</strong> para confirmar as entradas com origem “Fatura”.</p>
+  </section>
+
+  <section id="receitas" class="chapter">
+    <h2>7. Receitas de fabricação</h2>
+    <p>A receita define quanto de cada insumo é consumido para produzir uma unidade do produto final.</p>
+    <h3>7.1 Exemplo</h3>
+    <table>
+      <thead><tr><th>Produto final</th><th>Quantidade produzida</th><th>Composição por unidade</th></tr></thead>
+      <tbody><tr><td>Kit Escritório</td><td>1 kit</td><td>1 caderno + 2 canetas + 1 embalagem</td></tr></tbody>
+    </table>
+    <p>Ao fabricar 10 kits, o sistema consumirá 10 cadernos, 20 canetas e 10 embalagens.</p>
+    <h3>7.2 Cadastrar ou atualizar</h3>
+    <ol class="steps">
+      <li>Acesse <strong>Cadastro → Receitas</strong>.</li>
+      <li>Clique em <strong>Nova receita</strong>.</li>
+      <li>Selecione um produto final ativo.</li>
+      <li>Adicione cada insumo e a quantidade consumida por unidade.</li>
+      <li>Registre observações relevantes e salve.</li>
+    </ol>
+    <p>Existe uma receita por produto final. Ao editá-la, a nova composição será utilizada apenas nas próximas fabricações; movimentações antigas permanecem registradas.</p>
+    <div class="warning">Cadastre quantidades na mesma unidade do produto. Se o insumo está em kg, a receita também deve indicar kg.</div>
+  </section>
+
+  <section id="fabricacao" class="chapter">
+    <h2>8. Fabricação e baixa de insumos</h2>
+    <h3>8.1 Registrar</h3>
+    <ol class="steps">
+      <li>Acesse <strong>Operações → Fabricação</strong>.</li>
+      <li>Clique em <strong>Registrar fabricação</strong>.</li>
+      <li>Selecione um produto final que já possua receita ativa.</li>
+      <li>Informe a quantidade produzida e observações.</li>
+      <li>Confirme o lançamento.</li>
+    </ol>
+    <h3>8.2 Cálculo automático</h3>
+    <p>Para cada insumo, o sistema calcula:</p>
+    <div class="flow">Consumo = quantidade da receita por unidade <span>×</span> quantidade fabricada</div>
+    <p>Se todos os saldos forem suficientes, o sistema baixa os insumos e adiciona o produto final. A operação é atômica: não existe fabricação parcial.</p>
+    <h3>8.3 Saldo insuficiente</h3>
+    <p>Quando faltar material, a mensagem informa o insumo, o necessário e o disponível. Corrija o saldo por uma fatura legítima ou confira a receita. Não use ajuste apenas para contornar o bloqueio.</p>
+    <h3>8.4 Conferir uma ordem</h3>
+    <ul><li>Confira produto, quantidade e data na lista de fabricação.</li><li>No histórico, verifique as saídas dos insumos.</li><li>Confirme a entrada do produto final.</li></ul>
+  </section>
+
+  <section id="inventario" class="chapter">
+    <h2>9. Ajustes e histórico de movimentações</h2>
+    <h3>9.1 Quando ajustar</h3>
+    <p>Use o ajuste após contagem física, perda, avaria, correção autorizada ou implantação inicial do saldo. O campo solicitado é o <strong>novo saldo absoluto</strong>, não a diferença.</p>
+    <h3>9.2 Exemplo</h3>
+    <table><tbody><tr><th>Saldo do sistema</th><td>18</td></tr><tr><th>Contagem física</th><td>15</td></tr><tr><th>Novo saldo informado</th><td>15</td></tr><tr><th>Movimento calculado</th><td>-3</td></tr></tbody></table>
+    <h3>9.3 Registrar</h3>
+    <ol class="steps">
+      <li>Acesse <strong>Operações → Ajustes de inventário</strong>.</li>
+      <li>Clique em <strong>Novo ajuste</strong>.</li>
+      <li>Selecione o produto e confira o saldo atual.</li>
+      <li>Informe o novo saldo, um motivo obrigatório e uma referência opcional.</li>
+      <li>Salve e confira o histórico.</li>
+    </ol>
+    <h3>9.4 Filtros</h3>
+    <p>Filtre por produto, tipo, data inicial e data final. A listagem reúne movimentações de faturas, fabricação e ajustes, permitindo rastrear saldo anterior e novo saldo.</p>
+  </section>
+
+  <section id="relatorios" class="chapter">
+    <h2>10. Relatórios e exportação</h2>
+    <table>
+      <thead><tr><th>Relatório</th><th>Conteúdo</th><th>Uso</th></tr></thead>
+      <tbody>
+        <tr><td>Posição de estoque</td><td>Produtos, saldos, custos e valores.</td><td>Fechamento e análise geral.</td></tr>
+        <tr><td>Movimentações</td><td>Entradas, saídas e ajustes por período.</td><td>Auditoria e conferência.</td></tr>
+        <tr><td>Estoque baixo</td><td>Itens no mínimo, abaixo dele ou zerados.</td><td>Planejamento de compras.</td></tr>
+      </tbody>
+    </table>
+    <ol class="steps">
+      <li>Acesse <strong>Relatórios</strong>.</li>
+      <li>Escolha o tipo e informe o período quando disponível.</li>
+      <li>Confira a prévia na tabela.</li>
+      <li>Clique em <strong>Exportar CSV</strong> e escolha o local.</li>
+    </ol>
+    <p>O CSV utiliza UTF-8 e separador ponto e vírgula, adequado para importação no Excel em configurações brasileiras/portuguesas.</p>
+  </section>
+
+  <section id="configuracoes" class="chapter">
+    <h2>11. Configurações e usuários</h2>
+    <h3>11.1 Alterar a própria senha</h3>
+    <p>Informe senha atual, nova senha e confirmação. A senha nova não pode ser igual à atual nem à senha padrão.</p>
+    <h3>11.2 Marca da empresa</h3>
+    <p>Administradores podem definir nome e logo do cliente. Formatos aceitos: PNG, JPG, WEBP ou SVG, até 2 MB. A marca será exibida no sistema; a Cortexis Tech permanece identificada como desenvolvedora.</p>
+    <ol class="steps"><li>Abra <strong>Configurações → Marca da empresa</strong>.</li><li>Informe o nome.</li><li>Clique em <strong>Escolher logo</strong>.</li><li>Confira a prévia e clique em <strong>Salvar marca</strong>.</li></ol>
+    <h3>11.3 Usuários</h3>
+    <p>Somente administradores podem cadastrar, ativar ou inativar usuários.</p>
+    <table><thead><tr><th>Campo</th><th>Orientação</th></tr></thead><tbody><tr><td>Nome</td><td>Identificação da pessoa.</td></tr><tr><td>Usuário</td><td>Nome curto e único para login.</td></tr><tr><td>Senha</td><td>Senha inicial individual.</td></tr><tr><td>Perfil</td><td>Administrador ou Operador.</td></tr></tbody></table>
+    <div class="note">O último administrador ativo não pode ser inativado, evitando perda total de administração.</div>
+    <h3>11.4 Aparência e atualizações</h3>
+    <p>Escolha tema claro ou escuro. A atualização automática funciona somente em versões instaladas e publicadas no canal configurado; no modo de desenvolvimento ela permanece desativada.</p>
+  </section>
+
+  <section id="backup" class="chapter">
+    <h2>12. Backup, restauração e criptografia</h2>
+    <h3>12.1 Criar uma cópia</h3>
+    <ol class="steps"><li>Acesse <strong>Configurações → Cópia de segurança</strong>.</li><li>Clique em <strong>Exportar cópia</strong>.</li><li>Escolha pasta e nome do arquivo <code>.db</code>.</li><li>Aguarde a mensagem de sucesso e confirme o arquivo no destino.</li></ol>
+    <p>Os backups novos são criptografados. Não tente editá-los com um programa SQLite comum.</p>
+    <h3>12.2 Restaurar</h3>
+    <ol class="steps"><li>Faça antes uma cópia do banco atual.</li><li>Clique em <strong>Restaurar cópia</strong>.</li><li>Escolha o arquivo e leia a confirmação.</li><li>Confirme somente se deseja substituir todos os dados atuais.</li><li>Aguarde o recarregamento do sistema.</li></ol>
+    <div class="warning"><strong>Atenção:</strong> a restauração substitui todos os cadastros e movimentações. Não desligue o computador durante a operação.</div>
+    <h3>12.3 Como a criptografia funciona</h3>
+    <p>O banco usa criptografia AES-256 compatível com SQLCipher. Uma chave aleatória de 256 bits é protegida pelo cofre do sistema operacional; no Windows, pelo DPAPI. A chave não está fixa no código nem dentro do banco.</p>
+    <div class="flow">Usuário do Windows <span>→</span> DPAPI <span>→</span> chave protegida <span>→</span> banco criptografado</div>
+    <h3>12.4 Limitação de portabilidade</h3>
+    <div class="warning">Atualmente, a chave é vinculada ao usuário do Windows. Um backup criptografado não deve ser considerado portátil para outro computador sem um mecanismo de recuperação. Mantenha também backup completo e protegido do perfil/máquina, ou aguarde a implementação da chave de recuperação administrativa.</div>
+    <h3>12.5 Política recomendada</h3>
+    <ul><li>Backup diário em pasta corporativa protegida.</li><li>Cópia semanal em mídia/local separado.</li><li>Teste mensal de restauração em ambiente controlado.</li><li>BitLocker habilitado no Windows.</li><li>Acesso administrativo limitado.</li></ul>
+  </section>
+
+  <section id="rotina" class="chapter">
+    <h2>13. Rotinas recomendadas</h2>
+    <h3>13.1 Início do dia</h3>
+    <ul><li>Consultar estoque crítico.</li><li>Verificar movimentações recentes.</li><li>Confirmar documentos pendentes de lançamento.</li></ul>
+    <h3>13.2 Recebimento</h3>
+    <ol><li>Conferir mercadoria física e documento.</li><li>Lançar a fatura com custos e quantidades reais.</li><li>Confirmar o saldo dos principais itens.</li></ol>
+    <h3>13.3 Produção</h3>
+    <ol><li>Conferir a receita vigente.</li><li>Confirmar disponibilidade de insumos.</li><li>Registrar somente quantidade efetivamente concluída.</li><li>Conferir consumos e entrada final.</li></ol>
+    <h3>13.4 Fechamento</h3>
+    <ul><li>Revisar ajustes do dia e seus motivos.</li><li>Exportar movimentações quando necessário.</li><li>Executar e confirmar a cópia de segurança.</li></ul>
+  </section>
+
+  <section id="problemas" class="chapter">
+    <h2>14. Solução de problemas</h2>
+    <table>
+      <thead><tr><th>Situação</th><th>Causa provável</th><th>Como proceder</th></tr></thead>
+      <tbody>
+        <tr><td>Entrar não funciona</td><td>Credenciais incorretas ou bloqueio temporário.</td><td>Confira Caps Lock, aguarde 30 segundos e tente novamente.</td></tr>
+        <tr><td>Não salva nova senha</td><td>Confirmação diferente, senha padrão ou senha igual à atual.</td><td>Leia a mensagem exibida e informe uma nova senha válida.</td></tr>
+        <tr><td>Produto não aparece na fatura</td><td>É produto final ou está inativo.</td><td>Confira o tipo e o status no cadastro.</td></tr>
+        <tr><td>Produto não aparece na fabricação</td><td>Não é produto final ou não possui receita.</td><td>Cadastre/ative o produto final e salve uma receita.</td></tr>
+        <tr><td>Saldo insuficiente</td><td>Insumo abaixo do consumo calculado.</td><td>Lance a compra real ou corrija a receita após conferência.</td></tr>
+        <tr><td>Backup recusado</td><td>Arquivo inválido, corrompido ou chave incompatível.</td><td>Escolha uma cópia gerada pelo sistema e preserve o arquivo atual.</td></tr>
+        <tr><td>Logo não aparece</td><td>Arquivo inválido ou acima de 2 MB.</td><td>Use PNG/JPG/WEBP/SVG menor e salve novamente.</td></tr>
+        <tr><td>Windows alerta ao instalar</td><td>Instalador sem assinatura digital.</td><td>Confirme a origem corporativa antes de continuar.</td></tr>
+      </tbody>
+    </table>
+    <h3>14.1 Antes de solicitar suporte</h3>
+    <ol><li>Anote a mensagem completa.</li><li>Registre tela, horário e operação realizada.</li><li>Informe a versão exibida em Configurações.</li><li>Não apague o banco nem a chave.</li><li>Faça uma cópia de segurança se o sistema ainda abrir.</li></ol>
+    <div class="warning">Nunca envie senha, chave do banco ou arquivo contendo dados reais por canais não autorizados.</div>
+  </section>
+
+  <section id="glossario" class="chapter">
+    <h2>15. Glossário e checklist</h2>
+    <table>
+      <thead><tr><th>Termo</th><th>Significado</th></tr></thead>
+      <tbody>
+        <tr><td>Insumo</td><td>Material consumido na fabricação.</td></tr>
+        <tr><td>Produto final</td><td>Item resultante da fabricação.</td></tr>
+        <tr><td>Receita/BOM</td><td>Lista e quantidade de componentes por unidade produzida.</td></tr>
+        <tr><td>Saldo</td><td>Quantidade disponível registrada.</td></tr>
+        <tr><td>Estoque mínimo</td><td>Limite usado para alertas de reposição.</td></tr>
+        <tr><td>Ajuste</td><td>Correção do saldo para uma quantidade física confirmada.</td></tr>
+        <tr><td>CSV</td><td>Arquivo tabular que pode ser aberto no Excel.</td></tr>
+        <tr><td>DPAPI</td><td>Proteção de segredos vinculada à conta do Windows.</td></tr>
+      </tbody>
+    </table>
+    <h3>Checklist de implantação</h3>
+    <ul>
+      <li>☐ Administrador alterou a senha padrão.</li>
+      <li>☐ Logo e nome do cliente foram configurados.</li>
+      <li>☐ Usuários individuais foram cadastrados.</li>
+      <li>☐ Categorias e fornecedores foram revisados.</li>
+      <li>☐ Produtos foram classificados corretamente.</li>
+      <li>☐ Receitas foram conferidas pela produção.</li>
+      <li>☐ Estoque inicial foi contado e registrado.</li>
+      <li>☐ Backup foi criado e testado.</li>
+      <li>☐ Responsáveis conhecem a limitação de portabilidade da chave.</li>
+    </ul>
+    <p class="small">Documento destinado a usuários e administradores do ERP Cortexis Tech — Controle de Estoque.</p>
+  </section>
+</body>
+</html>

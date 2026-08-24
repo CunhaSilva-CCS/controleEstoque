@@ -35,15 +35,3 @@ armazenada separadamente do backup.
 
 Nunca copie uma chave sem proteção, nunca a inclua no instalador e nunca a envie para o
 repositório de código.
-
-## Assinatura do Windows
-
-O comando abaixo exige as variáveis `CSC_LINK` e `CSC_KEY_PASSWORD` e interrompe o build
-se o certificado não estiver configurado:
-
-```bash
-npm run electron:build:release:signed
-```
-
-`CSC_LINK` deve apontar para o certificado PFX/P12 fora do projeto. A senha deve existir
-somente no gerenciador de segredos da CI ou na sessão do terminal usada para assinar.

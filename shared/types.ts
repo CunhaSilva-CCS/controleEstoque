@@ -264,6 +264,22 @@ export interface AuthSession {
   user: User | null
 }
 
+export type LicenseEdition = 'standard' | 'professional'
+
+export interface LicenseDetails {
+  version: 1
+  licenseId: string
+  installationId: string
+  customer: string
+  edition: LicenseEdition
+  issuedAt: string
+  expiresAt: string | null
+}
+
+export type LicenseStatus =
+  | { active: true; details: LicenseDetails }
+  | { active: false; reason: string; installationId: string }
+
 export type UpdateStatus =
   | { state: 'idle' }
   | { state: 'checking' }

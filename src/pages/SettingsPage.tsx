@@ -7,7 +7,7 @@ import { useClientBrand } from '../lib/client-brand'
 import { roleLabel } from '../lib/format'
 import { useTheme } from '../lib/theme'
 import { useToast } from '../lib/toast'
-import type { ClientBrand, UpdateStatus, User } from '@shared/types'
+import type { ClientBrand, LicenseStatus, UpdateStatus, User } from '@shared/types'
 
 function formatUpdateStatus(status: UpdateStatus): string {
   switch (status.state) {
@@ -43,6 +43,7 @@ export function SettingsPage() {
   const [lastBackupPath, setLastBackupPath] = useState('')
   const [version, setVersion] = useState('')
   const [packaged, setPackaged] = useState(false)
+  const [licenseStatus, setLicenseStatus] = useState<LicenseStatus | null>(null)
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ state: 'idle' })
   const [busy, setBusy] = useState(false)
   const [users, setUsers] = useState<User[]>([])
@@ -67,6 +68,7 @@ export function SettingsPage() {
       setDbPath(info.dbPath)
       setVersion(info.version)
       setPackaged(info.packaged)
+      setLicenseStatus(await unwrap(api.getLicenseStatus()))
       if (isAdmin) {
         setUsers(await unwrap(api.listUsers()))
         setUpdateStatus(await unwrap(api.getUpdateStatus()))
@@ -389,6 +391,20 @@ export function SettingsPage() {
               Banco de dados: <code data-testid="db-path">{dbPath || '—'}</code>
             </p>
           ) : null}
+        </div>
+
+        <div className="panel" data-testid="settings-license">
+          <h3>Licença</h3>
+          {licenseStatus?.active ? (
+            <div className="license-details">
+              <p className="muted info-row">Cliente: <strong>{licenseStatus.details.customer}</strong></p>
+              <p className="muted info-row">Edição: <strong>{licenseStatus.details.edition === 'professional' ? 'Profissional' : 'Standard'}</strong></p>
+              <p className="muted info-row">Validade: <strong>{licenseStatus.details.expiresAt ? new Date(licenseStatus.details.expiresAt).toLocaleDateString('pt-BR') : 'Perpétua'}</strong></p>
+              <p className="muted info-row break-all">Identificação: <code>{licenseStatus.details.licenseId}</code></p>
+            </div>
+          ) : (
+            <p className="muted">{licenseStatus?.reason ?? 'Consultando licença…'}</p>
+          )}
         </div>
 
         {isAdmin ? (

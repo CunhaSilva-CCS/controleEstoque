@@ -23,11 +23,14 @@ import type {
   LoginInput,
   ChangePasswordInput,
   AuthSession,
+  LicenseStatus,
 } from './types'
 
 export interface EstoqueApi {
   init: () => Promise<ApiResponse<{ path: string; seeded: boolean }>>
   authStatus: () => Promise<ApiResponse<AuthSession>>
+  getLicenseStatus: () => Promise<ApiResponse<LicenseStatus>>
+  activateLicense: (licenseKey: string) => Promise<ApiResponse<LicenseStatus>>
   login: (input: LoginInput) => Promise<ApiResponse<AuthSession>>
   logout: () => Promise<ApiResponse<boolean>>
   changePassword: (input: ChangePasswordInput) => Promise<ApiResponse<AuthSession>>

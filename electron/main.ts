@@ -47,6 +47,7 @@ import {
   updateSupplier,
 } from './db'
 import { initAutoUpdater, registerUpdateIpc } from './updater'
+import { activateLicense, getLicenseStatus, requireValidLicense } from './license'
 import {
   captureError,
   initMainTelemetry,
@@ -132,6 +133,7 @@ function fail(error: unknown) {
 }
 
 function requireSession(): User {
+  requireValidLicense()
   if (!currentUser) throw new Error('Sessão expirada. Entre novamente.')
   return currentUser
 }
@@ -149,6 +151,10 @@ function requireAdmin(): User {
 }
 
 function createWindow(): void {
+  const windowIcon = app.isPackaged
+    ? path.join(process.resourcesPath, 'icon.png')
+    : path.join(__dirname, '../build/icon.png')
+
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -157,7 +163,7 @@ function createWindow(): void {
     show: false,
     title: 'ERP Cortexis Tech · Controle de Estoque',
     backgroundColor: '#ffffff',
-    icon: path.join(__dirname, '../build/icon.png'),
+    icon: windowIcon,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -247,8 +253,24 @@ function registerIpc(): void {
     return ok(session)
   })
 
+  ipcMain.handle('license:status', () => ok(getLicenseStatus()))
+
+  ipcMain.handle('license:activate', (_e, licenseKey: string) => {
+    try {
+      if (typeof licenseKey !== 'string' || licenseKey.length > 4_000) {
+        throw new Error('Chave de licença inválida')
+      }
+      const status = activateLicense(licenseKey)
+      if (!status.active) throw new Error(status.reason)
+      return ok(status)
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
   ipcMain.handle('auth:login', (_e, input: { username: string; password: string }) => {
     try {
+      requireValidLicense()
       const key = normalizeLoginKey(input?.username)
       assertLoginAllowed(key)
       const password = typeof input?.password === 'string' ? input.password : ''

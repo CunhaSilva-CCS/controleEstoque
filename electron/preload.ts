@@ -13,6 +13,8 @@ import type {
 const api: EstoqueApi = {
   init: () => ipcRenderer.invoke('app:init'),
   authStatus: () => ipcRenderer.invoke('auth:status'),
+  getLicenseStatus: () => ipcRenderer.invoke('license:status'),
+  activateLicense: (licenseKey) => ipcRenderer.invoke('license:activate', licenseKey),
   login: (input) => ipcRenderer.invoke('auth:login', input),
   logout: () => ipcRenderer.invoke('auth:logout'),
   changePassword: (input) => ipcRenderer.invoke('auth:changePassword', input),

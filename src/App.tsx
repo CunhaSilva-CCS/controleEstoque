@@ -15,7 +15,7 @@ import { RecipesPage } from './pages/RecipesPage'
 import { ReportsPage } from './pages/ReportsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { SuppliersPage } from './pages/SuppliersPage'
-import type { AuthSession } from '@shared/types'
+import type { AuthSession, LicenseStatus } from '@shared/types'
 
 export default function App() {
   const { push } = useToast()
@@ -27,6 +27,10 @@ export default function App() {
   const [passwordChangeBusy, setPasswordChangeBusy] = useState(false)
   const [needsSeed, setNeedsSeed] = useState(false)
   const [auth, setAuth] = useState<AuthSession>({ authenticated: false, user: null })
+  const [license, setLicense] = useState<LicenseStatus | null>(null)
+  const [licenseKey, setLicenseKey] = useState('')
+  const [licenseError, setLicenseError] = useState('')
+  const [licenseBusy, setLicenseBusy] = useState(false)
   const [username, setUsername] = useState('admin')
   const [password, setPassword] = useState('')
   const [currentPassword, setCurrentPassword] = useState('')
@@ -37,7 +41,9 @@ export default function App() {
     async function boot() {
       try {
         const info = await unwrap(api.init())
+        const licenseStatus = await unwrap(api.getLicenseStatus())
         const session = await unwrap(api.authStatus())
+        setLicense(licenseStatus)
         setAuth(session)
         setNeedsSeed(!info.seeded)
         setReady(true)
@@ -65,6 +71,91 @@ export default function App() {
 
   if (!ready) {
     return <BootScreen />
+  }
+
+  if (!license?.active) {
+    return (
+      <div className="login-screen">
+        <div className="login-shell" data-testid="license-page">
+          <section className="login-brand" aria-label="Identidade do sistema">
+            <div className="login-brand-content">
+              <img src={BRAND.logoSrc} alt={BRAND.company} className="login-logo" />
+              <span className="login-brand-eyebrow">Licenciamento</span>
+              <h1>{BRAND.module}</h1>
+              <p>Ative esta instalação com a chave fornecida pela Cortexis Tech.</p>
+            </div>
+            <div className="login-brand-footer">
+              <span>Licença offline assinada digitalmente</span>
+              <strong>{BRAND.company}</strong>
+            </div>
+          </section>
+          <section className="login-panel">
+            <div className="login-panel-heading">
+              <span className="login-panel-icon" aria-hidden>🔑</span>
+              <div>
+                <span className="login-kicker">Ativação</span>
+                <h2>Chave de licença</h2>
+                <p>Cole abaixo a chave completa recebida.</p>
+              </div>
+            </div>
+            <form
+              className="stack login-form"
+              onSubmit={(event) => {
+                event.preventDefault()
+                if (licenseBusy) return
+                setLicenseError('')
+                setLicenseBusy(true)
+                void unwrap(api.activateLicense(licenseKey))
+                  .then((status) => {
+                    setLicense(status)
+                    setLicenseKey('')
+                    push('Sistema licenciado com sucesso')
+                  })
+                  .catch((error) => {
+                    const message = error instanceof Error ? error.message : 'Falha ao ativar a licença'
+                    setLicenseError(message)
+                    push(message, 'err')
+                  })
+                  .finally(() => setLicenseBusy(false))
+              }}
+            >
+              {licenseError || license?.reason ? (
+                <div className="alert alert-error" role="alert" data-testid="license-error">
+                  {licenseError || license?.reason}
+                </div>
+              ) : null}
+              {license?.installationId ? (
+                <div className="license-installation-code">
+                  <span>Código da instalação</span>
+                  <code>{license.installationId}</code>
+                  <small>Envie este código à Cortexis Tech para gerar a licença.</small>
+                </div>
+              ) : null}
+              <div className="field">
+                <label htmlFor="license-key">Chave de licença</label>
+                <textarea
+                  id="license-key"
+                  data-testid="input-license-key"
+                  className="license-key-input"
+                  value={licenseKey}
+                  onChange={(event) => {
+                    setLicenseKey(event.target.value)
+                    setLicenseError('')
+                  }}
+                  placeholder="CTX1-..."
+                  disabled={licenseBusy}
+                  required
+                />
+              </div>
+              <button className="btn btn-primary" type="submit" disabled={licenseBusy || !licenseKey.trim()}>
+                {licenseBusy ? 'Ativando…' : 'Ativar sistema'}
+              </button>
+            </form>
+            <p className="login-support">A ativação funciona sem conexão com a internet.</p>
+          </section>
+        </div>
+      </div>
+    )
   }
 
   if (!auth.authenticated || !auth.user) {

@@ -19,6 +19,7 @@ Aplicativo **desktop** (Electron + React + TypeScript + SQLite) do ecossistema *
 ## Funcionalidades
 
 - Login local com perfis **administrador** e **operador** (troca obrigatória da senha padrão)
+- Licenciamento offline por chave assinada, vinculada ao código da instalação
 - Painel com indicadores e alertas de estoque baixo / zerado
 - Cadastro de produtos (insumo ou produto final), categorias, fornecedores e receitas
 - Entrada de insumos por **fatura de compra**
@@ -75,6 +76,8 @@ npm run dev:web
 | `npm run typecheck` | Verificação TypeScript |
 | `npm run electron:build` | Empacota instalador (electron-builder) |
 | `npm run icons` | Regenera ícones a partir do logo |
+| `npm run license:keypair` | Cria uma única vez o par de licenciamento |
+| `npm run license:generate -- ...` | Emite uma licença para um cliente/instalação |
 
 ## CI/CD
 

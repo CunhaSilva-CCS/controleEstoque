@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:;">
+  <title>Gerador de Licenças Cortexis</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="header">
+      <img src="assets/logo.png" alt="Cortexis Tech">
+      <div><span>Ferramenta administrativa</span><h1>Gerador de Licenças</h1><p>ERP Cortexis Tech · Controle de Estoque</p></div>
+    </header>
+    <section class="notice"><strong>Uso restrito.</strong> A chave privada nunca é incorporada ao aplicativo e deve permanecer sob controle da Cortexis Tech.</section>
+    <div id="message" class="message" hidden></div>
+    <section class="card">
+      <div class="section-title"><div><span>Etapa 1</span><h2>Chave privada</h2></div><span id="keyStatus" class="status">Não selecionada</span></div>
+      <button id="selectKey" class="btn secondary" type="button">Selecionar arquivo PEM</button>
+      <p class="hint">Selecione <code>license-private-key.pem</code>. O arquivo é lido somente durante a emissão.</p>
+    </section>
+    <form id="form" class="card">
+      <div class="section-title"><div><span>Etapa 2</span><h2>Dados da licença</h2></div></div>
+      <div class="grid">
+        <label class="field full"><span>Cliente *</span><input id="customer" maxlength="120" placeholder="Empresa Cliente Ltda" required></label>
+        <label class="field full"><span>Código da instalação *</span><input id="installationId" maxlength="120" placeholder="Cole o código exibido no computador" required></label>
+        <label class="field"><span>Edição</span><select id="edition"><option value="standard">Standard</option><option value="professional">Profissional</option></select></label>
+        <label class="field"><span>Validade em dias</span><input id="days" type="number" min="1" max="3650" value="365"></label>
+        <label class="check full"><input id="perpetual" type="checkbox"><span>Licença perpétua (sem data de expiração)</span></label>
+      </div>
+      <button class="btn primary" type="submit">Gerar chave de licença</button>
+    </form>
+    <section id="result" class="card result" hidden>
+      <div class="section-title"><div><span>Etapa 3</span><h2>Licença gerada</h2></div><span class="status success">Assinatura válida</span></div>
+      <div id="summary" class="summary"></div>
+      <label class="field"><span>Chave para o cliente</span><textarea id="licenseKey" readonly></textarea></label>
+      <div class="actions"><button id="copy" class="btn secondary" type="button">Copiar chave</button><button id="save" class="btn primary" type="button">Salvar arquivo .license</button></div>
+    </section>
+  </main>
+  <script src="renderer.js"></script>
+</body>
+</html>
