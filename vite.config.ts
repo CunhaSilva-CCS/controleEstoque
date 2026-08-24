@@ -29,7 +29,6 @@ export default defineConfig({
               },
             },
           },
-          renderer: {},
         })
       : null,
   ],

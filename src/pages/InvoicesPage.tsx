@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useOutletContext } from 'react-router-dom'
 import { ModalForm } from '../components/ModalForm'
 import { CollectionEmpty, CollectionPageHeader } from '../components/CollectionPage'
+import type { AppOutletContext } from '../components/AppLayout'
 import { api, unwrap } from '../lib/api'
-import { formatCurrency, formatDateTime, formatNumber } from '../lib/format'
+import { formatCurrency, formatDateTime, formatNumber, operationStatusBadgeClass, operationStatusLabel } from '../lib/format'
 import { useToast } from '../lib/toast'
 import type { Product, PurchaseInvoice, Supplier } from '@shared/types'
 
@@ -18,12 +19,15 @@ const emptyItem: InvoiceItemForm = { productId: '', quantity: '1', unitCost: '0'
 export function InvoicesPage() {
   const navigate = useNavigate()
   const { push } = useToast()
+  const { user } = useOutletContext<AppOutletContext>()
+  const isAdmin = user.role === 'admin'
   const [items, setItems] = useState<PurchaseInvoice[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [open, setOpen] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
   const [viewInvoice, setViewInvoice] = useState<PurchaseInvoice | null>(null)
+  const [reversing, setReversing] = useState<PurchaseInvoice | null>(null)
+  const [reversalReason, setReversalReason] = useState('')
   const [number, setNumber] = useState('')
   const [supplierId, setSupplierId] = useState('')
   const [issueDate, setIssueDate] = useState(new Date().toISOString().slice(0, 10))
@@ -41,7 +45,7 @@ export function InvoicesPage() {
       setProducts(prods)
       setSuppliers(sups)
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Erro ao carregar faturas', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível carregar as faturas', 'err')
     }
   }, [push])
 
@@ -50,7 +54,6 @@ export function InvoicesPage() {
   }, [load])
 
   function openCreate() {
-    setEditingId(null)
     setNumber('')
     setSupplierId('')
     setIssueDate(new Date().toISOString().slice(0, 10))
@@ -59,49 +62,45 @@ export function InvoicesPage() {
     setOpen(true)
   }
 
-  function openEdit(invoice: PurchaseInvoice) {
-    setViewInvoice(null)
-    setEditingId(invoice.id)
-    setNumber(invoice.number)
-    setSupplierId(invoice.supplierId ?? '')
-    setIssueDate(invoice.issueDate)
-    setNotes(invoice.notes)
-    setLineItems(invoice.items.map((item) => ({
-      productId: item.productId,
-      quantity: String(item.quantity),
-      unitCost: String(item.unitCost),
-    })))
-    setOpen(true)
-  }
-
   async function save(e: FormEvent) {
     e.preventDefault()
     try {
-      const payload = {
-          number,
-          supplierId: supplierId || null,
-          issueDate,
-          notes,
-          items: lineItems.map((item) => ({
-            productId: item.productId,
-            quantity: Number(item.quantity) || 0,
-            unitCost: Number(item.unitCost) || 0,
-          })),
-        }
-      await unwrap(editingId
-        ? api.updatePurchaseInvoice({ id: editingId, ...payload })
-        : api.createPurchaseInvoice(payload))
-      push(editingId ? 'Fatura atualizada e estoque recalculado' : 'Fatura lançada e estoque atualizado')
+      await unwrap(api.createPurchaseInvoice({
+        number,
+        supplierId: supplierId || null,
+        issueDate,
+        notes,
+        items: lineItems.map((item) => ({
+          productId: item.productId,
+          quantity: Number(item.quantity) || 0,
+          unitCost: Number(item.unitCost) || 0,
+        })),
+      }))
+      push('Fatura registada e stock atualizado com sucesso')
       setOpen(false)
       await load()
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Falha ao lançar fatura', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível guardar a fatura', 'err')
+    }
+  }
+
+  async function reverse(e: FormEvent) {
+    e.preventDefault()
+    if (!reversing) return
+    try {
+      await unwrap(api.reversePurchaseInvoice({ id: reversing.id, reason: reversalReason }))
+      push('Fatura estornada e stock recalculado com sucesso')
+      setReversing(null)
+      setReversalReason('')
+      await load()
+    } catch (err) {
+      push(err instanceof Error ? err.message : 'Não foi possível estornar a fatura', 'err')
     }
   }
 
   return (
     <div className="collection-page invoices-page" data-testid="invoices-page">
-      <CollectionPageHeader icon="↓" description="Entrada de insumos no estoque por meio das faturas de compra." count={items.length} singular="fatura registrada" plural="faturas registradas">
+      <CollectionPageHeader icon="↓" description="Registe as compras para atualizar o stock e o custo médio das matérias-primas." count={items.length} singular="fatura registada" plural="faturas registadas">
         <button
           className="btn btn-primary"
           data-testid="btn-new-invoice"
@@ -115,7 +114,7 @@ export function InvoicesPage() {
 
       <div className="panel panel-flush">
         {items.length === 0 ? (
-          <CollectionEmpty icon="↓" title="Nenhuma fatura registrada" description="Lance uma fatura de compra para registrar a entrada de insumos." />
+          <CollectionEmpty icon="↓" title="Ainda não existem faturas registadas" description="Registe a primeira fatura de compra para dar entrada às matérias-primas." />
         ) : (
           <div className="table-wrap">
             <table className="collection-table invoices-table">
@@ -126,6 +125,7 @@ export function InvoicesPage() {
                   <th>Fornecedor</th>
                   <th>Itens</th>
                   <th>Registrada em</th>
+                  <th>Estado</th>
                   <th>Ações</th>
                 </tr>
               </thead>
@@ -146,9 +146,14 @@ export function InvoicesPage() {
                     </td>
                     <td>{formatDateTime(inv.createdAt)}</td>
                     <td>
+                      <span className={`badge ${operationStatusBadgeClass(inv.status)}`}>{operationStatusLabel(inv.status)}</span>
+                    </td>
+                    <td>
                       <div className="row-actions">
                         <button type="button" className="btn btn-ghost" onClick={() => setViewInvoice(inv)}>Visualizar</button>
-                        <button type="button" className="btn btn-ghost" onClick={() => openEdit(inv)}>Editar</button>
+                        {isAdmin && inv.status === 'confirmado' ? (
+                          <button type="button" className="btn btn-danger" onClick={() => { setReversing(inv); setReversalReason('') }}>Estornar</button>
+                        ) : null}
                       </div>
                     </td>
                   </tr>
@@ -161,11 +166,11 @@ export function InvoicesPage() {
 
       {open ? (
         <ModalForm
-          title={editingId ? 'Editar fatura de compra' : 'Lançar fatura de compra'}
-          hint={editingId ? 'As diferenças de quantidade atualizarão o estoque e ficarão registradas no histórico.' : 'Somente insumos entram por fatura. O custo unitário informado atualiza o produto.'}
+          title="Lançar fatura de compra"
+          hint="Apenas as matérias-primas entram por fatura. O custo unitário indicado atualiza o produto."
           onClose={() => setOpen(false)}
           onSubmit={save}
-          submitLabel={editingId ? 'Salvar alterações' : 'Lançar fatura'}
+          submitLabel="Registar fatura"
         >
           <div className="form-grid">
             <div className="field">
@@ -190,8 +195,8 @@ export function InvoicesPage() {
             </div>
             <div className="field full">
               <div className="field-label-actions">
-                <label htmlFor="inv-sup">Fornecedor cadastrado</label>
-                <button type="button" className="field-link" onClick={() => navigate('/fornecedores')}>Abrir fornecedores</button>
+                <label htmlFor="inv-sup">Fornecedor</label>
+                <button type="button" className="field-link" onClick={() => navigate('/fornecedores')}>Registar ou consultar fornecedores</button>
               </div>
               <select id="inv-sup" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
                 <option value="">—</option>
@@ -229,10 +234,11 @@ export function InvoicesPage() {
                 <div className="form-grid">
                 <div className="field full">
                   <div className="field-label-actions">
-                    <label>Insumo cadastrado *</label>
-                    <button type="button" className="field-link" onClick={() => navigate('/produtos')}>Abrir produtos</button>
+                    <label htmlFor={`invoice-product-${idx}`}>Matéria-prima *</label>
+                    <button type="button" className="field-link" onClick={() => navigate('/produtos')}>Registar ou consultar produtos</button>
                   </div>
                   <select
+                    id={`invoice-product-${idx}`}
                     data-testid={idx === 0 ? 'select-invoice-product' : undefined}
                     required
                     value={item.productId}
@@ -251,9 +257,10 @@ export function InvoicesPage() {
                   </select>
                 </div>
                 <div className="field">
-                  <label>Quantidade ({selectedProduct?.unit ?? 'unidade'}) *</label>
+                  <label htmlFor={`invoice-qty-${idx}`}>Quantidade ({selectedProduct?.unit ?? 'unidade'}) *</label>
                   <div className="quantity-with-unit">
                     <input
+                      id={`invoice-qty-${idx}`}
                       data-testid={idx === 0 ? 'input-invoice-qty' : undefined}
                       type="number"
                       min="0.001"
@@ -270,8 +277,9 @@ export function InvoicesPage() {
                   </div>
                 </div>
                 <div className="field">
-                  <label>Custo unitário (R$ / {selectedProduct?.unit ?? 'unidade'}) *</label>
+                  <label htmlFor={`invoice-cost-${idx}`}>Custo unitário (€ / {selectedProduct?.unit ?? 'unidade'}) *</label>
                   <input
+                    id={`invoice-cost-${idx}`}
                     data-testid={idx === 0 ? 'input-invoice-cost' : undefined}
                     type="number"
                     min="0"
@@ -313,19 +321,26 @@ export function InvoicesPage() {
           title={`Fatura ${viewInvoice.number}`}
           hint={`Registrada em ${formatDateTime(viewInvoice.createdAt)}`}
           onClose={() => setViewInvoice(null)}
-          onSubmit={() => openEdit(viewInvoice)}
-          submitLabel="Editar fatura"
+          onSubmit={() => {
+            if (isAdmin && viewInvoice.status === 'confirmado') {
+              setReversing(viewInvoice)
+              setReversalReason('')
+            }
+            setViewInvoice(null)
+          }}
+          submitLabel={isAdmin && viewInvoice.status === 'confirmado' ? 'Estornar fatura' : 'Fechar'}
           cancelLabel="Fechar"
         >
           <div className="invoice-details">
             <dl className="invoice-summary">
               <div><dt>Data</dt><dd>{viewInvoice.issueDate}</dd></div>
               <div><dt>Fornecedor</dt><dd>{viewInvoice.supplierName ?? 'Não informado'}</dd></div>
-              <div className="full"><dt>Observações</dt><dd>{viewInvoice.notes || 'Sem observações'}</dd></div>
+              <div><dt>Estado</dt><dd><span className={`badge ${operationStatusBadgeClass(viewInvoice.status)}`}>{operationStatusLabel(viewInvoice.status)}</span></dd></div>
+              <div className="full"><dt>Observações</dt><dd>{viewInvoice.notes || 'Nenhuma observação informada'}</dd></div>
             </dl>
             <div className="table-wrap">
               <table className="invoice-detail-table">
-                <thead><tr><th>Insumo</th><th>Quantidade</th><th>Custo unitário</th><th>Total</th></tr></thead>
+                <thead><tr><th>Matéria-prima</th><th>Quantidade</th><th>Custo unitário</th><th>Total</th></tr></thead>
                 <tbody>
                   {viewInvoice.items.map((item) => (
                     <tr key={item.id}>
@@ -339,6 +354,29 @@ export function InvoicesPage() {
                 <tfoot><tr><td colSpan={3}>Total da fatura</td><td>{formatCurrency(viewInvoice.items.reduce((sum, item) => sum + item.quantity * item.unitCost, 0))}</td></tr></tfoot>
               </table>
             </div>
+          </div>
+        </ModalForm>
+      ) : null}
+
+      {reversing ? (
+        <ModalForm
+          title={`Estornar fatura ${reversing.number}`}
+          hint="O estorno devolve o stock ao estado anterior e fica registado no histórico. Esta ação não pode ser desfeita."
+          onClose={() => setReversing(null)}
+          onSubmit={reverse}
+          submitLabel="Confirmar estorno"
+          cancelLabel="Cancelar"
+        >
+          <div className="field full">
+            <label htmlFor="reverse-reason">Motivo do estorno *</label>
+            <textarea
+              id="reverse-reason"
+              required
+              minLength={5}
+              value={reversalReason}
+              onChange={(e) => setReversalReason(e.target.value)}
+              placeholder="Ex.: fatura lançada em duplicado"
+            />
           </div>
         </ModalForm>
       ) : null}

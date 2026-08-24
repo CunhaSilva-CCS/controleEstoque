@@ -7,6 +7,7 @@ import { api, unwrap } from './lib/api'
 import { useToast } from './lib/toast'
 import { CategoriesPage } from './pages/CategoriesPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { InventoryPage } from './pages/InventoryPage'
 import { InvoicesPage } from './pages/InvoicesPage'
 import { MovementsPage } from './pages/MovementsPage'
 import { ProductionPage } from './pages/ProductionPage'
@@ -15,6 +16,8 @@ import { RecipesPage } from './pages/RecipesPage'
 import { ReportsPage } from './pages/ReportsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { SuppliersPage } from './pages/SuppliersPage'
+import { CustomersPage } from './pages/CustomersPage'
+import { SalesInvoicesPage } from './pages/SalesInvoicesPage'
 import type { AuthSession, LicenseStatus } from '@shared/types'
 
 export default function App() {
@@ -49,7 +52,7 @@ export default function App() {
         setNeedsSeed(!info.seeded)
         setReady(true)
       } catch (err) {
-        const message = err instanceof Error ? err.message : 'Falha na inicialização'
+        const message = err instanceof Error ? err.message : 'Não foi possível iniciar o sistema'
         setStartupError(message)
         push(message, 'err')
         setReady(true)
@@ -67,7 +70,7 @@ export default function App() {
         setNewPassword('')
         setConfirmPassword('')
       })
-      .catch((err) => push(err instanceof Error ? err.message : 'Falha ao sair', 'err'))
+      .catch((err) => push(err instanceof Error ? err.message : 'Não foi possível encerrar a sessão', 'err'))
   }
 
   async function copyInstallationId() {
@@ -76,7 +79,7 @@ export default function App() {
     try {
       await navigator.clipboard.writeText(installationId)
       setLicenseCopied(true)
-      push('Código da instalação copiado')
+      push('Código de instalação copiado')
       window.setTimeout(() => setLicenseCopied(false), 2_000)
     } catch {
       setLicenseError('Não foi possível copiar. Selecione o código manualmente.')
@@ -97,7 +100,7 @@ export default function App() {
               <img src={BRAND.logoSrc} alt={BRAND.company} className="login-logo" />
               <span className="login-brand-eyebrow">Licenciamento</span>
               <h1>{BRAND.module}</h1>
-              <p>Ative esta instalação com a chave fornecida pela Cortexis Tech.</p>
+              <p>Ative o sistema com a chave fornecida pela Cortexis Tech.</p>
             </div>
             <div className="login-brand-footer">
               <span>Licença offline assinada digitalmente</span>
@@ -110,7 +113,7 @@ export default function App() {
               <div>
                 <span className="login-kicker">Ativação</span>
                 <h2>Chave de licença</h2>
-                <p>Cole abaixo a chave completa recebida.</p>
+                <p>Insira a chave de licença completa para começar.</p>
               </div>
             </div>
             <form
@@ -124,10 +127,10 @@ export default function App() {
                   .then((status) => {
                     setLicense(status)
                     setLicenseKey('')
-                    push('Sistema licenciado com sucesso')
+                    push('Sistema ativado com sucesso')
                   })
                   .catch((error) => {
-                    const message = error instanceof Error ? error.message : 'Falha ao ativar a licença'
+                    const message = error instanceof Error ? error.message : 'Não foi possível ativar a licença'
                     setLicenseError(message)
                     push(message, 'err')
                   })
@@ -153,7 +156,7 @@ export default function App() {
                     </button>
                   </div>
                   <code>{license.installationId}</code>
-                  <small>Envie este código à Cortexis Tech para gerar a licença.</small>
+                  <small>Compartilhe este código com a Cortexis Tech para solicitar sua licença.</small>
                 </div>
               ) : null}
               <div className="field">
@@ -210,7 +213,7 @@ export default function App() {
               <div>
                 <span className="login-kicker">Bem-vindo</span>
                 <h2>Acesso ao sistema</h2>
-                <p>Informe suas credenciais para continuar.</p>
+                <p>Introduza o seu utilizador e a palavra-passe para continuar.</p>
               </div>
             </div>
           <form
@@ -226,7 +229,7 @@ export default function App() {
                   setPassword('')
                 })
                 .catch((err) => {
-                  const message = err instanceof Error ? err.message : 'Falha no acesso'
+                  const message = err instanceof Error ? err.message : 'Não foi possível acessar o sistema'
                   setLoginError(message)
                   push(message, 'err')
                 })
@@ -235,8 +238,8 @@ export default function App() {
           >
             {startupError ? (
               <div className="alert alert-error" role="alert" data-testid="startup-error">
-                Falha ao iniciar o sistema: {startupError}. Feche o aplicativo e abra novamente. Se
-                continuar, envie esta mensagem ao suporte.
+                Não foi possível iniciar o sistema: {startupError}. Feche a aplicação e tente
+                novamente. Se o problema continuar, envie esta mensagem ao suporte.
               </div>
             ) : null}
             {loginError ? (
@@ -245,7 +248,7 @@ export default function App() {
               </div>
             ) : null}
             <div className="field">
-              <label htmlFor="login-user">Usuário</label>
+              <label htmlFor="login-user">Utilizador</label>
               <input
                 id="login-user"
                 data-testid="input-login-user"
@@ -259,7 +262,7 @@ export default function App() {
               />
             </div>
             <div className="field">
-              <label htmlFor="login-pass">Senha</label>
+              <label htmlFor="login-pass">Palavra-passe</label>
               <input
                 id="login-pass"
                 data-testid="input-login-pass"
@@ -293,7 +296,7 @@ export default function App() {
               </button>
             </div>
           </form>
-            <p className="login-support">Acesso protegido · Dados armazenados localmente</p>
+            <p className="login-support">Acesso protegido · Seus dados permanecem neste dispositivo</p>
           </section>
         </div>
       </div>
@@ -304,8 +307,8 @@ export default function App() {
     return (
       <div className="boot-screen">
         <div className="boot-card" data-testid="change-password-page">
-          <h1 className="boot-title">Trocar senha padrão</h1>
-          <p className="muted">Por segurança, altere a senha antes de usar o sistema.</p>
+          <h1 className="boot-title">Crie uma nova palavra-passe</h1>
+          <p className="muted">Utilize pelo menos 10 caracteres, com maiúscula, minúscula, número e carácter especial.</p>
           <form
             className="stack"
             onSubmit={(e: FormEvent) => {
@@ -313,7 +316,7 @@ export default function App() {
               if (passwordChangeBusy) return
               setPasswordChangeError('')
               if (newPassword !== confirmPassword) {
-                const message = 'A confirmação não confere com a nova senha'
+                const message = 'As palavras-passe introduzidas não coincidem'
                 setPasswordChangeError(message)
                 push(message, 'err')
                 return
@@ -327,7 +330,7 @@ export default function App() {
                   }),
                   new Promise<never>((_, reject) => {
                     window.setTimeout(
-                      () => reject(new Error('A troca de senha demorou mais que o esperado. Tente novamente.')),
+                      () => reject(new Error('A alteração da palavra-passe está a demorar mais do que o esperado. Tente novamente.')),
                       15_000,
                     )
                   }),
@@ -338,10 +341,10 @@ export default function App() {
                   setCurrentPassword('')
                   setNewPassword('')
                   setConfirmPassword('')
-                  push('Senha alterada')
+                  push('Palavra-passe atualizada com sucesso')
                 })
                 .catch((err) => {
-                  const message = err instanceof Error ? err.message : 'Falha ao alterar senha'
+                  const message = err instanceof Error ? err.message : 'Não foi possível atualizar a palavra-passe'
                   setPasswordChangeError(message)
                   push(message, 'err')
                 })
@@ -354,7 +357,7 @@ export default function App() {
               </div>
             ) : null}
             <div className="field">
-              <label htmlFor="change-current">Senha atual</label>
+              <label htmlFor="change-current">Palavra-passe atual</label>
               <input
                 id="change-current"
                 data-testid="input-change-current"
@@ -369,7 +372,7 @@ export default function App() {
               />
             </div>
             <div className="field">
-              <label htmlFor="change-new">Nova senha</label>
+              <label htmlFor="change-new">Nova palavra-passe</label>
               <input
                 id="change-new"
                 data-testid="input-change-new"
@@ -380,11 +383,13 @@ export default function App() {
                   setPasswordChangeError('')
                 }}
                 disabled={passwordChangeBusy}
+                minLength={10}
+                maxLength={128}
                 autoComplete="new-password"
               />
             </div>
             <div className="field">
-              <label htmlFor="change-confirm">Confirmar nova senha</label>
+              <label htmlFor="change-confirm">Confirmar a nova palavra-passe</label>
               <input
                 id="change-confirm"
                 data-testid="input-change-confirm"
@@ -395,6 +400,8 @@ export default function App() {
                   setPasswordChangeError('')
                 }}
                 disabled={passwordChangeBusy}
+                minLength={10}
+                maxLength={128}
                 autoComplete="new-password"
               />
             </div>
@@ -404,7 +411,7 @@ export default function App() {
               type="submit"
               disabled={passwordChangeBusy}
             >
-              {passwordChangeBusy ? 'Salvando…' : 'Salvar senha'}
+              {passwordChangeBusy ? 'A guardar…' : 'Guardar nova palavra-passe'}
             </button>
             <button
               className="btn btn-ghost"
@@ -432,10 +439,13 @@ export default function App() {
         <Route path="produtos" element={<ProductsPage />} />
         <Route path="categorias" element={<CategoriesPage />} />
         <Route path="fornecedores" element={<SuppliersPage />} />
+        <Route path="clientes" element={<CustomersPage />} />
         <Route path="receitas" element={<RecipesPage />} />
         <Route path="faturas" element={<InvoicesPage />} />
+        <Route path="faturacao/saida" element={<SalesInvoicesPage />} />
         <Route path="fabricacao" element={<ProductionPage />} />
         <Route path="movimentacoes" element={<MovementsPage />} />
+        <Route path="inventario-fisico" element={<InventoryPage />} />
         <Route path="relatorios" element={<ReportsPage />} />
         <Route path="configuracoes" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

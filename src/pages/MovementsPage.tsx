@@ -6,13 +6,19 @@ import { formatDateTime, formatNumber, movementLabel, movementOriginLabel } from
 import { useToast } from '../lib/toast'
 import type { MovementType, Product, StockMovement } from '@shared/types'
 
-export function MovementsPage() {
+export function MovementsPage({
+  initialType = '',
+  outputView = false,
+}: {
+  initialType?: '' | MovementType
+  outputView?: boolean
+} = {}) {
   const navigate = useNavigate()
   const { push } = useToast()
   const [items, setItems] = useState<StockMovement[]>([])
   const [products, setProducts] = useState<Product[]>([])
   const [productId, setProductId] = useState('')
-  const [type, setType] = useState<'' | MovementType>('')
+  const [type, setType] = useState<'' | MovementType>(initialType)
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [open, setOpen] = useState(false)
@@ -39,7 +45,7 @@ export function MovementsPage() {
       setItems(movs)
       setProducts(prods)
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Erro ao carregar movimentações', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível carregar as movimentações', 'err')
     }
   }, [productId, type, from, to, push])
 
@@ -68,22 +74,22 @@ export function MovementsPage() {
           reference,
         }),
       )
-      push('Ajuste registrado')
+      push('Ajuste registado e stock atualizado com sucesso')
       setOpen(false)
       await load()
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Falha ao registrar', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível registrar o ajuste', 'err')
     }
   }
 
   function clearFilters() {
     setProductId('')
-    setType('')
+    setType(initialType)
     setFrom('')
     setTo('')
   }
 
-  const hasFilters = Boolean(productId || type || from || to)
+  const hasFilters = Boolean(productId || from || to || (!outputView && type))
 
   return (
     <div className="movements-page" data-testid="movements-page">
@@ -91,16 +97,18 @@ export function MovementsPage() {
         <div className="movements-intro">
           <span className="movements-intro-icon" aria-hidden>↕</span>
           <div>
-            <p>Histórico completo das entradas, saídas e correções manuais do estoque.</p>
+            <p>{outputView ? 'Consulte as saídas registadas no stock.' : 'Consulte todas as entradas, saídas e correções efetuadas no stock.'}</p>
             <span className="movements-count">
               {items.length} {items.length === 1 ? 'movimentação encontrada' : 'movimentações encontradas'}
             </span>
           </div>
         </div>
-        <button className="btn btn-primary" data-testid="btn-new-movement" onClick={openCreate} disabled={products.length === 0}>
-          <span aria-hidden>+</span>
-          Novo ajuste
-        </button>
+        {!outputView ? (
+          <button className="btn btn-primary" data-testid="btn-new-movement" onClick={openCreate} disabled={products.length === 0}>
+            <span aria-hidden>+</span>
+            Novo ajuste
+          </button>
+        ) : null}
       </div>
 
       <div className="toolbar movements-toolbar">
@@ -129,7 +137,7 @@ export function MovementsPage() {
             ))}
           </select>
         </div>
-        <div className="field-inline">
+        <div className="field-inline" hidden={outputView}>
           <label htmlFor="ftype">Tipo</label>
           <select
             id="ftype"
@@ -156,8 +164,8 @@ export function MovementsPage() {
         {items.length === 0 ? (
           <div className="empty movements-empty">
             <span aria-hidden>⇄</span>
-            <strong>Nenhuma movimentação encontrada</strong>
-            <p>Altere os filtros ou registre um novo ajuste de inventário.</p>
+            <strong>Não encontramos movimentações</strong>
+            <p>Ajuste os filtros ou registre uma nova correção de inventário.</p>
           </div>
         ) : (
           <div className="table-wrap">
@@ -232,8 +240,8 @@ export function MovementsPage() {
           <div className="form-grid">
             <div className="field full">
               <div className="field-label-actions">
-                <label htmlFor="mprod">Produto cadastrado *</label>
-                <button type="button" className="field-link" onClick={() => navigate('/produtos')}>Abrir produtos</button>
+                <label htmlFor="mprod">Produto *</label>
+                <button type="button" className="field-link" onClick={() => navigate('/produtos')}>Registar ou consultar produtos</button>
               </div>
               <select
                 id="mprod"
@@ -274,7 +282,7 @@ export function MovementsPage() {
                 required
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="Ex.: inventário físico, perda, correção"
+                placeholder="Ex.: contagem física, perda ou correção de lançamento"
               />
             </div>
             <div className="field full">

@@ -51,6 +51,14 @@ describe('backup e atualizações (API em memória)', () => {
     unsub()
   })
 
+  it('expõe diagnóstico redigido e pacote de suporte no modo web', async () => {
+    const diagnostics = await unwrap(api.getDiagnostics())
+    expect(diagnostics.integrity).toBe('ok')
+    expect(diagnostics.recentErrors).toEqual([])
+    const support = await unwrap(api.exportSupportPackage())
+    expect(support.saved).toBe(true)
+  })
+
   it('salva e recupera a marca da empresa contratante', async () => {
     const saved = await unwrap(
       api.saveClientBrand({

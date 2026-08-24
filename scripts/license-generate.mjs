@@ -18,8 +18,10 @@ if (edition !== 'standard' && edition !== 'professional') throw new Error('--edi
 const days = daysRaw ? Number(daysRaw) : null
 if (days !== null && (!Number.isInteger(days) || days < 1 || days > 3650)) throw new Error('--days deve estar entre 1 e 3650')
 
-const privatePath = path.join(process.cwd(), 'private', 'license-private-key.pem')
-if (!fs.existsSync(privatePath)) throw new Error('Chave privada ausente. Execute npm run license:keypair uma única vez.')
+const privatePath = process.env.CORTEXIS_LICENSE_PRIVATE_KEY
+if (!privatePath || !path.isAbsolute(privatePath) || !fs.existsSync(privatePath)) {
+  throw new Error('Defina CORTEXIS_LICENSE_PRIVATE_KEY com o caminho absoluto da chave privada, fora deste projeto.')
+}
 const privateKey = fs.readFileSync(privatePath)
 const publicPem = createPublicKey(privateKey).export({ type: 'spki', format: 'pem' }).toString()
 const embeddedPublicSource = fs.readFileSync(path.join(process.cwd(), 'shared', 'license-public-key.ts'), 'utf8')

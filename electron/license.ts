@@ -46,7 +46,7 @@ export function verifyLicenseKey(
       throw new Error('Esta chave pertence a outra instalação')
     }
     if (details.expiresAt && now.getTime() > Date.parse(details.expiresAt)) {
-      throw new Error(`Licença expirada em ${new Date(details.expiresAt).toLocaleDateString('pt-BR')}`)
+      throw new Error(`Licença expirada em ${new Date(details.expiresAt).toLocaleDateString('pt-PT')}`)
     }
     return { active: true, details }
   } catch (error) {

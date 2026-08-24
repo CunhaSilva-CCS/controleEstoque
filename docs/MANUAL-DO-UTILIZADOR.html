@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8">
+  <title>Manual do Utilizador — ERP Cortexis Tech</title>
+  <style>
+    @page { size: A4; margin: 18mm 16mm 18mm; }
+    * { box-sizing: border-box; }
+    html, body { background: #fff; }
+    body { margin: 0; color: #172033; font: 10.5pt/1.55 Arial, sans-serif; }
+    h1, h2, h3, h4 { color: #083344; break-after: avoid; }
+    h1 { font-size: 28pt; line-height: 1.1; margin: 0 0 12px; }
+    h2 { margin: 26px 0 10px; padding-bottom: 6px; border-bottom: 2px solid #0891b2; font-size: 18pt; }
+    h3 { margin: 20px 0 7px; font-size: 13pt; }
+    h4 { margin: 14px 0 5px; font-size: 11pt; }
+    p { margin: 6px 0 10px; }
+    ul, ol { margin: 6px 0 12px; padding-left: 22px; }
+    li { margin: 3px 0; }
+    table { width: 100%; border-collapse: collapse; margin: 10px 0 16px; break-inside: avoid; }
+    th, td { padding: 7px 8px; border: 1px solid #cbd5e1; vertical-align: top; text-align: left; }
+    th { color: #083344; background: #ecfeff; }
+    code { padding: 1px 4px; border-radius: 4px; background: #f1f5f9; font-family: Consolas, monospace; }
+    .cover { min-height: 245mm; display: flex; flex-direction: column; justify-content: center; text-align: center; page-break-after: always; }
+    .cover img { width: 310px; max-height: 150px; margin: 0 auto 34px; object-fit: contain; border-radius: 14px; background: #111827; }
+    .cover .tag { color: #0891b2; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; }
+    .cover .subtitle { max-width: 520px; margin: 0 auto 30px; color: #64748b; font-size: 14pt; }
+    .cover .version { color: #64748b; }
+    .toc { page-break-after: always; }
+    .toc a { display: flex; justify-content: space-between; padding: 5px 0; color: #164e63; text-decoration: none; border-bottom: 1px dotted #cbd5e1; }
+    .chapter { page-break-before: always; }
+    .note, .warning, .success { margin: 12px 0; padding: 10px 12px; border-left: 4px solid #0891b2; border-radius: 4px; background: #ecfeff; break-inside: avoid; }
+    .warning { border-color: #d97706; background: #fffbeb; }
+    .success { border-color: #059669; background: #ecfdf5; }
+    .label { font-weight: 700; color: #0e7490; }
+    .steps { counter-reset: step; padding-left: 0; list-style: none; }
+    .steps > li { position: relative; min-height: 26px; margin: 9px 0; padding-left: 34px; }
+    .steps > li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 23px; height: 23px; border-radius: 50%; color: white; background: #0891b2; text-align: center; font-weight: bold; line-height: 23px; }
+    .flow { margin: 12px 0; padding: 13px; border: 1px solid #bae6fd; border-radius: 8px; background: #f8fafc; text-align: center; font-weight: 700; color: #164e63; }
+    .flow span { color: #0891b2; padding: 0 6px; }
+    .small { color: #64748b; font-size: 9pt; }
+    .kbd { display: inline-block; padding: 1px 6px; border: 1px solid #94a3b8; border-bottom-width: 2px; border-radius: 4px; background: #f8fafc; font-size: 9pt; }
+    .checklist { list-style: none; padding-left: 0; }
+    .checklist li::before { content: '☐'; margin-right: 8px; color: #0891b2; }
+    .keep { break-inside: avoid; }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <img src="../public/branding/cortexis-logo.png" alt="Cortexis Tech">
+    <div class="tag">ERP Cortexis Tech</div>
+    <h1>Manual do Utilizador</h1>
+    <p class="subtitle">Controlo de stock, compras, fabrico, faturação de saída, clientes, relatórios e administração</p>
+    <p class="version">Versão 1.0 · Edição de 24 de agosto de 2026 · Portugal</p>
+  </section>
+
+  <section class="toc">
+    <h2>Índice</h2>
+    <a href="#apresentacao"><span>1. Apresentação, âmbito e conceitos</span><span>Fluxo geral</span></a>
+    <a href="#instalacao"><span>2. Instalação, licença e primeiro acesso</span><span>Windows/macOS</span></a>
+    <a href="#navegacao"><span>3. Navegação e Painel</span><span>Orientação</span></a>
+    <a href="#cadastros"><span>4. Categorias, fornecedores e clientes</span><span>Registos</span></a>
+    <a href="#produtos"><span>5. Matérias-primas e produtos finais</span><span>Produtos</span></a>
+    <a href="#faturas"><span>6. Faturação — Entrada</span><span>Compras</span></a>
+    <a href="#receitas"><span>7. Receita de Fabrico</span><span>Composição</span></a>
+    <a href="#fabricacao"><span>8. Fabrico</span><span>Produção</span></a>
+    <a href="#vendas"><span>9. Faturação — Saída e recibos</span><span>Vendas</span></a>
+    <a href="#inventario"><span>10. Ajustes e histórico</span><span>Inventário</span></a>
+    <a href="#relatorios"><span>11. Relatórios gerenciais e exportação</span><span>Análise</span></a>
+    <a href="#configuracoes"><span>12. Configurações e utilizadores</span><span>Administração</span></a>
+    <a href="#backup"><span>13. Cópias, restauração, segurança e atualizações</span><span>Proteção</span></a>
+    <a href="#rotina"><span>14. Rotinas operacionais recomendadas</span><span>Procedimentos</span></a>
+    <a href="#problemas"><span>15. Resolução de problemas</span><span>Suporte</span></a>
+    <a href="#operacoes-avancadas"><span>16. Estorno, inventário físico e diagnóstico</span><span>Controlo</span></a>
+    <a href="#glossario"><span>17. Glossário e listas de verificação</span><span>Referência</span></a>
+  </section>
+
+  <section id="apresentacao" class="chapter">
+    <h2>1. Apresentação, âmbito e conceitos</h2>
+    <p>O ERP Cortexis Tech — Controlo de Stock é uma aplicação de ambiente de trabalho para gerir matérias-primas, produtos finais, compras, fabrico, vendas e inventário. Funciona localmente em Windows e macOS e guarda os dados no computador em que foi instalado.</p>
+    <p>Este manual destina-se a operadores, responsáveis de armazém, produção, gestão e administradores da aplicação. Os nomes de botões aparecem a <strong>negrito</strong> e os caminhos de menu são apresentados no formato <strong>Grupo → Página</strong>.</p>
+    <h3>1.1 Como o saldo é alterado</h3>
+    <div class="flow">Fatura de entrada <span>→</span> entrada de matérias-primas <span>→</span> fabrico <span>→</span> consumo de matérias-primas + entrada do produto final <span>→</span> fatura de saída</div>
+    <table>
+      <thead><tr><th>Operação</th><th>Efeito no stock</th><th>Quando utilizar</th></tr></thead>
+      <tbody>
+        <tr><td>Registo do produto</td><td>Nenhum. O saldo inicial é zero.</td><td>Para criar a ficha da matéria-prima ou produto final.</td></tr>
+        <tr><td>Faturação — Entrada</td><td>Aumenta o stock das matérias-primas e recalcula o custo médio.</td><td>Quando uma compra é recebida e conferida.</td></tr>
+        <tr><td>Fabrico</td><td>Consome as matérias-primas da receita e aumenta o produto final.</td><td>Quando a quantidade foi efetivamente produzida.</td></tr>
+        <tr><td>Faturação — Saída</td><td>Diminui apenas o stock de produtos finais.</td><td>Quando um produto final é vendido.</td></tr>
+        <tr><td>Ajuste de inventário</td><td>Define diretamente o novo saldo físico.</td><td>Apenas para corrigir divergências confirmadas.</td></tr>
+      </tbody>
+    </table>
+    <div class="warning"><strong>Importante:</strong> não utilize ajustes para simular compras, fabrico ou vendas. Isso prejudica a rastreabilidade e os relatórios.</div>
+    <h3>1.2 Perfis de acesso</h3>
+    <table>
+      <thead><tr><th>Perfil</th><th>Permissões principais</th></tr></thead>
+      <tbody>
+        <tr><td>Administrador</td><td>Todas as operações, utilizadores, identidade visual, cópias, restauração e atualizações.</td></tr>
+        <tr><td>Operador</td><td>Registos e operações de stock, relatórios, tema e alteração da própria palavra-passe.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="instalacao" class="chapter">
+    <h2>2. Instalação, licença e primeiro acesso</h2>
+    <h3>2.1 Instalar no Windows</h3>
+    <ol class="steps">
+      <li>Localize o ficheiro <code>ERP Cortexis Tech - Estoque Setup 1.0.0.exe</code>.</li>
+      <li>Faça duplo clique no instalador.</li>
+      <li>Se o SmartScreen aparecer, confirme que recebeu o ficheiro da Cortexis Tech. Uma compilação não assinada pode apresentar “Editor desconhecido”.</li>
+      <li>Conclua a instalação e abra a aplicação através do atalho criado.</li>
+    </ol>
+    <h3>2.2 Instalar no macOS</h3>
+    <ol class="steps">
+      <li>Localize o ficheiro <code>ERP Cortexis Tech - Estoque-1.0.0.dmg</code>.</li>
+      <li>Faça duplo clique para montar a imagem e arraste a aplicação para <strong>Aplicações</strong>.</li>
+      <li>Abra a pasta Aplicações e inicie o ERP Cortexis Tech. Se o macOS bloquear uma versão não notarizada, confirme a origem antes de autorizar em <strong>Definições do Sistema → Privacidade e Segurança</strong>.</li>
+      <li>Depois de abrir corretamente, ejete a imagem DMG no Finder. Não execute a aplicação diretamente de dentro da imagem.</li>
+    </ol>
+    <div class="note">A aplicação abre maximizada e adapta os componentes ao espaço disponível. Utilize uma resolução igual ou superior ao mínimo aceite pelo sistema.</div>
+    <h3>2.3 Ativação da licença</h3>
+    <ol class="steps">
+      <li>Na primeira abertura, clique em <strong>Copiar</strong> junto ao <strong>Código da instalação</strong>.</li>
+      <li>Envie o código à Cortexis Tech juntamente com o nome da empresa e a validade contratada.</li>
+      <li>Ao receber a chave iniciada por <code>CTX1-</code>, cole-a integralmente no campo indicado.</li>
+      <li>Clique em <strong>Ativar sistema</strong>. Não é necessária conexão com a internet.</li>
+    </ol>
+    <p>A chave é assinada digitalmente e vinculada à instalação. Alterações manuais ou utilização noutro computador são recusadas. A edição, o cliente e a validade podem ser consultados em <strong>Configurações → Sobre o sistema</strong>.</p>
+    <h3>2.4 Credenciais iniciais</h3>
+    <table><tbody><tr><th>Utilizador</th><td><code>admin</code></td></tr><tr><th>Palavra-passe inicial</th><td><code>admin123</code></td></tr></tbody></table>
+    <p>No primeiro acesso, a palavra-passe predefinida deve ser alterada antes de utilizar qualquer outra página.</p>
+    <ol class="steps">
+      <li>Introduza <code>admin</code> no campo Utilizador.</li>
+      <li>Introduza <code>admin123</code> no campo Palavra-passe e clique em <strong>Entrar</strong>.</li>
+      <li>Informe a palavra-passe atual, a nova e a respetiva confirmação.</li>
+      <li>Clique em <strong>Guardar palavra-passe</strong> e aguarde a confirmação.</li>
+    </ol>
+    <div class="warning"><strong>Proteja a conta administrativa.</strong> Não partilhe a palavra-passe e crie uma conta individual para cada pessoa.</div>
+    <h3>2.5 Primeiro arranque e saída</h3>
+    <p>Para uma operação real, escolha <strong>Começar vazio</strong>. A opção de demonstração serve apenas para conhecer o fluxo. No ecrã de autenticação, o botão <strong>Sair</strong> fecha completamente o programa; dentro da aplicação, <strong>Sair</strong> termina a sessão e volta ao ecrã de entrada.</p>
+    <h3>2.6 Proteção contra tentativas</h3>
+    <p>Após cinco falhas de autenticação num minuto, o sistema bloqueia novas tentativas por 30 segundos. Aguarde, verifique a tecla <span class="kbd">Caps Lock</span> e confirme o nome do utilizador.</p>
+  </section>
+
+  <section id="navegacao" class="chapter">
+    <h2>3. Navegação e Painel</h2>
+    <h3>3.1 Menu principal</h3>
+    <table>
+      <thead><tr><th>Grupo</th><th>Telas</th><th>Finalidade</th></tr></thead>
+      <tbody>
+        <tr><td>Painel</td><td>Resumo operacional</td><td>Indicadores, alertas e atalhos.</td></tr>
+        <tr><td>Registos</td><td>Produtos, Categorias, Fornecedores, Clientes, Receita de Fabrico</td><td>Dados utilizados nos lançamentos.</td></tr>
+        <tr><td>Operações</td><td>Faturação (Entrada/Saída), Fabrico, Ajustes</td><td>Movimentações que alteram saldos.</td></tr>
+        <tr><td>Relatórios</td><td>Dez análises operacionais e gerenciais</td><td>Consulta, decisão e exportação CSV.</td></tr>
+        <tr><td>Configurações</td><td>Sistema, utilizadores, aparência, cópias e atualizações</td><td>Administração da aplicação.</td></tr>
+      </tbody>
+    </table>
+    <h3>3.2 Indicadores do Painel</h3>
+    <ul>
+      <li><strong>Produtos ativos:</strong> quantidade de fichas disponíveis para utilização.</li>
+      <li><strong>Valor em stock:</strong> soma do saldo × custo dos produtos ativos.</li>
+      <li><strong>Stock baixo/esgotado:</strong> itens abaixo do mínimo ou sem saldo.</li>
+      <li><strong>Movimentações hoje:</strong> entradas, saídas e ajustes do dia.</li>
+    </ul>
+    <p>Os blocos <strong>Stock crítico</strong> e <strong>Últimas movimentações</strong> ficam empilhados para facilitar a leitura, inclusive em janelas mais estreitas. Utilize <strong>Atualizar</strong> para recarregar os indicadores.</p>
+    <h3>3.3 Ações rápidas</h3>
+    <p>Os atalhos do painel abrem as mesmas páginas do menu lateral. Os grupos do menu iniciam recolhidos; clique no título do grupo para mostrar ou ocultar as respetivas opções.</p>
+  </section>
+
+  <section id="cadastros" class="chapter">
+    <h2>4. Categorias, fornecedores e clientes</h2>
+    <h3>4.1 Categorias</h3>
+    <ol class="steps">
+      <li>Aceda a <strong>Registos → Categorias</strong>.</li>
+      <li>Clique em <strong>Nova categoria</strong>.</li>
+      <li>Indique um nome único e, se necessário, uma descrição.</li>
+      <li>Clique em <strong>Guardar</strong>.</li>
+    </ol>
+    <p>Uma categoria pode ser inativada e reativada. A inativação impede novas associações, mas preserva o histórico.</p>
+    <h3>4.2 Fornecedores</h3>
+    <ol class="steps">
+      <li>Aceda a <strong>Registos → Fornecedores</strong> e clique em <strong>Novo fornecedor</strong>.</li>
+      <li>Preencha Nome; Documento, Telefone, E-mail e Observações são opcionais.</li>
+      <li>Guarde e confirme o registo na lista.</li>
+    </ol>
+    <p>O fornecedor pode ser selecionado no produto e na fatura de entrada. Utilize <strong>Editar</strong> para atualizar os contactos e <strong>Inativar</strong> quando deixar de existir relação comercial.</p>
+    <h3>4.3 Clientes</h3>
+    <ol class="steps"><li>Aceda a <strong>Registos → Clientes</strong> e clique em <strong>Novo cliente</strong>.</li><li>Informe o nome. NIF, morada, telefone, e-mail e observações complementam o documento de saída.</li><li>Guarde e confirme o estado <strong>Ativo</strong>.</li></ol>
+    <p>Clientes inativos mantêm as vendas antigas, mas não aparecem em novos lançamentos. Antes de faturar, confirme especialmente nome, NIF e morada.</p>
+    <div class="note"><strong>Atalhos contextuais:</strong> nos formulários de lançamento, utilize <strong>Registar ou consultar…</strong>. Após guardar o novo registo, volte à página anterior pelo menu; a lista é recarregada e o novo item fica disponível.</div>
+  </section>
+
+  <section id="produtos" class="chapter">
+    <h2>5. Matérias-primas e produtos finais</h2>
+    <h3>5.1 Diferença entre os tipos</h3>
+    <table>
+      <thead><tr><th>Tipo</th><th>Exemplo</th><th>Como entra</th><th>Como sai</th></tr></thead>
+      <tbody>
+        <tr><td>Matéria-prima</td><td>Farinha, parafuso, embalagem</td><td>Fatura de entrada ou ajuste</td><td>Fabrico ou ajuste</td></tr>
+        <tr><td>Produto final</td><td>Pão, móvel montado, kit</td><td>Fabrico ou ajuste</td><td>Fatura de saída ou ajuste</td></tr>
+      </tbody>
+    </table>
+    <h3>5.2 Registar</h3>
+    <ol class="steps">
+      <li>Aceda a <strong>Registos → Produtos</strong> e clique em <strong>Novo produto</strong>.</li>
+      <li>Informe um <strong>Código</strong> único e a <strong>Unidade</strong> (un, kg, g, m, l, etc.).</li>
+      <li>Escolha <strong>Matéria-prima</strong> ou <strong>Produto final</strong>.</li>
+      <li>Preencha nome, descrição, categoria e fornecedor, conforme aplicável.</li>
+      <li>Defina o preço de venda do produto final e o stock mínimo.</li>
+      <li>Guarde. O saldo começa em zero.</li>
+    </ol>
+    <h3>5.3 Campos e boas práticas</h3>
+    <table>
+      <thead><tr><th>Campo</th><th>Orientação</th></tr></thead>
+      <tbody>
+        <tr><td>Código</td><td>Use padrão estável, por exemplo <code>INS-001</code> ou <code>PF-001</code>.</td></tr>
+        <tr><td>Unidade</td><td>Cadastre na mesma unidade usada na compra e na receita.</td></tr>
+        <tr><td>Preço de custo</td><td>Na matéria-prima, é a média ponderada de todas as faturas de entrada. No produto final, é a soma proporcional dos custos das matérias-primas da receita.</td></tr>
+        <tr><td>Preço de venda</td><td>Valor sugerido automaticamente na faturação de saída; pode ser alterado especificamente no lançamento.</td></tr>
+        <tr><td>Stock mínimo</td><td>Gera alerta quando o saldo for menor ou igual ao limite.</td></tr>
+      </tbody>
+    </table>
+    <div class="warning">Evite alterar a unidade depois de existirem movimentações. Quantidades usam três casas decimais; valores monetários usam duas.</div>
+    <h3>5.4 Pesquisar, editar e inativar</h3>
+    <p>A tabela separa <strong>Matérias-primas</strong> e <strong>Produtos finais</strong>. Utilize a pesquisa por nome/código e os filtros. Editar a ficha não altera o stock. Um código já utilizado não pode ser repetido, inclusive para outro tipo de produto.</p>
+  </section>
+
+  <section id="faturas" class="chapter">
+    <h2>6. Faturação — Entrada</h2>
+    <p>A fatura de entrada é a operação normal para aumentar o stock de matérias-primas. Além da quantidade, cada linha mostra a unidade, o custo unitário e o total.</p>
+    <h3>6.1 Pré-condições</h3>
+    <ul><li>Fornecedor registado, quando aplicável.</li><li>Matérias-primas ativas registadas.</li><li>Quantidade, unidade e custo unitário conferidos com o documento.</li></ul>
+    <h3>6.2 Lançar uma fatura</h3>
+    <ol class="steps">
+      <li>Aceda a <strong>Operações → Faturação → Entrada</strong>.</li>
+      <li>Clique em <strong>Lançar fatura</strong>.</li>
+      <li>Informe número, data, fornecedor e observações.</li>
+      <li>Na primeira linha, selecione a matéria-prima e preencha a quantidade e o custo unitário.</li>
+      <li>Use <strong>Adicionar item</strong> para incluir outros materiais.</li>
+      <li>Se necessário, use <strong>Remover</strong> no item incorreto.</li>
+      <li>Confira o total de cada linha e confirme o lançamento.</li>
+    </ol>
+    <div class="success">Ao concluir, o sistema grava a fatura, aumenta os saldos e regista as movimentações numa única transação. O custo médio da matéria-prima e os custos dos produtos finais relacionados são recalculados.</div>
+    <h3>6.3 Como o custo médio é calculado</h3>
+    <div class="flow">Custo médio = soma (quantidade comprada × custo unitário) <span>÷</span> soma das quantidades compradas</div>
+    <p>Exemplo: 10 kg a 2,00 € e 20 kg a 2,60 € resultam num custo médio de 2,40 €/kg. A alteração de uma fatura recalcula o stock pela diferença e refaz a média com o histórico atualizado.</p>
+    <h3>6.4 Visualizar e editar</h3>
+    <p>Na lista, clique em <strong>Visualizar</strong> para consultar o documento completo ou em <strong>Editar</strong> para corrigir número, data, fornecedor, itens, quantidades e custos. Ao guardar, o sistema aplica apenas as diferenças e deixa o histórico coerente.</p>
+    <h3>6.5 Validações</h3>
+    <ul>
+      <li>Apenas matérias-primas ativas podem ser selecionadas.</li>
+      <li>Quantidade deve ser maior que zero.</li>
+      <li>Custo não pode ser negativo.</li>
+      <li>O mesmo número não pode ser repetido para o mesmo fornecedor.</li>
+    </ul>
+    <h3>6.6 Conferência</h3>
+    <p>Depois de guardar, confirme a fatura na lista e consulte <strong>Ajustes de inventário</strong> para validar as entradas com origem “Fatura”.</p>
+  </section>
+
+  <section id="receitas" class="chapter">
+    <h2>7. Receita de Fabrico</h2>
+    <p>A receita define quanto de cada matéria-prima é consumido para produzir uma unidade do produto final.</p>
+    <h3>7.1 Exemplo</h3>
+    <table>
+      <thead><tr><th>Produto final</th><th>Quantidade produzida</th><th>Composição por unidade</th></tr></thead>
+      <tbody><tr><td>Kit Escritório</td><td>1 kit</td><td>1 caderno + 2 canetas + 1 embalagem</td></tr></tbody>
+    </table>
+    <p>Ao fabricar 10 kits, o sistema consumirá 10 cadernos, 20 canetas e 10 embalagens.</p>
+    <h3>7.2 Registar ou atualizar</h3>
+    <ol class="steps">
+      <li>Aceda a <strong>Registos → Receita de Fabrico</strong>.</li>
+      <li>Clique em <strong>Nova receita</strong>.</li>
+      <li>Selecione um produto final ativo.</li>
+      <li>Adicione cada matéria-prima e a quantidade consumida por unidade.</li>
+      <li>Registe observações relevantes e guarde.</li>
+    </ol>
+    <p>Existe uma receita por produto final. Ao editá-la, a nova composição é utilizada nos próximos fabricos; as movimentações anteriores permanecem registadas. O preço de custo do produto final é imediatamente espelhado a partir da soma proporcional das matérias-primas.</p>
+    <div class="warning">Registe quantidades na mesma unidade da matéria-prima. Se a matéria-prima está em kg, a receita também deve indicar kg.</div>
+  </section>
+
+  <section id="fabricacao" class="chapter">
+    <h2>8. Fabrico</h2>
+    <h3>8.1 Registar</h3>
+    <ol class="steps">
+      <li>Aceda a <strong>Operações → Fabrico</strong>.</li>
+      <li>Clique em <strong>Registar fabrico</strong>.</li>
+      <li>Selecione um produto final que já possua receita ativa.</li>
+      <li>Informe a quantidade produzida e observações.</li>
+      <li>Confira a previsão de consumo e confirme o lançamento.</li>
+    </ol>
+    <h3>8.2 Cálculo automático</h3>
+    <p>Para cada insumo, o sistema calcula:</p>
+    <div class="flow">Consumo = quantidade da receita por unidade <span>×</span> quantidade fabricada</div>
+    <p>Se todos os saldos forem suficientes, o sistema baixa as matérias-primas e adiciona o produto final. A operação é atómica: não existe fabrico parcial. A ordem guarda uma fotografia do custo unitário e total naquele momento.</p>
+    <h3>8.3 Saldo insuficiente</h3>
+    <p>Quando faltar material, a mensagem informa a matéria-prima, o necessário e o disponível. Registe a entrada real ou corrija a receita depois de a conferir. Não utilize um ajuste apenas para contornar o bloqueio.</p>
+    <h3>8.4 Conferir uma ordem</h3>
+    <ul><li>Confira produto, quantidade, custo e data na lista.</li><li>No histórico, verifique as saídas das matérias-primas.</li><li>Confirme a entrada do produto final.</li></ul>
+  </section>
+
+  <section id="vendas" class="chapter">
+    <h2>9. Faturação — Saída e recibos</h2>
+    <p>A faturação de saída regista a venda e diminui o stock exclusivamente de produtos finais. Cada linha conserva o preço de venda utilizado e o custo existente no momento da operação, permitindo calcular a margem realizada.</p>
+    <h3>9.1 Pré-condições</h3>
+    <ul><li>Cliente ativo e com dados conferidos.</li><li>Produto final ativo, preço de venda definido e stock suficiente.</li><li>Número e data do documento disponíveis.</li></ul>
+    <h3>9.2 Emitir</h3>
+    <ol class="steps"><li>Aceda a <strong>Operações → Faturação → Saída</strong>.</li><li>Clique em <strong>Nova fatura de saída</strong>.</li><li>Informe número, data, cliente e observações.</li><li>Selecione o produto final e introduza a quantidade. A unidade aparece junto ao produto.</li><li>O preço unitário vem automaticamente da ficha do produto. Clique em <strong>Alterar preço</strong> apenas para uma exceção autorizada.</li><li>Adicione outras linhas, confira o total e clique em <strong>Emitir fatura e recibo</strong>.</li></ol>
+    <div class="success">Depois da confirmação, a saída de stock e a fatura são gravadas em conjunto. Se qualquer produto tiver stock insuficiente, nenhum item é movimentado.</div>
+    <h3>9.3 Alterar ou repor o preço</h3>
+    <p><strong>Alterar preço</strong> desbloqueia o campo apenas naquela linha da venda. <strong>Repor preço do produto</strong> recupera o valor atual da ficha. A alteração não modifica o cadastro do produto.</p>
+    <h3>9.4 Consultar e imprimir o recibo</h3>
+    <p>Na lista de vendas, clique em <strong>Ver recibo</strong>. Confirme empresa, cliente, NIF, itens, quantidades, preços e total. Em seguida, use <strong>Imprimir ou guardar em PDF</strong> e escolha a impressora ou a opção PDF do sistema operativo.</p>
+    <div class="warning"><strong>Enquadramento fiscal:</strong> o recibo gerado é um documento operacional da aplicação. Antes de o utilizar como documento fiscal em Portugal, confirme com o contabilista se o processo e o software cumprem as obrigações da Autoridade Tributária aplicáveis à empresa.</div>
+  </section>
+
+  <section id="inventario" class="chapter">
+    <h2>10. Ajustes e histórico de movimentações</h2>
+    <h3>10.1 Quando ajustar</h3>
+    <p>Use o ajuste após contagem física, perda, avaria, correção autorizada ou implantação inicial do saldo. O campo solicitado é o <strong>novo saldo absoluto</strong>, não a diferença.</p>
+    <h3>10.2 Exemplo</h3>
+    <table><tbody><tr><th>Saldo do sistema</th><td>18</td></tr><tr><th>Contagem física</th><td>15</td></tr><tr><th>Novo saldo informado</th><td>15</td></tr><tr><th>Movimento calculado</th><td>-3</td></tr></tbody></table>
+    <h3>10.3 Registar</h3>
+    <ol class="steps">
+      <li>Aceda a <strong>Operações → Ajustes de inventário</strong>.</li>
+      <li>Clique em <strong>Novo ajuste</strong>.</li>
+      <li>Selecione o produto e confira o saldo atual.</li>
+      <li>Informe o novo saldo, um motivo obrigatório e uma referência opcional.</li>
+      <li>Guarde e confira o histórico.</li>
+    </ol>
+    <h3>10.4 Filtros</h3>
+    <p>Filtre por produto, tipo, data inicial e final. A tabela apresenta data, código, produto, tipo, origem, quantidade, saldo anterior, novo saldo e motivo. As colunas ajustam-se para evitar sobreposição de valores.</p>
+  </section>
+
+  <section id="relatorios" class="chapter">
+    <h2>11. Relatórios gerenciais e exportação</h2>
+    <table>
+      <thead><tr><th>Relatório</th><th>Conteúdo</th><th>Uso</th></tr></thead>
+      <tbody>
+        <tr><td>Posição de stock</td><td>Saldos, custos e valor atual por produto.</td><td>Fecho e análise geral.</td></tr>
+        <tr><td>Movimentações de stock</td><td>Entradas, saídas e ajustes por período.</td><td>Auditoria e conferência.</td></tr>
+        <tr><td>Stock baixo ou esgotado</td><td>Itens no mínimo, abaixo dele ou sem saldo.</td><td>Planeamento de compras.</td></tr>
+        <tr><td>Produto — Custo x Venda</td><td>Produtos finais, custo, venda, diferença e margem potencial.</td><td>Política de preços.</td></tr>
+        <tr><td>Compras detalhadas</td><td>Faturas, fornecedores, matérias-primas, custos e totais.</td><td>Análise de aquisição.</td></tr>
+        <tr><td>Vendas detalhadas</td><td>Faturas, clientes, produtos, preços e totais.</td><td>Análise comercial.</td></tr>
+        <tr><td>Margem das vendas</td><td>Receita, custo histórico e margem efetivamente realizada.</td><td>Rentabilidade real.</td></tr>
+        <tr><td>Produção e custos</td><td>Quantidade fabricada e custo registado em cada ordem.</td><td>Eficiência de fabrico.</td></tr>
+        <tr><td>Desempenho por cliente</td><td>Faturação, volume, custo e margem por cliente.</td><td>Gestão da carteira.</td></tr>
+        <tr><td>Compras por fornecedor</td><td>Volume, quantidade de faturas e última compra.</td><td>Gestão de fornecedores.</td></tr>
+      </tbody>
+    </table>
+    <ol class="steps">
+      <li>Aceda a <strong>Relatórios</strong>.</li>
+      <li>Escolha o tipo e informe o período quando disponível. As datas inicial e final são inclusivas.</li>
+      <li>Confira a prévia na tabela.</li>
+      <li>Clique em <strong>Exportar CSV</strong>, escolha o local e aguarde a confirmação.</li>
+    </ol>
+    <p>O resumo acima da tabela mostra a quantidade de registos e os totais aplicáveis. O CSV utiliza UTF-8 e separador ponto e vírgula, adequado ao Excel configurado para Portugal.</p>
+    <div class="note"><strong>Leitura da margem:</strong> margem potencial compara o custo atual com o preço de venda da ficha; margem realizada utiliza o preço e o custo guardados em cada venda. Por isso, os valores podem ser diferentes.</div>
+  </section>
+
+  <section id="configuracoes" class="chapter">
+    <h2>12. Configurações e utilizadores</h2>
+    <h3>12.1 Sobre o sistema</h3>
+    <p>Esta área apresenta a versão instalada, ambiente, edição e validade da licença. O administrador pode expandir <strong>Informações técnicas</strong> para consultar a localização da base de dados e a identificação da licença.</p>
+    <h3>12.2 Alterar a própria palavra-passe</h3>
+    <p>Em <strong>Utilizadores registados</strong>, clique em <strong>Alterar a minha palavra-passe</strong>. Informe a palavra-passe atual, a nova e a confirmação. Utilize entre 10 e 128 caracteres, incluindo maiúscula, minúscula, número e carácter especial. Nenhuma das últimas cinco palavras-passe pode ser reutilizada.</p>
+    <h3>12.3 Identidade visual da empresa</h3>
+    <p>Administradores podem definir o nome e a logo do cliente. São aceites PNG, JPG, WEBP ou SVG até 2 MB. A identidade aparece no menu e nos documentos; a Cortexis Tech permanece identificada como responsável pelo desenvolvimento.</p>
+    <ol class="steps"><li>Abra <strong>Configurações → Identidade visual da empresa</strong>.</li><li>Informe o nome da empresa.</li><li>Clique em <strong>Escolher logo</strong> e selecione o ficheiro.</li><li>Confira a pré-visualização e clique em <strong>Guardar identidade visual</strong>.</li></ol>
+    <h3>12.4 Utilizadores</h3>
+    <p>Apenas administradores podem registar, ativar, inativar ou recuperar o acesso de outros utilizadores. Os campos de criação aparecem somente depois de clicar em <strong>Novo utilizador</strong>.</p>
+    <table><thead><tr><th>Campo</th><th>Orientação</th></tr></thead><tbody><tr><td>Nome</td><td>Identificação da pessoa.</td></tr><tr><td>Utilizador</td><td>Nome curto e único para autenticação.</td></tr><tr><td>Palavra-passe</td><td>Credencial temporária forte: 10–128 caracteres, maiúscula, minúscula, número e carácter especial.</td></tr><tr><td>Perfil</td><td>Administrador ou Operador.</td></tr></tbody></table>
+    <p>Para recuperar o acesso de outra pessoa, clique em <strong>Redefinir palavra-passe</strong>, indique e confirme uma credencial temporária. O administrador não vê a palavra-passe anterior e o utilizador será obrigado a criar uma nova na próxima entrada.</p>
+    <p>O perfil <strong>Administrador</strong> gere configurações sensíveis. O perfil <strong>Operador</strong> executa a rotina sem acesso a identidade visual, gestão de utilizadores, restauração ou atualizações.</p>
+    <div class="note">O último administrador ativo não pode ser inativado. Um novo utilizador deverá alterar a palavra-passe temporária na primeira entrada.</div>
+    <h3>12.5 Aparência</h3>
+    <p>Escolha o tema <strong>Claro</strong> ou <strong>Escuro</strong>. A preferência é aplicada imediatamente e não altera os dados operacionais.</p>
+  </section>
+
+  <section id="backup" class="chapter">
+    <h2>13. Cópias, restauração, segurança e atualizações</h2>
+    <h3>13.1 Criar uma cópia manual</h3>
+    <ol class="steps"><li>Aceda a <strong>Configurações → Cópia de segurança</strong>.</li><li>Clique em <strong>Escolher localização e guardar</strong>.</li><li>Selecione uma pasta protegida e atribua um nome ao ficheiro <code>.db</code>.</li><li>Aguarde a mensagem de sucesso e confirme o caminho apresentado.</li></ol>
+    <p>Além da cópia manual, a aplicação cria uma cópia automática diária e conserva as mais recentes. As cópias preservam a criptografia; não tente abri-las ou alterá-las num editor SQLite comum.</p>
+    <h3>13.2 Restaurar</h3>
+    <ol class="steps"><li>Crie primeiro uma cópia dos dados atuais.</li><li>Clique em <strong>Restaurar cópia</strong>.</li><li>Escolha o ficheiro e leia a confirmação.</li><li>Confirme apenas se pretende substituir todos os dados atuais.</li><li>Aguarde o recarregamento e autentique-se novamente, se solicitado.</li></ol>
+    <div class="warning"><strong>Atenção:</strong> a restauração substitui utilizadores, registos, faturas, vendas, movimentos e configurações. Não desligue o computador durante a operação.</div>
+    <h3>13.3 Criptografia da base de dados</h3>
+    <p>A base usa uma implementação SQLite com compatibilidade SQLCipher e chave aleatória de 256 bits. A chave é protegida pelo armazenamento seguro do sistema operativo; no Windows, utiliza DPAPI. Ela não fica fixa no código nem dentro da própria base.</p>
+    <div class="flow">Conta do sistema operativo <span>→</span> armazenamento seguro <span>→</span> chave protegida <span>→</span> base criptografada</div>
+    <h3>13.4 Portabilidade das cópias</h3>
+    <div class="warning">Uma cópia criptografada pode depender da chave protegida no perfil do computador original. Antes de migrar para outro equipamento, solicite suporte e confirme o procedimento de recuperação. Não elimine a instalação original até validar todos os dados no destino.</div>
+    <h3>13.5 Verificar e instalar atualizações</h3>
+    <ol class="steps"><li>Crie uma cópia de segurança.</li><li>Em <strong>Configurações → Atualizações</strong>, clique em <strong>Verificar atualizações</strong>.</li><li>Se uma versão for encontrada, aguarde a transferência.</li><li>Quando aparecer <strong>Reiniciar e atualizar</strong>, feche trabalhos pendentes e confirme.</li><li>Após reiniciar, confira a versão em <strong>Sobre o sistema</strong> e execute um teste básico.</li></ol>
+    <p>Esta função utiliza as versões publicadas pela Cortexis Tech no canal GitHub Releases configurado. No ambiente de desenvolvimento, a pesquisa automática permanece desativada.</p>
+    <h3>13.6 Política recomendada</h3>
+    <ul><li>Cópia diária num destino corporativo protegido.</li><li>Cópia semanal num local separado e com acesso limitado.</li><li>Teste mensal de restauração em ambiente controlado.</li><li>BitLocker no Windows ou FileVault no macOS.</li><li>Atualizações instaladas primeiro num equipamento de teste.</li></ul>
+  </section>
+
+  <section id="rotina" class="chapter">
+    <h2>14. Rotinas operacionais recomendadas</h2>
+    <h3>14.1 Início do dia</h3>
+    <ul class="checklist"><li>Consultar o stock crítico e os itens esgotados.</li><li>Verificar as últimas movimentações.</li><li>Confirmar documentos de compra, produção e venda pendentes.</li><li>Validar se o utilizador correto iniciou sessão.</li></ul>
+    <h3>14.2 Receção de compras</h3>
+    <ol><li>Conferir fisicamente a mercadoria e o documento.</li><li>Confirmar unidade, quantidade e custo unitário.</li><li>Registar a fatura de entrada.</li><li>Comparar o total lançado com o documento.</li><li>Consultar uma amostra das entradas no histórico.</li></ol>
+    <h3>14.3 Fabrico</h3>
+    <ol><li>Confirmar se a Receita de Fabrico está atualizada.</li><li>Verificar a disponibilidade das matérias-primas.</li><li>Registar apenas a quantidade efetivamente concluída.</li><li>Conferir os consumos e a entrada do produto final.</li><li>Investigar perdas através de contagem física e ajuste justificado.</li></ol>
+    <h3>14.4 Venda</h3>
+    <ol><li>Conferir cliente, NIF e morada.</li><li>Selecionar apenas produtos finais entregues.</li><li>Validar quantidade, preço unitário e total.</li><li>Emitir a fatura de saída e conferir o recibo.</li><li>Confirmar a redução do stock.</li></ol>
+    <h3>14.5 Fecho diário</h3>
+    <ul class="checklist"><li>Rever ajustes e respetivos motivos.</li><li>Comparar documentos com compras e vendas detalhadas.</li><li>Consultar margens anómalas ou negativas.</li><li>Guardar uma cópia de segurança e confirmar o ficheiro no destino.</li></ul>
+    <h3>14.6 Fecho mensal</h3>
+    <ul class="checklist"><li>Realizar contagem física por amostragem ou inventário completo.</li><li>Exportar posição de stock, movimentos, compras, vendas e margens.</li><li>Rever utilizadores ativos e retirar acessos desnecessários.</li><li>Testar a restauração de uma cópia em ambiente controlado.</li></ul>
+  </section>
+
+  <section id="problemas" class="chapter">
+    <h2>15. Resolução de problemas</h2>
+    <table>
+      <thead><tr><th>Situação</th><th>Causa provável</th><th>Como proceder</th></tr></thead>
+      <tbody>
+        <tr><td>O botão Entrar parece não funcionar</td><td>Credenciais incorretas, bloqueio temporário ou aplicação ainda a iniciar.</td><td>Confira Caps Lock, aguarde 30 segundos e tente novamente. Se persistir, feche e reabra.</td></tr>
+        <tr><td>Não guarda a nova palavra-passe</td><td>Confirmação diferente, política de complexidade não cumprida ou reutilização de uma das últimas cinco palavras-passe.</td><td>Use 10–128 caracteres com maiúscula, minúscula, número e carácter especial.</td></tr>
+        <tr><td>Produto não aparece na fatura de entrada</td><td>É produto final ou está inativo.</td><td>Confirme o tipo Matéria-prima e o estado Ativo.</td></tr>
+        <tr><td>Produto não aparece na fatura de saída</td><td>É matéria-prima, está inativo ou não tem stock.</td><td>Confirme o tipo Produto final, o estado e o saldo.</td></tr>
+        <tr><td>Preço não aparece na venda</td><td>Preço de venda não definido ou versão instalada desatualizada.</td><td>Guarde o preço na ficha do produto e confirme a versão em Sobre o sistema.</td></tr>
+        <tr><td>Preço de custo final não atualizou</td><td>Receita incompleta ou matéria-prima sem fatura de entrada.</td><td>Confira todas as quantidades da receita e os custos médios das matérias-primas.</td></tr>
+        <tr><td>Produto não aparece no fabrico</td><td>Não é produto final ou não possui receita ativa.</td><td>Ative o produto final e guarde uma Receita de Fabrico.</td></tr>
+        <tr><td>Stock insuficiente</td><td>Saldo abaixo do consumo ou da venda.</td><td>Registe a entrada real, corrija a receita ou reduza a quantidade após conferência.</td></tr>
+        <tr><td>Cópia recusada na restauração</td><td>Ficheiro inválido, corrompido ou chave incompatível.</td><td>Preserve os dados atuais e contacte o suporte antes de repetir.</td></tr>
+        <tr><td>Logo não aparece</td><td>Ficheiro inválido ou acima de 2 MB.</td><td>Use PNG/JPG/WEBP/SVG menor, escolha-o novamente e guarde.</td></tr>
+        <tr><td>Atualização não é encontrada</td><td>Modo de desenvolvimento, sem internet ou versão ainda não publicada.</td><td>Confirme a ligação, se a aplicação está instalada e tente mais tarde.</td></tr>
+        <tr><td>macOS mantém um ícone antigo</td><td>Imagem DMG ainda montada ou cópia duplicada.</td><td>Feche a aplicação, ejete o DMG e mantenha apenas a cópia em Aplicações.</td></tr>
+      </tbody>
+    </table>
+    <h3>15.1 Antes de solicitar suporte</h3>
+    <ol><li>Anote a mensagem completa.</li><li>Registe a página, hora e operação realizada.</li><li>Informe a versão exibida em Sobre o sistema e o sistema operativo.</li><li>Não elimine a base, a chave ou a licença.</li><li>Crie uma cópia de segurança se a aplicação ainda abrir.</li><li>Se possível, envie uma captura sem palavras-passe nem dados pessoais desnecessários.</li></ol>
+    <div class="warning">Nunca envie palavras-passe, chave privada de licenciamento, chave da base ou ficheiros com dados reais por canais não autorizados.</div>
+  </section>
+
+  <section id="operacoes-avancadas" class="chapter">
+    <h2>16. Operações avançadas e suporte</h2>
+    <h3>16.1 Estornar compra, venda ou fabrico</h3>
+    <p>Documentos confirmados não são eliminados nem alterados de forma destrutiva. Um administrador pode usar <strong>Estornar</strong> no documento, indicar um motivo com pelo menos cinco caracteres e confirmar a operação. O sistema cria os movimentos inversos, mantém o documento original no histórico e regista a ação na auditoria.</p>
+    <div class="warning">O estorno só é permitido quando o stock necessário para a reversão ainda está disponível. Se uma compra já foi consumida ou um produto fabricado já foi vendido, corrija o fluxo com inventário e contacte a administração antes de tentar novamente.</div>
+    <h3>16.2 Inventário físico</h3>
+    <ol class="steps"><li>Aceda a <strong>Operações → Inventário físico</strong> e abra uma sessão.</li><li>Introduza a contagem física de cada produto. O sistema mostra a diferença face à posição de referência, sem ajustar logo o saldo.</li><li>Submeta a sessão para revisão.</li><li>Um administrador aprova a sessão; só nessa altura são gerados os ajustes de stock e o relatório de inventário.</li></ol>
+    <h3>16.3 Unidades, conversões e lotes</h3>
+    <p>Quando configuradas no produto, as conversões permitem comprar numa unidade e consumir noutra, mantendo precisão decimal. Lotes podem guardar fornecedor, data de fabrico e validade; use o lote selecionado pelo sistema segundo a regra operacional definida (FIFO/FEFO). Confira sempre unidade, lote e validade antes de confirmar uma entrada ou produção.</p>
+    <h3>16.4 Auditoria e diagnóstico</h3>
+    <p>Em <strong>Relatórios → Auditoria administrativa</strong>, administradores consultam utilizador, data/hora, ação, entidade, valores, origem e computador. Em <strong>Configurações → Diagnóstico local</strong>, podem consultar versão, integridade da base, última cópia automática, espaço em disco e erros redigidos. O botão <strong>Gerar pacote de suporte</strong> cria um ficheiro técnico sem incluir a base de dados, palavras-passe, chaves, clientes ou valores empresariais.</p>
+  </section>
+
+  <section id="glossario" class="chapter">
+    <h2>17. Glossário e listas de verificação</h2>
+    <table>
+      <thead><tr><th>Termo</th><th>Significado</th></tr></thead>
+      <tbody>
+        <tr><td>Matéria-prima</td><td>Material consumido no fabrico.</td></tr>
+        <tr><td>Produto final</td><td>Item resultante do fabrico e disponível para venda.</td></tr>
+        <tr><td>Receita/BOM</td><td>Lista e quantidade de componentes necessários por unidade produzida.</td></tr>
+        <tr><td>Saldo</td><td>Quantidade disponível registrada.</td></tr>
+        <tr><td>Stock mínimo</td><td>Limite utilizado para alertas de reposição.</td></tr>
+        <tr><td>Ajuste</td><td>Correção do saldo para uma quantidade física confirmada.</td></tr>
+        <tr><td>CSV</td><td>Arquivo tabular que pode ser aberto no Excel.</td></tr>
+        <tr><td>Custo médio</td><td>Média ponderada das quantidades e custos das faturas de entrada.</td></tr>
+        <tr><td>Margem bruta</td><td>Receita da venda menos o custo associado, antes de outras despesas.</td></tr>
+        <tr><td>SQLCipher</td><td>Tecnologia de criptografia aplicada à base SQLite.</td></tr>
+      </tbody>
+    </table>
+    <h3>Lista de verificação da implantação</h3>
+    <ul class="checklist">
+      <li>Administrador alterou a palavra-passe predefinida.</li>
+      <li>Nome e logo do cliente foram configurados.</li>
+      <li>Utilizadores individuais e perfis foram registados.</li>
+      <li>Categorias, fornecedores e clientes foram revistos.</li>
+      <li>Produtos foram classificados corretamente e sem códigos repetidos.</li>
+      <li>Unidades e três casas decimais foram validadas.</li>
+      <li>Receitas foram conferidas pela produção.</li>
+      <li>Stock inicial foi contado e registado por ajuste justificado.</li>
+      <li>Uma compra, um fabrico e uma venda de teste foram conferidos.</li>
+      <li>Cópia de segurança foi criada e restaurada em teste.</li>
+      <li>Procedimento de atualização e suporte foi comunicado.</li>
+    </ul>
+    <p class="small">Documento destinado a utilizadores e administradores do ERP Cortexis Tech — Controlo de Stock. A interface pode receber melhorias posteriores; em caso de diferença, confirme a versão instalada e contacte o suporte.</p>
+  </section>
+</body>
+</html>

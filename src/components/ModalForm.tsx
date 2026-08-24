@@ -17,7 +17,7 @@ export function ModalForm({
   onClose,
   onSubmit,
   children,
-  submitLabel = 'Salvar',
+  submitLabel = 'Guardar',
   cancelLabel = 'Cancelar',
 }: Props) {
   const titleId = useId()

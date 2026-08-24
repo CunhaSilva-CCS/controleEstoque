@@ -1,9 +1,9 @@
-# Controle de Estoque — Fluxos do Sistema
+# Fluxos Operacionais — Controlo de Stock
 
 ## Convenções
 
 - Cada fluxo tem **pré-condições**, **passos**, **validações**, **resultado** e **alternativas**.
-- Telas: `Painel`, `Produtos`, `Categorias`, `Fornecedores`, `Receitas`, `Faturas de compra`, `Fabricação`, `Ajustes de inventário`, `Relatórios`, `Configurações`.
+- Telas: `Painel`, `Produtos`, `Categorias`, `Fornecedores`, `Clientes`, `Receitas`, `Faturas de compra`, `Faturas de saída`, `Fabricação`, `Movimentos`, `Inventário físico`, `Relatórios`, `Configurações`.
 - Persistência: SQLite local via IPC do Electron (ou API em memória no modo web).
 
 ```mermaid
@@ -236,8 +236,33 @@ Somente **administrador** vê o banner de dados de demonstração no primeiro us
 | 4 | Marca da empresa (nome + logo ≤ 2 MB) | Admin |
 | 5 | Exportar / restaurar cópia de segurança | Admin |
 | 6 | Verificar atualizações | Admin |
+| 7 | Consultar diagnóstico e gerar pacote de suporte redigido | Admin |
 
 **Resultado:** Preferências e administração local sem sair do app.
+
+---
+
+## F12 — Estorno de operação confirmada
+
+**Pré-condições:** Administrador autenticado; compra, venda ou fabrico no estado `confirmado`.
+
+| Passo | Ação | Sistema |
+|------:|------|---------|
+| 1 | Abre o documento e seleciona “Estornar” | Solicita motivo com pelo menos cinco caracteres |
+| 2 | Confirma o motivo | Verifica se existe saldo para reverter a operação |
+| 3 | Confirma | Cria movimentos inversos, altera estado para `estornado` e grava auditoria |
+
+**Resultado:** o documento original é preservado; não há eliminação nem edição destrutiva.
+
+## F13 — Inventário físico
+
+| Passo | Ação | Sistema |
+|------:|------|---------|
+| 1 | Abre sessão | Congela a posição de referência dos produtos ativos |
+| 2 | Regista contagens | Calcula diferenças sem alterar o stock |
+| 3 | Submete e aprova | Administrador gera ajustes automáticos auditáveis |
+
+**Resultado:** relatório da sessão e movimentos com origem `inventario_fisico`.
 
 ---
 
@@ -256,3 +281,5 @@ Somente **administrador** vê o banner de dados de demonstração no primeiro us
 | F09 | RF-D01..03 |
 | F10 | RF-R01..04 |
 | F11 | RF-A03..06, RF-S01..04 |
+| F12 | RF-I05, RF-FB05, RF-M03, RF-M04 |
+| F13 | Governança de inventário físico e RF-M01 |

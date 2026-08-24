@@ -28,6 +28,13 @@ import type {
   ChangePasswordInput,
   AuthSession,
   LicenseStatus,
+  Customer,
+  CustomerInput,
+  CustomerUpdateInput,
+  SalesInvoice,
+  SalesInvoiceInput,
+  CancelOperationInput,
+  InventorySession,
 } from '@shared/types'
 import { roundQuantity } from '@shared/quantity'
 import { movementLabel, statusLabel } from '@shared/labels'
@@ -50,10 +57,13 @@ function now(): string {
 function createMemoryApi() {
   const categories: Category[] = []
   const suppliers: Supplier[] = []
+  const customers: Customer[] = []
   const products: Product[] = []
   const movements: StockMovement[] = []
+  const inventorySessions: InventorySession[] = []
   const recipes: Recipe[] = []
   const invoices: PurchaseInvoice[] = []
+  const salesInvoices: SalesInvoice[] = []
   const productionOrders: ProductionOrder[] = []
   function updateFinishedProductCost(productId: string) {
     const product = products.find((item) => item.id === productId)
@@ -85,6 +95,7 @@ function createMemoryApi() {
   let clientBrand: ClientBrand = { name: '', logoDataUrl: '' }
   const users: User[] = []
   const passwords = new Map<string, string>()
+  const passwordHistory = new Map<string, string[]>()
   let sessionUserId = ''
   let seeded = false
   const previewLicense: LicenseStatus = {
@@ -108,16 +119,34 @@ function createMemoryApi() {
   function adminError(): string | null {
     const user = sessionUser()
     if (!user) return 'Sessão expirada. Entre novamente.'
-    if (user.mustChangePassword) return 'Altere a senha antes de continuar'
+    if (user.mustChangePassword) return 'Altere a palavra-passe antes de continuar'
     if (user.role !== 'admin') return 'Acesso restrito ao administrador'
     return null
   }
 
-  function assertNewPassword(newPassword: string, currentPassword: string): string | null {
-    if (newPassword.length < 6) return 'Senha deve ter no mínimo 6 caracteres'
-    if (newPassword === currentPassword) return 'A nova senha deve ser diferente da atual'
-    if (newPassword === DEFAULT_PASSWORD) return 'Não use a senha padrão. Escolha outra senha.'
+  function assertPasswordPolicy(newPassword: string): string | null {
+    if (newPassword.length < 10) return 'A palavra-passe deve ter, pelo menos, 10 caracteres'
+    if (newPassword.length > 128) return 'A palavra-passe deve ter, no máximo, 128 caracteres'
+    if (!/[a-z]/.test(newPassword)) return 'Inclua pelo menos uma letra minúscula'
+    if (!/[A-Z]/.test(newPassword)) return 'Inclua pelo menos uma letra maiúscula'
+    if (!/\d/.test(newPassword)) return 'Inclua pelo menos um número'
+    if (!/[^A-Za-z0-9]/.test(newPassword)) return 'Inclua pelo menos um carácter especial'
+    if (newPassword === DEFAULT_PASSWORD) return 'Não utilize a palavra-passe predefinida. Escolha uma diferente.'
     return null
+  }
+
+  function passwordReuseError(userId: string, password: string): string | null {
+    if (passwords.get(userId) === password) return 'A nova palavra-passe deve ser diferente da atual'
+    if ((passwordHistory.get(userId) ?? []).includes(password)) {
+      return 'Não reutilize nenhuma das últimas 5 palavras-passe'
+    }
+    return null
+  }
+
+  function rememberMemoryPassword(userId: string): void {
+    const current = passwords.get(userId)
+    if (!current) return
+    passwordHistory.set(userId, [current, ...(passwordHistory.get(userId) ?? [])].slice(0, 5))
   }
 
   function applyMemoryMovement(input: {
@@ -229,7 +258,7 @@ function createMemoryApi() {
       const user = users.find(
         (u) => u.active && u.username.toLowerCase() === input.username.trim().toLowerCase(),
       )
-      if (!user || passwords.get(user.id) !== input.password) return fail('Usuário ou senha inválidos')
+      if (!user || passwords.get(user.id) !== input.password) return fail('Utilizador ou palavra-passe inválidos')
       sessionUserId = user.id
       const payload: AuthSession = { authenticated: true, user }
       return ok(payload)
@@ -241,9 +270,10 @@ function createMemoryApi() {
     async changePassword(input: ChangePasswordInput) {
       const user = sessionUser()
       if (!user) return fail('Sessão expirada. Entre novamente.')
-      if (passwords.get(user.id) !== input.currentPassword) return fail('Senha atual incorreta')
-      const invalid = assertNewPassword(input.newPassword, input.currentPassword)
+      if (passwords.get(user.id) !== input.currentPassword) return fail('A palavra-passe atual está incorreta')
+      const invalid = assertPasswordPolicy(input.newPassword) ?? passwordReuseError(user.id, input.newPassword)
       if (invalid) return fail(invalid)
+      rememberMemoryPassword(user.id)
       passwords.set(user.id, input.newPassword)
       user.mustChangePassword = false
       user.updatedAt = now()
@@ -260,12 +290,13 @@ function createMemoryApi() {
       if (denied) return fail(denied)
       const name = input.name.trim()
       const username = input.username.trim()
-      if (!name) return fail('Nome do usuário é obrigatório')
-      if (!username) return fail('Usuário é obrigatório')
+      if (!name) return fail('O nome do utilizador é obrigatório')
+      if (!username) return fail('O utilizador é obrigatório')
       if (users.some((u) => u.username.toLowerCase() === username.toLowerCase())) {
-        return fail('Este usuário já está cadastrado')
+        return fail('Este utilizador já se encontra registado')
       }
-      if (input.password.length < 6) return fail('Senha deve ter no mínimo 6 caracteres')
+      const invalidPassword = assertPasswordPolicy(input.password)
+      if (invalidPassword) return fail(invalidPassword)
       const ts = now()
       const user: User = {
         id: uid(),
@@ -273,7 +304,7 @@ function createMemoryApi() {
         username,
         role: input.role,
         active: true,
-        mustChangePassword: false,
+        mustChangePassword: true,
         createdAt: ts,
         updatedAt: ts,
       }
@@ -285,13 +316,27 @@ function createMemoryApi() {
       const denied = adminError()
       if (denied) return fail(denied)
       const user = users.find((u) => u.id === id)
-      if (!user) return fail('Usuário não encontrado')
+      if (!user) return fail('Utilizador não encontrado')
       if (!active && user.role === 'admin' && users.filter((u) => u.active && u.role === 'admin').length <= 1) {
         return fail('Não é possível desativar o último administrador')
       }
       user.active = active
       user.updatedAt = now()
       if (!active && sessionUserId === id) sessionUserId = ''
+      return ok(user)
+    },
+    async resetUserPassword(id: string, temporaryPassword: string) {
+      const denied = adminError()
+      if (denied) return fail(denied)
+      if (id === sessionUserId) return fail('Para alterar a sua própria palavra-passe, utilize a opção correspondente')
+      const user = users.find((u) => u.id === id)
+      if (!user) return fail('Utilizador não encontrado')
+      const invalid = assertPasswordPolicy(temporaryPassword) ?? passwordReuseError(id, temporaryPassword)
+      if (invalid) return fail(invalid)
+      rememberMemoryPassword(id)
+      passwords.set(id, temporaryPassword)
+      user.mustChangePassword = true
+      user.updatedAt = now()
       return ok(user)
     },
     async seed(accept: boolean) {
@@ -563,6 +608,23 @@ function createMemoryApi() {
       })
       return ok(s)
     },
+    async listCustomers(activeOnly = false) {
+      return ok(customers.filter((item) => !activeOnly || item.active).sort((a, b) => a.name.localeCompare(b.name)))
+    },
+    async createCustomer(input: CustomerInput) {
+      if (!input.name.trim()) return fail('O nome do cliente é obrigatório')
+      const ts = now()
+      const customer: Customer = { id: uid(), name: input.name.trim(), taxNumber: input.taxNumber?.trim() ?? '', address: input.address?.trim() ?? '', phone: input.phone?.trim() ?? '', email: input.email?.trim() ?? '', notes: input.notes?.trim() ?? '', active: true, createdAt: ts, updatedAt: ts }
+      customers.push(customer)
+      return ok(customer)
+    },
+    async updateCustomer(input: CustomerUpdateInput) {
+      const customer = customers.find((item) => item.id === input.id)
+      if (!customer) return fail('Cliente não encontrado')
+      if (!input.name.trim()) return fail('O nome do cliente é obrigatório')
+      Object.assign(customer, { name: input.name.trim(), taxNumber: input.taxNumber?.trim() ?? '', address: input.address?.trim() ?? '', phone: input.phone?.trim() ?? '', email: input.email?.trim() ?? '', notes: input.notes?.trim() ?? '', active: input.active, updatedAt: now() })
+      return ok(customer)
+    },
     async listProducts(filters: ProductFilters = {}) {
       let list = products.map(enrich)
       if (filters.search?.trim()) {
@@ -736,6 +798,7 @@ function createMemoryApi() {
         issueDate: input.issueDate,
         notes: input.notes?.trim() ?? '',
         createdAt: ts,
+        status: 'confirmado',
         items,
       }
       invoices.unshift(invoice)
@@ -745,6 +808,7 @@ function createMemoryApi() {
     async updatePurchaseInvoice(input: PurchaseInvoiceUpdateInput) {
       const invoice = invoices.find((item) => item.id === input.id)
       if (!invoice) return fail('Fatura não encontrada')
+      if (invoice.status !== 'rascunho') return fail('Uma fatura confirmada não pode ser alterada. Utilize o estorno para preservar o histórico.')
       const number = input.number.trim()
       if (!number) return fail('Número da fatura é obrigatório')
       if (!input.issueDate) return fail('Data da fatura é obrigatória')
@@ -773,7 +837,7 @@ function createMemoryApi() {
         const product = products.find((p) => p.id === productId)
         const delta = roundQuantity((newQuantities.get(productId) ?? 0) - (oldQuantities.get(productId) ?? 0))
         if (!product || roundQuantity(product.stock + delta) < 0) {
-          return fail('Não é possível reduzir a fatura: parte deste estoque já foi consumida')
+          return fail('Não é possível reduzir a fatura: parte deste stock já foi consumida')
         }
       }
 
@@ -801,6 +865,59 @@ function createMemoryApi() {
         return { id: uid(), productId: product.id, productName: product.name, productSku: product.sku, productUnit: product.unit, quantity: roundQuantity(item.quantity), unitCost: item.unitCost }
       })
       affectedIds.forEach(updateAverageCost)
+      return ok(invoice)
+    },
+    async reversePurchaseInvoice(input: CancelOperationInput) {
+      const invoice = invoices.find((item) => item.id === input.id)
+      if (!invoice || invoice.status !== 'confirmado') return fail('Fatura confirmada não encontrada')
+      if (input.reason.trim().length < 5) return fail('Indique um motivo de estorno')
+      for (const item of invoice.items) {
+        const product = products.find((candidate) => candidate.id === item.productId)
+        if (!product || product.stock < item.quantity) return fail(`Não é possível estornar: o stock de ${item.productName} já foi consumido`)
+      }
+      for (const item of invoice.items) applyMemoryMovement({ productId: item.productId, type: 'saida', quantity: item.quantity, reason: `Estorno: ${input.reason}`, reference: invoice.id, origin: 'estorno' })
+      invoice.status = 'estornado'; invoice.cancelledAt = now(); invoice.cancellationReason = input.reason.trim()
+      invoice.items.forEach((item) => updateAverageCost(item.productId))
+      return ok(invoice)
+    },
+    async listSalesInvoices() {
+      return ok([...salesInvoices].sort((a, b) => b.createdAt.localeCompare(a.createdAt)))
+    },
+    async createSalesInvoice(input: SalesInvoiceInput) {
+      const number = input.number.trim()
+      if (!number) return fail('O número da fatura é obrigatório')
+      if (!input.issueDate) return fail('A data da fatura é obrigatória')
+      const customer = customers.find((item) => item.id === input.customerId && item.active)
+      if (!customer) return fail('Selecione um cliente ativo')
+      if (!input.items.length) return fail('Adicione, pelo menos, um produto final')
+      if (salesInvoices.some((item) => item.number.toLowerCase() === number.toLowerCase())) return fail('Já existe uma fatura de saída com este número')
+      const used = new Set<string>()
+      for (const item of input.items) {
+        if (used.has(item.productId)) return fail('Não repita o mesmo produto na fatura')
+        used.add(item.productId)
+        const product = products.find((candidate) => candidate.id === item.productId)
+        if (!product?.active || product.kind !== 'acabado') return fail('A faturação de saída aceita apenas produtos finais ativos')
+        if (!(item.quantity > 0)) return fail('A quantidade deve ser superior a zero')
+        if (item.quantity > product.stock) return fail(`Stock insuficiente de ${product.name}. Disponível: ${product.stock}`)
+        if (!Number.isFinite(item.unitPrice) || item.unitPrice < 0) return fail('O preço unitário não pode ser negativo')
+      }
+      const invoiceId = uid()
+      const items = input.items.map((item) => {
+        const product = products.find((candidate) => candidate.id === item.productId)!
+        const quantity = roundQuantity(item.quantity)
+        applyMemoryMovement({ productId: product.id, type: 'saida', quantity, reason: `Fatura de saída ${number}`, reference: invoiceId, origin: 'fatura_saida' })
+        return { id: uid(), productId: product.id, productName: product.name, productSku: product.sku, productUnit: product.unit, quantity, unitPrice: item.unitPrice }
+      })
+      const invoice: SalesInvoice = { id: invoiceId, number, customerId: customer.id, customerName: customer.name, customerTaxNumber: customer.taxNumber, customerAddress: customer.address, issueDate: input.issueDate, notes: input.notes?.trim() ?? '', createdAt: now(), status: 'confirmado', items }
+      salesInvoices.unshift(invoice)
+      return ok(invoice)
+    },
+    async reverseSalesInvoice(input: CancelOperationInput) {
+      const invoice = salesInvoices.find((item) => item.id === input.id)
+      if (!invoice || invoice.status !== 'confirmado') return fail('Fatura confirmada não encontrada')
+      if (input.reason.trim().length < 5) return fail('Indique um motivo de estorno')
+      invoice.items.forEach((item) => applyMemoryMovement({ productId: item.productId, type: 'entrada', quantity: item.quantity, reason: `Estorno: ${input.reason}`, reference: invoice.id, origin: 'estorno' }))
+      invoice.status = 'estornado'; invoice.cancelledAt = now(); invoice.cancellationReason = input.reason.trim()
       return ok(invoice)
     },
     async listRecipes() {
@@ -917,11 +1034,54 @@ function createMemoryApi() {
         productName: product.name,
         productSku: product.sku,
         quantity: productionQuantity,
+        unitCostSnapshot: product.costPrice,
+        totalCostSnapshot: Math.round(product.costPrice * productionQuantity * 10_000) / 10_000,
         notes: input.notes?.trim() ?? '',
         createdAt: ts,
+        status: 'confirmado',
       }
       productionOrders.unshift(order)
       return ok(order)
+    },
+    async reverseProductionOrder(input: CancelOperationInput) {
+      const order = productionOrders.find((item) => item.id === input.id)
+      if (!order || order.status !== 'confirmado') return fail('Ordem confirmada não encontrada')
+      return fail('O estorno de fabrico está disponível na aplicação instalada')
+    },
+    async listInventorySessions() { return ok([...inventorySessions]) },
+    async openInventorySession(notes = '') {
+      if (inventorySessions.some((item) => !['aprovado', 'cancelado'].includes(item.status))) return fail('Já existe uma sessão de inventário em curso')
+      const ts = now(); const session: InventorySession = { id: uid(), code: `INV-${Date.now()}`, status: 'em_contagem', referenceAt: ts, notes, createdAt: ts, approvedAt: null,
+        counts: products.filter((product) => product.active).map((product) => ({ id: uid(), productId: product.id, productName: product.name, productSku: product.sku, unit: product.unit, referenceStock: product.stock, countedStock: null, difference: null })) }
+      inventorySessions.unshift(session); return ok(session)
+    },
+    async recordInventoryCount(sessionId: string, productId: string, countedStock: number) {
+      const session = inventorySessions.find((item) => item.id === sessionId); const count = session?.counts.find((item) => item.productId === productId)
+      if (!session || !count || countedStock < 0) return fail('Contagem inválida')
+      count.countedStock = roundQuantity(countedStock); count.difference = roundQuantity(count.countedStock - count.referenceStock); return ok(session)
+    },
+    async submitInventorySession(id: string) {
+      const session = inventorySessions.find((item) => item.id === id)
+      if (!session || session.counts.some((item) => item.countedStock == null)) return fail('Existem produtos sem contagem')
+      session.status = 'aguarda_aprovacao'; return ok(session)
+    },
+    async approveInventorySession(id: string) {
+      const session = inventorySessions.find((item) => item.id === id)
+      if (!session || session.status !== 'aguarda_aprovacao') return fail('Sessão indisponível para aprovação')
+      for (const count of session.counts) {
+        if (count.countedStock == null || roundQuantity(count.countedStock) === roundQuantity(count.referenceStock)) continue
+        const movement = applyMemoryMovement({
+          productId: count.productId, type: 'ajuste', newStock: count.countedStock,
+          reason: `Inventário físico ${session.code}`, reference: session.id, origin: 'inventario_fisico',
+        })
+        if (typeof movement === 'string') return fail(movement)
+      }
+      session.status = 'aprovado'; session.approvedAt = now(); return ok(session)
+    },
+    async cancelInventorySession(id: string, reason: string) {
+      const session = inventorySessions.find((item) => item.id === id)
+      if (!session || !reason.trim()) return fail('Indique o motivo do cancelamento')
+      session.status = 'cancelado'; session.notes += `\nCancelamento: ${reason.trim()}`; return ok(session)
     },
     async getDashboard(): Promise<ApiResponse<DashboardData>> {
       const active = products.filter((p) => p.active).map(enrich)
@@ -995,6 +1155,31 @@ function createMemoryApi() {
           }),
         })
       }
+      const inPeriod = (date: string) => (!filters?.from || date >= filters.from.slice(0, 10)) && (!filters?.to || date <= filters.to.slice(0, 10))
+      if (type === 'compras') return ok({
+        columns: ['Data', 'Fatura', 'Fornecedor', 'Código', 'Matéria-prima', 'Quantidade', 'Unidade', 'Custo unitário', 'Total da compra'],
+        rows: invoices.filter((invoice) => inPeriod(invoice.issueDate)).flatMap((invoice) => invoice.items.map((item) => ({ Data: invoice.issueDate, Fatura: invoice.number, Fornecedor: invoice.supplierName ?? 'Sem fornecedor', Código: item.productSku, 'Matéria-prima': item.productName, Quantidade: item.quantity, Unidade: item.productUnit, 'Custo unitário': item.unitCost, 'Total da compra': item.quantity * item.unitCost }))),
+      })
+      if (type === 'vendas') return ok({
+        columns: ['Data', 'Fatura', 'Cliente', 'NIF', 'Código', 'Produto final', 'Quantidade', 'Unidade', 'Preço unitário', 'Total faturado'],
+        rows: salesInvoices.filter((invoice) => inPeriod(invoice.issueDate)).flatMap((invoice) => invoice.items.map((item) => ({ Data: invoice.issueDate, Fatura: invoice.number, Cliente: invoice.customerName, NIF: invoice.customerTaxNumber, Código: item.productSku, 'Produto final': item.productName, Quantidade: item.quantity, Unidade: item.productUnit, 'Preço unitário': item.unitPrice, 'Total faturado': item.quantity * item.unitPrice }))),
+      })
+      if (type === 'margem-vendas') return ok({
+        columns: ['Data', 'Fatura', 'Cliente', 'Produto final', 'Quantidade', 'Receita', 'Custo', 'Margem bruta', 'Margem %'],
+        rows: salesInvoices.filter((invoice) => inPeriod(invoice.issueDate)).flatMap((invoice) => invoice.items.map((item) => { const product = products.find((candidate) => candidate.id === item.productId); const revenue = item.quantity * item.unitPrice; const cost = item.quantity * (product?.costPrice ?? 0); return { Data: invoice.issueDate, Fatura: invoice.number, Cliente: invoice.customerName, 'Produto final': item.productName, Quantidade: item.quantity, Receita: revenue, Custo: cost, 'Margem bruta': revenue - cost, 'Margem %': revenue > 0 ? (revenue - cost) / revenue * 100 : 0 } })),
+      })
+      if (type === 'producao') return ok({
+        columns: ['Data', 'Código', 'Produto final', 'Quantidade produzida', 'Unidade', 'Custo unitário', 'Custo total da produção', 'Observações'],
+        rows: productionOrders.filter((order) => (!filters?.from || order.createdAt >= filters.from) && (!filters?.to || order.createdAt <= filters.to)).map((order) => ({ Data: order.createdAt, Código: order.productSku, 'Produto final': order.productName, 'Quantidade produzida': order.quantity, Unidade: products.find((product) => product.id === order.productId)?.unit ?? '', 'Custo unitário': order.unitCostSnapshot, 'Custo total da produção': order.totalCostSnapshot, Observações: order.notes })),
+      })
+      if (type === 'clientes') return ok({
+        columns: ['Cliente', 'NIF', 'Faturas emitidas', 'Unidades vendidas', 'Total faturado', 'Custo associado', 'Margem bruta'],
+        rows: customers.map((customer) => { const related = salesInvoices.filter((invoice) => invoice.customerId === customer.id); const sold = related.flatMap((invoice) => invoice.items); const billed = sold.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0); const cost = sold.reduce((sum, item) => sum + item.quantity * (products.find((product) => product.id === item.productId)?.costPrice ?? 0), 0); return { Cliente: customer.name, NIF: customer.taxNumber, 'Faturas emitidas': related.length, 'Unidades vendidas': sold.reduce((sum, item) => sum + item.quantity, 0), 'Total faturado': billed, 'Custo associado': cost, 'Margem bruta': billed - cost } }),
+      })
+      if (type === 'fornecedores') return ok({
+        columns: ['Fornecedor', 'Faturas registadas', 'Unidades compradas', 'Valor comprado', 'Última compra'],
+        rows: suppliers.map((supplier) => { const related = invoices.filter((invoice) => invoice.supplierId === supplier.id); const purchased = related.flatMap((invoice) => invoice.items); return { Fornecedor: supplier.name, 'Faturas registadas': related.length, 'Unidades compradas': purchased.reduce((sum, item) => sum + item.quantity, 0), 'Valor comprado': purchased.reduce((sum, item) => sum + item.quantity * item.unitCost, 0), 'Última compra': related.map((invoice) => invoice.issueDate).sort().at(-1) ?? '' } }),
+      })
       const res = await this.listMovements(filters)
       const list = res.ok ? res.data : []
       return ok({
@@ -1078,6 +1263,8 @@ function createMemoryApi() {
     async getAppInfo() {
       return ok({ version: '1.0.0-web', dbPath: ':memory:', packaged: false })
     },
+    async getDiagnostics() { return ok({ appVersion: '1.0.0-web', databaseVersion: 0, integrity: 'ok' as const, lastAutomaticBackup: null, availableDiskBytes: null, recentErrors: [] }) },
+    async exportSupportPackage() { return ok({ saved: true, path: 'suporte-estoque.json' }) },
     async getUpdateStatus() {
       const denied = adminError()
       if (denied) return fail(denied)

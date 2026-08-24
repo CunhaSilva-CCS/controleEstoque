@@ -1,16 +1,16 @@
 export function formatCurrency(value: number): string {
-  return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+  return value.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })
 }
 
 export function formatNumber(value: number): string {
-  return value.toLocaleString('pt-BR', {
+  return value.toLocaleString('pt-PT', {
     minimumFractionDigits: 3,
     maximumFractionDigits: 3,
   })
 }
 
 export function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString('pt-BR', {
+  return new Date(iso).toLocaleString('pt-PT', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -25,4 +25,8 @@ export {
   productKindLabel,
   movementOriginLabel,
   roleLabel,
+  operationStatusLabel,
+  operationStatusBadgeClass,
+  inventoryStatusLabel,
+  inventoryStatusBadgeClass,
 } from '@shared/labels'

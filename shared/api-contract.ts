@@ -25,6 +25,14 @@ import type {
   ChangePasswordInput,
   AuthSession,
   LicenseStatus,
+  LocalDiagnostics,
+  Customer,
+  CustomerInput,
+  CustomerUpdateInput,
+  SalesInvoice,
+  SalesInvoiceInput,
+  CancelOperationInput,
+  InventorySession,
 } from './types'
 
 export interface EstoqueApi {
@@ -44,6 +52,7 @@ export interface EstoqueApi {
     role: 'admin' | 'operador'
   }) => Promise<ApiResponse<User>>
   setUserActive: (id: string, active: boolean) => Promise<ApiResponse<User>>
+  resetUserPassword: (id: string, temporaryPassword: string) => Promise<ApiResponse<User>>
   seed: (accept: boolean) => Promise<ApiResponse<boolean>>
   listCategories: (activeOnly?: boolean) => Promise<ApiResponse<Category[]>>
   createCategory: (input: {
@@ -73,6 +82,9 @@ export interface EstoqueApi {
     notes?: string
     active: boolean
   }) => Promise<ApiResponse<Supplier>>
+  listCustomers: (activeOnly?: boolean) => Promise<ApiResponse<Customer[]>>
+  createCustomer: (input: CustomerInput) => Promise<ApiResponse<Customer>>
+  updateCustomer: (input: CustomerUpdateInput) => Promise<ApiResponse<Customer>>
   listProducts: (filters?: ProductFilters) => Promise<ApiResponse<Product[]>>
   getProduct: (id: string) => Promise<ApiResponse<Product | null>>
   createProduct: (input: ProductInput) => Promise<ApiResponse<Product>>
@@ -83,11 +95,22 @@ export interface EstoqueApi {
   listPurchaseInvoices: () => Promise<ApiResponse<PurchaseInvoice[]>>
   createPurchaseInvoice: (input: PurchaseInvoiceInput) => Promise<ApiResponse<PurchaseInvoice>>
   updatePurchaseInvoice: (input: PurchaseInvoiceUpdateInput) => Promise<ApiResponse<PurchaseInvoice>>
+  reversePurchaseInvoice: (input: CancelOperationInput) => Promise<ApiResponse<PurchaseInvoice>>
+  listSalesInvoices: () => Promise<ApiResponse<SalesInvoice[]>>
+  createSalesInvoice: (input: SalesInvoiceInput) => Promise<ApiResponse<SalesInvoice>>
+  reverseSalesInvoice: (input: CancelOperationInput) => Promise<ApiResponse<SalesInvoice>>
   listRecipes: () => Promise<ApiResponse<Recipe[]>>
   getRecipe: (productId: string) => Promise<ApiResponse<Recipe | null>>
   saveRecipe: (input: RecipeInput) => Promise<ApiResponse<Recipe>>
   listProductionOrders: () => Promise<ApiResponse<ProductionOrder[]>>
   createProduction: (input: ProductionInput) => Promise<ApiResponse<ProductionOrder>>
+  reverseProductionOrder: (input: CancelOperationInput) => Promise<ApiResponse<ProductionOrder>>
+  listInventorySessions: () => Promise<ApiResponse<InventorySession[]>>
+  openInventorySession: (notes?: string) => Promise<ApiResponse<InventorySession>>
+  recordInventoryCount: (sessionId: string, productId: string, countedStock: number) => Promise<ApiResponse<InventorySession>>
+  submitInventorySession: (id: string) => Promise<ApiResponse<InventorySession>>
+  approveInventorySession: (id: string) => Promise<ApiResponse<InventorySession>>
+  cancelInventorySession: (id: string, reason: string) => Promise<ApiResponse<InventorySession>>
   getDashboard: () => Promise<ApiResponse<DashboardData>>
   getReport: (
     type: ReportType,
@@ -105,6 +128,8 @@ export interface EstoqueApi {
   getClientBrand: () => Promise<ApiResponse<ClientBrand>>
   saveClientBrand: (input: ClientBrand) => Promise<ApiResponse<ClientBrand>>
   getAppInfo: () => Promise<ApiResponse<{ version: string; dbPath: string; packaged: boolean }>>
+  getDiagnostics: () => Promise<ApiResponse<LocalDiagnostics>>
+  exportSupportPackage: () => Promise<ApiResponse<{ saved: boolean; path?: string }>>
   getUpdateStatus: () => Promise<ApiResponse<UpdateStatus>>
   checkForUpdates: () => Promise<ApiResponse<UpdateStatus>>
   installUpdate: () => Promise<ApiResponse<boolean>>

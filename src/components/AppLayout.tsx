@@ -8,20 +8,32 @@ import type { User } from '@shared/types'
 
 export type AppOutletContext = { user: User }
 
-const cadastroPaths = ['/produtos', '/categorias', '/fornecedores', '/receitas']
-const operacaoPaths = ['/faturas', '/fabricacao', '/movimentacoes']
+const cadastroPaths = ['/produtos', '/categorias', '/fornecedores', '/clientes', '/receitas']
+const operacaoPaths = ['/faturas', '/faturacao/saida', '/fabricacao', '/movimentacoes', '/inventario-fisico']
+
+type NavEntry =
+  | { to: string; label: string; testId: string }
+  | { label: string; children: { to: string; label: string; testId: string }[] }
 
 const cadastroLinks = [
   { to: '/produtos', label: 'Produtos', testId: 'nav-produtos' },
   { to: '/categorias', label: 'Categorias', testId: 'nav-categorias' },
   { to: '/fornecedores', label: 'Fornecedores', testId: 'nav-fornecedores' },
-  { to: '/receitas', label: 'Receitas', testId: 'nav-receitas' },
+  { to: '/clientes', label: 'Clientes', testId: 'nav-clientes' },
+  { to: '/receitas', label: 'Receita de Fabrico', testId: 'nav-receitas' },
 ]
 
-const operacaoLinks = [
-  { to: '/faturas', label: 'Faturas de compra', testId: 'nav-faturas' },
-  { to: '/fabricacao', label: 'Fabricação', testId: 'nav-fabricacao' },
+const operacaoLinks: NavEntry[] = [
+  {
+    label: 'Faturação',
+    children: [
+      { to: '/faturas', label: 'Entrada', testId: 'nav-faturacao-entrada' },
+      { to: '/faturacao/saida', label: 'Saída', testId: 'nav-faturacao-saida' },
+    ],
+  },
+  { to: '/fabricacao', label: 'Fabrico', testId: 'nav-fabricacao' },
   { to: '/movimentacoes', label: 'Ajustes de inventário', testId: 'nav-movimentacoes' },
+  { to: '/inventario-fisico', label: 'Inventário físico', testId: 'nav-inventario' },
 ]
 
 const mainLinks = [
@@ -52,10 +64,13 @@ const routeTitles: Record<string, string> = {
   '/produtos': 'Produtos',
   '/categorias': 'Categorias',
   '/fornecedores': 'Fornecedores',
-  '/receitas': 'Receitas',
-  '/faturas': 'Faturas de compra',
-  '/fabricacao': 'Fabricação',
+  '/clientes': 'Clientes',
+  '/receitas': 'Receita de Fabrico',
+  '/faturas': 'Faturação · Entrada',
+  '/faturacao/saida': 'Faturação · Saída',
+  '/fabricacao': 'Fabrico',
   '/movimentacoes': 'Ajustes de inventário',
+  '/inventario-fisico': 'Inventário físico',
   '/relatorios': 'Relatórios',
   '/configuracoes': 'Configurações',
 }
@@ -74,7 +89,7 @@ function NavGroup({
 }: {
   label: string
   testId: string
-  links: { to: string; label: string; testId: string }[]
+  links: NavEntry[]
   paths: string[]
   open: boolean
   onToggle: () => void
@@ -101,11 +116,24 @@ function NavGroup({
       </button>
       {open ? (
         <div className="nav-sub">
-          {links.map((link) => (
-            <NavLink key={link.to} to={link.to} data-testid={link.testId}>
-              {link.label}
-            </NavLink>
-          ))}
+          {links.map((link) =>
+            'children' in link ? (
+              <div className="nav-subgroup" key={link.label}>
+                <span className="nav-subgroup-label">{link.label}</span>
+                <div className="nav-subgroup-links">
+                  {link.children.map((child) => (
+                    <NavLink key={child.to} to={child.to} data-testid={child.testId}>
+                      {child.label}
+                    </NavLink>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <NavLink key={link.to} to={link.to} data-testid={link.testId}>
+                {link.label}
+              </NavLink>
+            ),
+          )}
         </div>
       ) : null}
     </div>
@@ -148,7 +176,7 @@ export function AppLayout({
             ) : (
               <div className="brand-logo-placeholder" data-testid="client-logo-placeholder">
                 <strong>Logo da empresa</strong>
-                <span>Configure em Configurações</span>
+                <span>Adicione sua logo em Configurações</span>
               </div>
             )}
             <p className="brand-module">{clientName}</p>
@@ -165,7 +193,7 @@ export function AppLayout({
             </NavLink>
 
             <NavGroup
-              label="Cadastro"
+              label="Registos"
               testId="nav-cadastro"
               links={cadastroLinks}
               paths={cadastroPaths}

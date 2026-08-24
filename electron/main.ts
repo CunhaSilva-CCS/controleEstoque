@@ -13,15 +13,19 @@ import {
   backupDatabase,
   buildReport,
   createCategory,
+  createAutomaticBackup,
   createProduct,
   createProduction,
   createPurchaseInvoice,
   createSupplier,
+  createCustomer,
+  createSalesInvoice,
   createUser,
   authenticateUser,
   changePassword,
   getDashboard,
   getDbPath,
+  getLocalDiagnostics,
   getClientBrand,
   getProduct,
   getRecipeByProductId,
@@ -33,6 +37,8 @@ import {
   listPurchaseInvoices,
   listRecipes,
   listSuppliers,
+  listCustomers,
+  listSalesInvoices,
   listUsers,
   markSeedOffered,
   registerMovement,
@@ -42,12 +48,24 @@ import {
   seedDemoData,
   setProductActive,
   setUserActive,
+  resetUserPassword,
   updateCategory,
   updateProduct,
   updatePurchaseInvoice,
   updateSupplier,
+  updateCustomer,
+  reversePurchaseInvoice,
+  reverseSalesInvoice,
+  reverseProductionOrder,
+  listInventorySessions,
+  openInventorySession,
+  recordInventoryCount,
+  submitInventorySession,
+  approveInventorySession,
+  cancelInventorySession,
 } from './db'
 import { initAutoUpdater, registerUpdateIpc } from './updater'
+import { setAuditContext } from './database/audit'
 import { activateLicense, getLicenseStatus, requireValidLicense } from './license'
 import {
   captureError,
@@ -68,6 +86,11 @@ import type {
   AuthSession,
   ChangePasswordInput,
   User,
+  CustomerInput,
+  CustomerUpdateInput,
+  SalesInvoiceInput,
+  ReportType,
+  CancelOperationInput,
 } from '../shared/types'
 
 initMainTelemetry()
@@ -87,7 +110,7 @@ const LOGIN_BLOCK_MS = 30_000
 const LOGIN_MAX_FAILURES = 5
 
 function normalizeLoginKey(username: unknown): string {
-  return typeof username === 'string' ? username.trim().toLocaleLowerCase('pt-BR').slice(0, 120) : ''
+  return typeof username === 'string' ? username.trim().toLocaleLowerCase('pt-PT').slice(0, 120) : ''
 }
 
 function assertLoginAllowed(key: string): void {
@@ -142,7 +165,7 @@ function requireSession(): User {
 
 function requireUser(): User {
   const user = requireSession()
-  if (user.mustChangePassword) throw new Error('Altere a senha antes de continuar')
+  if (user.mustChangePassword) throw new Error('Altere a palavra-passe antes de continuar')
   return user
 }
 
@@ -163,7 +186,7 @@ function createWindow(): void {
     minWidth: 900,
     minHeight: 620,
     show: false,
-    title: 'ERP Cortexis Tech · Controle de Estoque',
+    title: 'ERP Cortexis Tech · Controlo de Stock',
     backgroundColor: '#ffffff',
     icon: windowIcon,
     webPreferences: {
@@ -237,6 +260,7 @@ function registerIpc(): void {
   ipcMain.handle('app:init', () => {
     try {
       const info = initDatabase()
+      void createAutomaticBackup().catch((error) => captureError(error, { handler: 'backup:automatic' }))
       return ok(info)
     } catch (error) {
       captureError(error, { handler: 'app:init' })
@@ -284,10 +308,11 @@ function registerIpc(): void {
       const user = authenticateUser(key, password)
       if (!user) {
         recordLoginFailure(key)
-        throw new Error('Usuário ou senha inválidos')
+        throw new Error('Utilizador ou palavra-passe inválidos')
       }
       loginAttempts.delete(key)
       currentUser = user
+      setAuditContext(user)
       const session: AuthSession = { authenticated: true, user }
       return ok(session)
     } catch (error) {
@@ -297,6 +322,7 @@ function registerIpc(): void {
 
   ipcMain.handle('auth:logout', () => {
     currentUser = null
+    setAuditContext(null)
     return ok(true)
   })
 
@@ -305,6 +331,7 @@ function registerIpc(): void {
       const sessionUser = requireSession()
       const user = changePassword(sessionUser.id, input.currentPassword, input.newPassword)
       currentUser = user
+      setAuditContext(user)
       const session: AuthSession = { authenticated: true, user }
       return ok(session)
     } catch (error) {
@@ -334,6 +361,19 @@ function registerIpc(): void {
     try {
       requireAdmin()
       return ok(setUserActive(id, active))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('users:resetPassword', (_e, id: string, temporaryPassword: string) => {
+    try {
+      const admin = requireAdmin()
+      if (admin.id === id) {
+        throw new Error('Para alterar a sua própria palavra-passe, utilize a opção correspondente')
+      }
+      if (typeof temporaryPassword !== 'string') throw new Error('Palavra-passe temporária inválida')
+      return ok(resetUserPassword(id, temporaryPassword))
     } catch (error) {
       return fail(error)
     }
@@ -408,6 +448,16 @@ function registerIpc(): void {
     } catch (error) {
       return fail(error)
     }
+  })
+
+  ipcMain.handle('customers:list', (_e, activeOnly?: boolean) => {
+    try { requireUser(); return ok(listCustomers(Boolean(activeOnly))) } catch (error) { return fail(error) }
+  })
+  ipcMain.handle('customers:create', (_e, input: CustomerInput) => {
+    try { requireUser(); return ok(createCustomer(input)) } catch (error) { return fail(error) }
+  })
+  ipcMain.handle('customers:update', (_e, input: CustomerUpdateInput) => {
+    try { requireUser(); return ok(updateCustomer(input)) } catch (error) { return fail(error) }
   })
 
   ipcMain.handle('products:list', (_e, filters?: ProductFilters) => {
@@ -500,6 +550,20 @@ function registerIpc(): void {
     }
   })
 
+  ipcMain.handle('invoices:reverse', (_e, input: CancelOperationInput) => {
+    try { requireAdmin(); return ok(reversePurchaseInvoice(input)) } catch (error) { return fail(error) }
+  })
+
+  ipcMain.handle('sales:list', () => {
+    try { requireUser(); return ok(listSalesInvoices()) } catch (error) { return fail(error) }
+  })
+  ipcMain.handle('sales:create', (_e, input: SalesInvoiceInput) => {
+    try { requireUser(); return ok(createSalesInvoice(input)) } catch (error) { return fail(error) }
+  })
+  ipcMain.handle('sales:reverse', (_e, input: CancelOperationInput) => {
+    try { requireAdmin(); return ok(reverseSalesInvoice(input)) } catch (error) { return fail(error) }
+  })
+
   ipcMain.handle('recipes:list', () => {
     try {
       requireUser()
@@ -544,6 +608,28 @@ function registerIpc(): void {
       return fail(error)
     }
   })
+  ipcMain.handle('production:reverse', (_e, input: CancelOperationInput) => {
+    try { requireAdmin(); return ok(reverseProductionOrder(input)) } catch (error) { return fail(error) }
+  })
+
+  ipcMain.handle('inventory:list', () => {
+    try { requireUser(); return ok(listInventorySessions()) } catch (error) { return fail(error) }
+  })
+  ipcMain.handle('inventory:open', (_e, notes?: string) => {
+    try { requireUser(); return ok(openInventorySession(notes ?? '')) } catch (error) { return fail(error) }
+  })
+  ipcMain.handle('inventory:count', (_e, sessionId: string, productId: string, countedStock: number) => {
+    try { requireUser(); return ok(recordInventoryCount(sessionId, productId, countedStock)) } catch (error) { return fail(error) }
+  })
+  ipcMain.handle('inventory:submit', (_e, id: string) => {
+    try { requireUser(); return ok(submitInventorySession(id)) } catch (error) { return fail(error) }
+  })
+  ipcMain.handle('inventory:approve', (_e, id: string) => {
+    try { requireAdmin(); return ok(approveInventorySession(id)) } catch (error) { return fail(error) }
+  })
+  ipcMain.handle('inventory:cancel', (_e, id: string, reason: string) => {
+    try { requireAdmin(); return ok(cancelInventorySession(id, reason)) } catch (error) { return fail(error) }
+  })
 
   ipcMain.handle('dashboard:get', () => {
     try {
@@ -556,9 +642,10 @@ function registerIpc(): void {
 
   ipcMain.handle(
     'reports:get',
-    (_e, type: 'posicao' | 'movimentacoes' | 'baixo' | 'custo-venda', filters?: MovementFilters) => {
+    (_e, type: ReportType, filters?: MovementFilters) => {
       try {
-        requireUser()
+        if (type === 'auditoria') requireAdmin()
+        else requireUser()
         return ok(buildReport(type, filters ?? {}))
       } catch (error) {
         return fail(error)
@@ -615,9 +702,9 @@ function registerIpc(): void {
       const stamp = new Date().toISOString().replace(/[:.]/g, '-')
       const defaultName = `estoque-copia-${stamp}.db`
       const result = await dialog.showSaveDialog(mainWindow!, {
-        title: 'Escolher onde salvar a cópia de segurança',
+        title: 'Escolher onde guardar a cópia de segurança',
         defaultPath: path.join(app.getPath('documents'), defaultName),
-        buttonLabel: 'Salvar cópia',
+        buttonLabel: 'Guardar cópia',
         filters: [{ name: 'SQLite', extensions: ['db'] }],
         properties: ['createDirectory', 'showOverwriteConfirmation'],
       })
@@ -678,6 +765,19 @@ function registerIpc(): void {
     } catch (error) {
       return fail(error)
     }
+  })
+
+  ipcMain.handle('diagnostics:get', () => {
+    try { requireAdmin(); return ok(getLocalDiagnostics(app.getVersion())) } catch (error) { return fail(error) }
+  })
+  ipcMain.handle('diagnostics:exportSupport', async () => {
+    try {
+      requireAdmin()
+      const result = await dialog.showSaveDialog(mainWindow!, { title: 'Guardar pacote de suporte', defaultPath: `suporte-estoque-${new Date().toISOString().slice(0, 10)}.json`, filters: [{ name: 'Pacote de suporte', extensions: ['json'] }] })
+      if (result.canceled || !result.filePath) return ok({ saved: false })
+      fs.writeFileSync(result.filePath, JSON.stringify({ generatedAt: new Date().toISOString(), diagnostics: getLocalDiagnostics(app.getVersion()) }, null, 2), { encoding: 'utf8', mode: 0o600 })
+      return ok({ saved: true, path: result.filePath })
+    } catch (error) { return fail(error) }
   })
 
 }

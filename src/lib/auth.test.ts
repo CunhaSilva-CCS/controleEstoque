@@ -39,7 +39,7 @@ describe('auth e permissões (API em memória)', () => {
     expect(withDefault.data.user?.mustChangePassword).toBe(true)
     const blocked = await api.listUsers()
     expect(blocked.ok).toBe(false)
-    if (!blocked.ok) expect(blocked.error).toMatch(/senha/i)
+    if (!blocked.ok) expect(blocked.error).toMatch(/palavra-passe/i)
 
     const short = await api.changePassword({
       currentPassword: 'admin123',
@@ -71,12 +71,12 @@ describe('auth e permissões (API em memória)', () => {
       api.createUser({
         name: 'Operador Teste',
         username,
-        password: 'oper123',
+        password: 'Operador#123',
         role: 'operador',
       }),
     )
     await unwrap(api.logout())
-    const session = await unwrap(api.login({ username, password: 'oper123' }))
+    const session = await unwrap(api.login({ username, password: 'Operador#123' }))
     expect(session.user?.role).toBe('operador')
 
     const users = await api.listUsers()
@@ -96,9 +96,37 @@ describe('auth e permissões (API em memória)', () => {
 
     await unwrap(
       api.changePassword({
-        currentPassword: 'oper123',
-        newPassword: 'oper456',
+        currentPassword: 'Operador#123',
+        newPassword: 'Operador#456',
       }),
     )
+  })
+
+  it('aplica complexidade, histórico e redefinição administrativa', async () => {
+    await ensureAdminUnlocked()
+    const username = `reset-${crypto.randomUUID().slice(0, 6)}`
+    const created = await unwrap(api.createUser({
+      name: 'Utilizador Reset',
+      username,
+      password: 'Temporaria#123',
+      role: 'operador',
+    }))
+    expect(created.mustChangePassword).toBe(true)
+
+    const weak = await api.resetUserPassword(created.id, 'semcomplexidade')
+    expect(weak.ok).toBe(false)
+
+    await unwrap(api.resetUserPassword(created.id, 'Temporaria#456'))
+    await unwrap(api.logout())
+    const session = await unwrap(api.login({ username, password: 'Temporaria#456' }))
+    expect(session.user?.mustChangePassword).toBe(true)
+    await unwrap(api.changePassword({ currentPassword: 'Temporaria#456', newPassword: 'Definitiva#789' }))
+
+    const reused = await api.changePassword({
+      currentPassword: 'Definitiva#789',
+      newPassword: 'Temporaria#456',
+    })
+    expect(reused.ok).toBe(false)
+    if (!reused.ok) expect(reused.error).toMatch(/últimas 5/i)
   })
 })

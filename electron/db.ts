@@ -1,20 +1,16 @@
 import Database from 'better-sqlite3-multiple-ciphers'
-import { app, safeStorage } from 'electron'
 import fs from 'node:fs'
-import path from 'node:path'
-import { createHash, randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import type {
   Category,
   DashboardData,
   MovementFilters,
   MovementInput,
   MovementOrigin,
-  MovementType,
   Product,
   ProductFilters,
   ProductInput,
   ProductKind,
-  ProductStatus,
   ProductUpdateInput,
   ProductionInput,
   ProductionOrder,
@@ -23,164 +19,90 @@ import type {
   PurchaseInvoiceUpdateInput,
   Recipe,
   RecipeInput,
-  RecipeItem,
   StockMovement,
   Supplier,
   ClientBrand,
   User,
   UserRole,
+  Customer,
+  CustomerInput,
+  CustomerUpdateInput,
+  SalesInvoice,
+  SalesInvoiceInput,
+  ReportType,
+  CancelOperationInput,
+  InventorySession,
+  LocalDiagnostics,
 } from '../shared/types'
 import { roundQuantity } from '../shared/quantity'
 import { movementLabel, statusLabel } from '../shared/labels'
-
-type Db = Database.Database
-
-let db: Db | null = null
-let activeDatabaseKey: Buffer | null = null
-
-const SQLITE_HEADER = Buffer.from('SQLite format 3\0', 'utf8')
-
-function isPlaintextDatabase(filePath: string): boolean {
-  if (!fs.existsSync(filePath) || fs.statSync(filePath).size === 0) return true
-  const handle = fs.openSync(filePath, 'r')
-  try {
-    const header = Buffer.alloc(SQLITE_HEADER.length)
-    fs.readSync(handle, header, 0, header.length, 0)
-    return header.equals(SQLITE_HEADER)
-  } finally {
-    fs.closeSync(handle)
-  }
-}
-
-function configureCipher(database: Db): void {
-  database.pragma("cipher='sqlcipher'")
-  database.pragma('legacy=4')
-}
-
-function openDatabase(filePath: string, key?: Buffer): Db {
-  const database = new Database(filePath)
-  if (key) {
-    configureCipher(database)
-    database.key(key)
-  }
-  return database
-}
-
-function assertDatabaseIntegrity(database: Db): void {
-  const result = database.pragma('integrity_check', { simple: true })
-  if (result !== 'ok') throw new Error('Falha na verificação de integridade do banco')
-}
-
-function getOrCreateDatabaseKey(dbPath: string): Buffer {
-  const keyPath = path.join(path.dirname(dbPath), 'estoque.key')
-  if (fs.existsSync(keyPath)) {
-    if (!safeStorage.isEncryptionAvailable()) {
-      throw new Error('O cofre seguro do sistema operacional não está disponível')
-    }
-    const protectedKey = Buffer.from(fs.readFileSync(keyPath, 'utf8'), 'base64')
-    const keyHex = safeStorage.decryptString(protectedKey)
-    if (!/^[a-f0-9]{64}$/i.test(keyHex)) throw new Error('A chave protegida do banco é inválida')
-    return Buffer.from(keyHex, 'hex')
-  }
-
-  if (fs.existsSync(dbPath) && !isPlaintextDatabase(dbPath)) {
-    throw new Error('A chave de criptografia do banco não foi encontrada. Restaure-a antes de continuar.')
-  }
-  if (!safeStorage.isEncryptionAvailable()) {
-    throw new Error('O cofre seguro do sistema operacional não está disponível')
-  }
-  const key = randomBytes(32)
-  const protectedKey = safeStorage.encryptString(key.toString('hex'))
-  const tempKeyPath = `${keyPath}.tmp`
-  fs.writeFileSync(tempKeyPath, protectedKey.toString('base64'), { encoding: 'utf8', mode: 0o600 })
-  fs.renameSync(tempKeyPath, keyPath)
-  return key
-}
-
-function migratePlaintextDatabase(dbPath: string, key: Buffer): void {
-  if (!fs.existsSync(dbPath) || fs.statSync(dbPath).size === 0 || !isPlaintextDatabase(dbPath)) return
-  const encryptedPath = `${dbPath}.encrypting`
-  const originalPath = `${dbPath}.pre-encryption`
-  fs.rmSync(encryptedPath, { force: true })
-
-  const source = new Database(dbPath)
-  try {
-    assertDatabaseIntegrity(source)
-    source.pragma('wal_checkpoint(TRUNCATE)')
-  } finally {
-    source.close()
-  }
-  fs.copyFileSync(dbPath, encryptedPath)
-
-  const candidate = new Database(encryptedPath)
-  try {
-    configureCipher(candidate)
-    candidate.rekey(key)
-    assertDatabaseIntegrity(candidate)
-  } finally {
-    candidate.close()
-  }
-
-  const verification = openDatabase(encryptedPath, key)
-  try {
-    assertDatabaseIntegrity(verification)
-  } finally {
-    verification.close()
-  }
-
-  fs.rmSync(originalPath, { force: true })
-  fs.renameSync(dbPath, originalPath)
-  try {
-    fs.renameSync(encryptedPath, dbPath)
-    const finalCheck = openDatabase(dbPath, key)
-    try {
-      assertDatabaseIntegrity(finalCheck)
-    } finally {
-      finalCheck.close()
-    }
-    fs.rmSync(originalPath, { force: true })
-  } catch (error) {
-    fs.rmSync(dbPath, { force: true })
-    if (fs.existsSync(originalPath)) fs.renameSync(originalPath, dbPath)
-    throw error
-  }
-}
+import type { Db } from './database/types'
+import { MigrationFailure, runMigrations } from './database/migrations'
+import {
+  assertDatabaseIntegrity,
+  configureCipher,
+  connect,
+  disconnect,
+  getDatabase,
+  getDatabaseKey,
+  getDefaultDatabasePath,
+  isPlaintextDatabase,
+  prepareDefaultConnection,
+} from './database/connection'
+import { getAuditContext, recordAudit as writeAudit } from './database/audit'
+import {
+  calculateInvoiceAverageCost,
+  calculateFinishedProductCost,
+  recalculateAllFinishedProductCosts,
+  recalculateAllInvoiceAverageCosts,
+  updateFinishedProductCost,
+  updateFinishedProductCostsUsingInput,
+  updateInvoiceAverageCost,
+} from './database/services/costing-service'
+import {
+  authenticateUser as authenticateUserRepository,
+  changePassword as changePasswordRepository,
+  createUser as createUserRepository,
+  ensureDefaultAdmin as ensureDefaultAdminRepository,
+  listUsers as listUsersRepository,
+  resetUserPassword as resetUserPasswordRepository,
+  setUserActive as setUserActiveRepository,
+} from './database/repositories/users'
+import {
+  applyStockMovement as applyStockMovementService,
+  type ApplyMovementInput,
+} from './database/services/stock-service'
+import {
+  backupDatabase as backupDatabaseService,
+  createAutomaticBackup as createAutomaticBackupService,
+} from './database/services/backup-service'
+import {
+  getProduct as getProductRepository,
+  listProducts as listProductsRepository,
+} from './database/repositories/products'
+import { listPurchaseInvoices as listPurchaseInvoicesRepository } from './database/repositories/purchases'
+import { listSalesInvoices as listSalesInvoicesRepository } from './database/repositories/sales'
+import {
+  getRecipeByProductId as getRecipeByProductIdRepository,
+  listProductionOrders as listProductionOrdersRepository,
+  listRecipes as listRecipesRepository,
+} from './database/repositories/production'
+import { convertToStockUnit } from './database/services/unit-service'
+import { collectLocalDiagnostics } from './database/services/diagnostics-service'
+import { queryMovements } from './database/services/movement-query-service'
+import { receiveLot } from './database/services/lot-service'
+import { reverseProduction, reversePurchase, reverseSale } from './database/services/reversal-service'
+import {
+  approveInventorySession as approveInventorySessionService,
+  cancelInventorySession as cancelInventorySessionService,
+  listInventorySessions as listInventorySessionsService,
+  openInventorySession as openInventorySessionService,
+  recordInventoryCount as recordInventoryCountService,
+  submitInventorySession as submitInventorySessionService,
+} from './database/services/inventory-service'
 
 function nowIso(): string {
   return new Date().toISOString()
-}
-
-function computeStatus(stock: number, minStock: number): ProductStatus {
-  if (stock <= 0) return 'zero'
-  if (stock <= minStock) return 'low'
-  return 'ok'
-}
-
-function mapProduct(row: Record<string, unknown>): Product {
-  const stock = Number(row.stock)
-  const minStock = Number(row.min_stock)
-  const costPrice = Number(row.cost_price)
-  return {
-    id: String(row.id),
-    sku: String(row.sku),
-    name: String(row.name),
-    description: String(row.description ?? ''),
-    categoryId: row.category_id ? String(row.category_id) : null,
-    supplierId: row.supplier_id ? String(row.supplier_id) : null,
-    kind: (row.kind as ProductKind) ?? 'insumo',
-    unit: String(row.unit),
-    costPrice,
-    salePrice: Number(row.sale_price),
-    minStock,
-    stock,
-    active: Boolean(row.active),
-    createdAt: String(row.created_at),
-    updatedAt: String(row.updated_at),
-    categoryName: row.category_name != null ? String(row.category_name) : null,
-    supplierName: row.supplier_name != null ? String(row.supplier_name) : null,
-    status: computeStatus(stock, minStock),
-    stockValue: stock * costPrice,
-  }
 }
 
 function mapCategory(row: Record<string, unknown>): Category {
@@ -208,16 +130,12 @@ function mapSupplier(row: Record<string, unknown>): Supplier {
   }
 }
 
-function mapUser(row: Record<string, unknown>): User {
+function mapCustomer(row: Record<string, unknown>): Customer {
   return {
-    id: String(row.id),
-    name: String(row.name),
-    username: String(row.username),
-    role: row.role as UserRole,
-    active: Boolean(row.active),
-    mustChangePassword: Boolean(row.must_change_password),
-    createdAt: String(row.created_at),
-    updatedAt: String(row.updated_at),
+    id: String(row.id), name: String(row.name), taxNumber: String(row.tax_number ?? ''),
+    address: String(row.address ?? ''), phone: String(row.phone ?? ''), email: String(row.email ?? ''),
+    notes: String(row.notes ?? ''), active: Boolean(row.active),
+    createdAt: String(row.created_at), updatedAt: String(row.updated_at),
   }
 }
 
@@ -239,344 +157,79 @@ function mapMovement(row: Record<string, unknown>): StockMovement {
 }
 
 export function getDbPath(): string {
-  const dir = path.join(app.getPath('userData'), 'data')
-  fs.mkdirSync(dir, { recursive: true })
-  return path.join(dir, 'estoque.db')
+  return getDefaultDatabasePath()
+}
+
+/** Dados operacionais sem registos de negócio, utilizadores ou credenciais. */
+export function getLocalDiagnostics(appVersion: string): LocalDiagnostics {
+  return collectLocalDiagnostics(requireDb(), getDbPath(), appVersion)
 }
 
 export function initDatabase(): { path: string; seeded: boolean } {
-  const dbPath = getDbPath()
-  const key = getOrCreateDatabaseKey(dbPath)
-  migratePlaintextDatabase(dbPath, key)
-  return initDatabaseAtPath(dbPath, key)
+  const prepared = prepareDefaultConnection()
+  return initDatabaseAtPath(prepared.path, prepared.key)
 }
 
 /** Inicializa um banco em caminho explícito para testes e diagnósticos seguros. */
 export function initDatabaseAtPath(dbPath: string, encryptionKey?: Buffer): { path: string; seeded: boolean } {
-  closeDatabase()
-  fs.mkdirSync(path.dirname(dbPath), { recursive: true })
-  db = openDatabase(dbPath, encryptionKey)
-  activeDatabaseKey = encryptionKey ?? null
-  db.pragma('journal_mode = WAL')
-  db.pragma('foreign_keys = ON')
+  let database = connect(dbPath, encryptionKey)
+  try {
+    runMigrations(database, dbPath)
+  } catch (error) {
+    if (error instanceof MigrationFailure) {
+      closeDatabase()
+      fs.copyFileSync(error.backupPath, dbPath)
+      fs.rmSync(error.backupPath, { force: true })
+      database = connect(dbPath, encryptionKey)
+      assertDatabaseIntegrity(database)
+    }
+    throw error
+  }
+  ensureDefaultAdminRepository(database, nowIso())
+  recalculateAllInvoiceAverageCosts(database, nowIso())
+  recalculateAllFinishedProductCosts(database, nowIso())
 
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS categories (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL COLLATE NOCASE,
-      description TEXT NOT NULL DEFAULT '',
-      active INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      UNIQUE(name)
-    );
-
-    CREATE TABLE IF NOT EXISTS suppliers (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      document TEXT NOT NULL DEFAULT '',
-      phone TEXT NOT NULL DEFAULT '',
-      email TEXT NOT NULL DEFAULT '',
-      notes TEXT NOT NULL DEFAULT '',
-      active INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS products (
-      id TEXT PRIMARY KEY,
-      sku TEXT NOT NULL COLLATE NOCASE,
-      name TEXT NOT NULL,
-      description TEXT NOT NULL DEFAULT '',
-      category_id TEXT REFERENCES categories(id),
-      supplier_id TEXT REFERENCES suppliers(id),
-      unit TEXT NOT NULL DEFAULT 'un',
-      cost_price REAL NOT NULL DEFAULT 0 CHECK(cost_price >= 0),
-      sale_price REAL NOT NULL DEFAULT 0 CHECK(sale_price >= 0),
-      min_stock REAL NOT NULL DEFAULT 0 CHECK(min_stock >= 0),
-      stock REAL NOT NULL DEFAULT 0 CHECK(stock >= 0),
-      active INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      UNIQUE(sku)
-    );
-
-    CREATE TABLE IF NOT EXISTS stock_movements (
-      id TEXT PRIMARY KEY,
-      product_id TEXT NOT NULL REFERENCES products(id),
-      type TEXT NOT NULL CHECK(type IN ('entrada', 'saida', 'ajuste')),
-      quantity REAL NOT NULL,
-      previous_stock REAL NOT NULL,
-      new_stock REAL NOT NULL CHECK(new_stock >= 0),
-      reason TEXT NOT NULL,
-      reference TEXT NOT NULL DEFAULT '',
-      created_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS app_meta (
-      key TEXT PRIMARY KEY,
-      value TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      username TEXT NOT NULL COLLATE NOCASE UNIQUE,
-      password_hash TEXT NOT NULL,
-      role TEXT NOT NULL CHECK(role IN ('admin', 'operador')),
-      active INTEGER NOT NULL DEFAULT 1,
-      must_change_password INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_products_name ON products(name);
-    CREATE INDEX IF NOT EXISTS idx_products_active ON products(active);
-    CREATE INDEX IF NOT EXISTS idx_movements_created ON stock_movements(created_at);
-    CREATE INDEX IF NOT EXISTS idx_movements_product ON stock_movements(product_id);
-  `)
-
-  migrateSchema(db)
-  recalculateAllInvoiceAverageCosts(db)
-  recalculateAllFinishedProductCosts(db)
-
-  const count = db.prepare('SELECT COUNT(*) AS c FROM products').get() as { c: number }
-  const meta = db.prepare("SELECT value FROM app_meta WHERE key = 'seed_offered'").get() as
+  const count = database.prepare('SELECT COUNT(*) AS c FROM products').get() as { c: number }
+  const meta = database.prepare("SELECT value FROM app_meta WHERE key = 'seed_offered'").get() as
     | { value: string }
     | undefined
 
   return { path: dbPath, seeded: count.c > 0 || Boolean(meta) }
 }
 
-function migrateSchema(database: Db): void {
-  const productCols = database.prepare('PRAGMA table_info(products)').all() as { name: string }[]
-  if (!productCols.some((c) => c.name === 'kind')) {
-    database.exec(`ALTER TABLE products ADD COLUMN kind TEXT NOT NULL DEFAULT 'insumo'`)
-  }
-
-  const movementCols = database.prepare('PRAGMA table_info(stock_movements)').all() as { name: string }[]
-  if (!movementCols.some((c) => c.name === 'origin')) {
-    database.exec(`ALTER TABLE stock_movements ADD COLUMN origin TEXT NOT NULL DEFAULT 'legacy'`)
-  }
-
-  database.exec(`
-    CREATE TABLE IF NOT EXISTS purchase_invoices (
-      id TEXT PRIMARY KEY,
-      number TEXT NOT NULL,
-      supplier_id TEXT REFERENCES suppliers(id),
-      issue_date TEXT NOT NULL,
-      notes TEXT NOT NULL DEFAULT '',
-      created_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS purchase_invoice_items (
-      id TEXT PRIMARY KEY,
-      invoice_id TEXT NOT NULL REFERENCES purchase_invoices(id) ON DELETE CASCADE,
-      product_id TEXT NOT NULL REFERENCES products(id),
-      quantity REAL NOT NULL CHECK(quantity > 0),
-      unit_cost REAL NOT NULL CHECK(unit_cost >= 0)
-    );
-
-    CREATE TABLE IF NOT EXISTS recipes (
-      id TEXT PRIMARY KEY,
-      product_id TEXT NOT NULL UNIQUE REFERENCES products(id),
-      notes TEXT NOT NULL DEFAULT '',
-      active INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS recipe_items (
-      id TEXT PRIMARY KEY,
-      recipe_id TEXT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
-      product_id TEXT NOT NULL REFERENCES products(id),
-      quantity REAL NOT NULL CHECK(quantity > 0)
-    );
-
-    CREATE TABLE IF NOT EXISTS production_orders (
-      id TEXT PRIMARY KEY,
-      recipe_id TEXT NOT NULL REFERENCES recipes(id),
-      product_id TEXT NOT NULL REFERENCES products(id),
-      quantity REAL NOT NULL CHECK(quantity > 0),
-      notes TEXT NOT NULL DEFAULT '',
-      created_at TEXT NOT NULL
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_invoices_created ON purchase_invoices(created_at);
-    CREATE INDEX IF NOT EXISTS idx_production_created ON production_orders(created_at);
-    CREATE INDEX IF NOT EXISTS idx_products_kind ON products(kind);
-    CREATE INDEX IF NOT EXISTS idx_movements_origin ON stock_movements(origin);
-    CREATE INDEX IF NOT EXISTS idx_invoices_number ON purchase_invoices(number);
-    CREATE INDEX IF NOT EXISTS idx_recipe_items_recipe ON recipe_items(recipe_id);
-    CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice ON purchase_invoice_items(invoice_id);
-  `)
-
-  database.exec(`
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_invoice_number_supplier
-    ON purchase_invoices(number, COALESCE(supplier_id, ''));
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_recipe_item_unique
-    ON recipe_items(recipe_id, product_id);
-    CREATE UNIQUE INDEX IF NOT EXISTS idx_invoice_item_unique
-    ON purchase_invoice_items(invoice_id, product_id);
-  `)
-
-  const userCols = database.prepare('PRAGMA table_info(users)').all() as { name: string }[]
-  if (!userCols.some((c) => c.name === 'must_change_password')) {
-    database.exec(
-      `ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0`,
-    )
-  }
-
-  ensureDefaultAdmin(database)
-}
-
-function calculateInvoiceAverageCost(database: Db, productId: string): number | null {
-  const result = database.prepare(
-    `SELECT SUM(quantity * unit_cost) AS total_value, SUM(quantity) AS total_quantity
-     FROM purchase_invoice_items WHERE product_id = ?`,
-  ).get(productId) as { total_value: number | null; total_quantity: number | null }
-  if (!result.total_quantity) return null
-  return Math.round(((result.total_value ?? 0) / result.total_quantity) * 10_000) / 10_000
-}
-
-function updateInvoiceAverageCost(database: Db, productId: string, updatedAt: string, resetWhenEmpty = true): void {
-  const average = calculateInvoiceAverageCost(database, productId)
-  if (average === null && !resetWhenEmpty) return
-  database.prepare('UPDATE products SET cost_price = ?, updated_at = ? WHERE id = ? AND kind = ?')
-    .run(average ?? 0, updatedAt, productId, 'insumo')
-  updateFinishedProductCostsUsingInput(database, productId, updatedAt)
-}
-
-function recalculateAllInvoiceAverageCosts(database: Db): void {
-  const productIds = database.prepare('SELECT DISTINCT product_id FROM purchase_invoice_items').all() as { product_id: string }[]
-  const timestamp = nowIso()
-  productIds.forEach(({ product_id }) => updateInvoiceAverageCost(database, product_id, timestamp, false))
-}
-
-function calculateFinishedProductCost(database: Db, productId: string): number {
-  const result = database.prepare(
-    `SELECT COALESCE(SUM(ri.quantity * p.cost_price), 0) AS cost
-     FROM recipes r
-     JOIN recipe_items ri ON ri.recipe_id = r.id
-     JOIN products p ON p.id = ri.product_id
-     WHERE r.product_id = ? AND r.active = 1`,
-  ).get(productId) as { cost: number }
-  return Math.round(Number(result.cost) * 10_000) / 10_000
-}
-
-function updateFinishedProductCost(database: Db, productId: string, updatedAt: string): void {
-  database.prepare('UPDATE products SET cost_price = ?, updated_at = ? WHERE id = ? AND kind = ?')
-    .run(calculateFinishedProductCost(database, productId), updatedAt, productId, 'acabado')
-}
-
-function updateFinishedProductCostsUsingInput(database: Db, inputId: string, updatedAt: string): void {
-  const rows = database.prepare(
-    `SELECT DISTINCT r.product_id FROM recipes r
-     JOIN recipe_items ri ON ri.recipe_id = r.id WHERE ri.product_id = ?`,
-  ).all(inputId) as { product_id: string }[]
-  rows.forEach(({ product_id }) => updateFinishedProductCost(database, product_id, updatedAt))
-}
-
-function recalculateAllFinishedProductCosts(database: Db): void {
-  const rows = database.prepare('SELECT product_id FROM recipes WHERE active = 1').all() as { product_id: string }[]
-  const timestamp = nowIso()
-  rows.forEach(({ product_id }) => updateFinishedProductCost(database, product_id, timestamp))
-}
-
-const DEFAULT_PASSWORD = 'admin123'
-
-function legacyHashPassword(password: string): string {
-  return createHash('sha256').update(password).digest('hex')
-}
-
-function hashPassword(password: string): string {
-  const salt = randomBytes(16).toString('hex')
-  const hash = scryptSync(password, salt, 64).toString('hex')
-  return `scrypt$${salt}$${hash}`
-}
-
-function verifyPassword(password: string, storedHash: string): boolean {
-  if (!storedHash.startsWith('scrypt$')) {
-    const actual = Buffer.from(legacyHashPassword(password), 'hex')
-    const expected = Buffer.from(storedHash, 'hex')
-    return actual.length === expected.length && timingSafeEqual(actual, expected)
-  }
-  const [, salt, expectedHex] = storedHash.split('$')
-  if (!salt || !expectedHex) return false
-  const actual = scryptSync(password, salt, 64)
-  const expected = Buffer.from(expectedHex, 'hex')
-  return actual.length === expected.length && timingSafeEqual(actual, expected)
-}
-
-function assertNewPassword(newPassword: string, currentPassword: string): void {
-  if (newPassword.length < 6) throw new Error('Senha deve ter no mínimo 6 caracteres')
-  if (newPassword === currentPassword) throw new Error('A nova senha deve ser diferente da atual')
-  if (newPassword === DEFAULT_PASSWORD) throw new Error('Não use a senha padrão. Escolha outra senha.')
-}
-
-function ensureDefaultAdmin(database: Db): void {
-  const count = (database.prepare('SELECT COUNT(*) AS c FROM users').get() as { c: number }).c
-  if (count === 0) {
-    const ts = nowIso()
-    database
-      .prepare(
-        `INSERT INTO users (id, name, username, password_hash, role, active, must_change_password, created_at, updated_at)
-         VALUES (?, ?, ?, ?, 'admin', 1, 1, ?, ?)`,
-      )
-      .run(randomUUID(), 'Administrador', 'admin', hashPassword(DEFAULT_PASSWORD), ts, ts)
-    return
-  }
-
-  database
-    .prepare('UPDATE users SET must_change_password = 1 WHERE password_hash = ?')
-    .run(legacyHashPassword(DEFAULT_PASSWORD))
+function recordAudit(action: string, entityType: string, entityId: string, details: Record<string, unknown> = {}): void {
+  writeAudit(requireDb(), action, entityType, entityId, details, nowIso())
 }
 
 function requireDb(): Db {
-  if (!db) throw new Error('Banco de dados não inicializado')
-  return db
+  return getDatabase()
 }
 
 
 export function closeDatabase(): void {
-  if (db) {
-    db.close()
-    db = null
-  }
-  activeDatabaseKey = null
+  disconnect()
 }
 
 /** Online-safe backup using better-sqlite3 backup API (WAL-aware). */
 export async function backupDatabase(destPath: string): Promise<void> {
-  const database = requireDb()
-  const tempPath = `${destPath}.tmp`
-  fs.rmSync(tempPath, { force: true })
-  if (activeDatabaseKey) {
-    database.pragma('wal_checkpoint(TRUNCATE)')
-    fs.copyFileSync(database.name, tempPath)
-    const backup = openDatabase(tempPath, activeDatabaseKey)
-    try {
-      assertDatabaseIntegrity(backup)
-    } finally {
-      backup.close()
-    }
-  } else {
-    await database.backup(tempPath)
-  }
-  fs.rmSync(destPath, { force: true })
-  fs.renameSync(tempPath, destPath)
+  await backupDatabaseService(destPath)
+}
+
+export async function createAutomaticBackup(retention = 30): Promise<string | null> {
+  return createAutomaticBackupService(retention)
 }
 
 /** Replace the live database with a backup file and reopen. */
 export function restoreDatabase(sourcePath: string): { path: string; seeded: boolean } {
   if (!fs.existsSync(sourcePath)) {
-    throw new Error('Arquivo de cópia de segurança não encontrado')
+    throw new Error('Ficheiro da cópia de segurança não encontrado')
   }
 
   let candidate: Database.Database | null = null
   try {
     candidate = new Database(sourcePath, { readonly: true, fileMustExist: true })
     if (!isPlaintextDatabase(sourcePath)) {
+      const activeDatabaseKey = getDatabaseKey()
       if (!activeDatabaseKey) throw new Error('chave indisponível')
       configureCipher(candidate)
       candidate.key(activeDatabaseKey)
@@ -660,22 +313,8 @@ export function saveClientBrand(input: ClientBrand): ClientBrand {
   return getClientBrand()
 }
 
-const USER_COLUMNS =
-  'id, name, username, role, active, must_change_password, created_at, updated_at'
-
-function getUser(id: string): User {
-  const row = requireDb()
-    .prepare(`SELECT ${USER_COLUMNS} FROM users WHERE id = ?`)
-    .get(id) as Record<string, unknown> | undefined
-  if (!row) throw new Error('Usuário não encontrado')
-  return mapUser(row)
-}
-
 export function listUsers(): User[] {
-  const rows = requireDb()
-    .prepare(`SELECT ${USER_COLUMNS} FROM users ORDER BY name`)
-    .all() as Record<string, unknown>[]
-  return rows.map(mapUser)
+  return listUsersRepository(requireDb())
 }
 
 export function createUser(input: {
@@ -684,63 +323,15 @@ export function createUser(input: {
   password: string
   role: UserRole
 }): User {
-  const name = input.name.trim()
-  const username = input.username.trim()
-  const password = input.password
-  if (!name) throw new Error('Nome do usuário é obrigatório')
-  if (!username) throw new Error('Usuário é obrigatório')
-  if (password.length < 6) throw new Error('Senha deve ter no mínimo 6 caracteres')
-  const ts = nowIso()
-  const id = randomUUID()
-  try {
-    requireDb()
-      .prepare(
-        `INSERT INTO users (id, name, username, password_hash, role, active, must_change_password, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 1, 0, ?, ?)`,
-      )
-      .run(id, name, username, hashPassword(password), input.role, ts, ts)
-  } catch (err) {
-    if (String(err).includes('UNIQUE')) throw new Error('Este usuário já está cadastrado')
-    throw err
-  }
-  return getUser(id)
+  return createUserRepository(requireDb(), input, nowIso())
 }
 
 export function setUserActive(id: string, active: boolean): User {
-  const db = requireDb()
-  if (!active) {
-    const admins = (db.prepare("SELECT COUNT(*) AS c FROM users WHERE role = 'admin' AND active = 1").get() as { c: number }).c
-    const target = db.prepare('SELECT role, active FROM users WHERE id = ?').get(id) as { role: UserRole; active: number } | undefined
-    if (!target) throw new Error('Usuário não encontrado')
-    if (target.role === 'admin' && target.active && admins <= 1) {
-      throw new Error('Não é possível desativar o último administrador')
-    }
-  }
-  const ts = nowIso()
-  const result = db
-    .prepare('UPDATE users SET active = ?, updated_at = ? WHERE id = ?')
-    .run(active ? 1 : 0, ts, id)
-  if (result.changes === 0) throw new Error('Usuário não encontrado')
-  return getUser(id)
+  return setUserActiveRepository(requireDb(), id, active, nowIso())
 }
 
 export function authenticateUser(username: string, password: string): User | null {
-  const row = requireDb()
-    .prepare(
-      `SELECT ${USER_COLUMNS}, password_hash
-       FROM users
-       WHERE username = ? COLLATE NOCASE`,
-    )
-    .get(username.trim()) as (Record<string, unknown> & { password_hash: string }) | undefined
-  if (!row || !verifyPassword(password, row.password_hash)) return null
-  const user = mapUser(row)
-  if (!user.active) return null
-  if (!row.password_hash.startsWith('scrypt$')) {
-    requireDb()
-      .prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?')
-      .run(hashPassword(password), nowIso(), user.id)
-  }
-  return user
+  return authenticateUserRepository(requireDb(), username, password, nowIso())
 }
 
 export function changePassword(
@@ -748,21 +339,11 @@ export function changePassword(
   currentPassword: string,
   newPassword: string,
 ): User {
-  const row = requireDb()
-    .prepare('SELECT id, password_hash FROM users WHERE id = ?')
-    .get(userId) as { id: string; password_hash: string } | undefined
-  if (!row) throw new Error('Usuário não encontrado')
-  if (!verifyPassword(currentPassword, row.password_hash)) {
-    throw new Error('Senha atual incorreta')
-  }
-  assertNewPassword(newPassword, currentPassword)
-  const ts = nowIso()
-  requireDb()
-    .prepare(
-      'UPDATE users SET password_hash = ?, must_change_password = 0, updated_at = ? WHERE id = ?',
-    )
-    .run(hashPassword(newPassword), ts, userId)
-  return getUser(userId)
+  return changePasswordRepository(requireDb(), userId, currentPassword, newPassword, nowIso())
+}
+
+export function resetUserPassword(userId: string, temporaryPassword: string): User {
+  return resetUserPasswordRepository(requireDb(), userId, temporaryPassword, nowIso())
 }
 
 export function seedDemoData(): void {
@@ -1047,57 +628,38 @@ export function updateSupplier(input: {
   return listSuppliers().find((s) => s.id === input.id)!
 }
 
+export function listCustomers(activeOnly = false): Customer[] {
+  const sql = activeOnly ? 'SELECT * FROM customers WHERE active = 1 ORDER BY name' : 'SELECT * FROM customers ORDER BY name'
+  return (requireDb().prepare(sql).all() as Record<string, unknown>[]).map(mapCustomer)
+}
+
+export function createCustomer(input: CustomerInput): Customer {
+  const name = input.name.trim()
+  if (!name) throw new Error('O nome do cliente é obrigatório')
+  const id = randomUUID()
+  const ts = nowIso()
+  requireDb().prepare(`INSERT INTO customers (id, name, tax_number, address, phone, email, notes, active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`)
+    .run(id, name, input.taxNumber?.trim() ?? '', input.address?.trim() ?? '', input.phone?.trim() ?? '', input.email?.trim() ?? '', input.notes?.trim() ?? '', ts, ts)
+  recordAudit('create', 'customer', id, { name })
+  return listCustomers().find((item) => item.id === id)!
+}
+
+export function updateCustomer(input: CustomerUpdateInput): Customer {
+  const name = input.name.trim()
+  if (!name) throw new Error('O nome do cliente é obrigatório')
+  const result = requireDb().prepare(`UPDATE customers SET name = ?, tax_number = ?, address = ?, phone = ?, email = ?, notes = ?, active = ?, updated_at = ? WHERE id = ?`)
+    .run(name, input.taxNumber?.trim() ?? '', input.address?.trim() ?? '', input.phone?.trim() ?? '', input.email?.trim() ?? '', input.notes?.trim() ?? '', input.active ? 1 : 0, nowIso(), input.id)
+  if (result.changes === 0) throw new Error('Cliente não encontrado')
+  recordAudit('update', 'customer', input.id, { name, active: input.active })
+  return listCustomers().find((item) => item.id === input.id)!
+}
+
 export function listProducts(filters: ProductFilters = {}): Product[] {
-  const clauses: string[] = []
-  const params: unknown[] = []
-
-  if (filters.search?.trim()) {
-    clauses.push('(p.name LIKE ? OR p.sku LIKE ?)')
-    const q = `%${filters.search.trim()}%`
-    params.push(q, q)
-  }
-  if (filters.categoryId) {
-    clauses.push('p.category_id = ?')
-    params.push(filters.categoryId)
-  }
-  if (filters.kind) {
-    clauses.push('p.kind = ?')
-    params.push(filters.kind)
-  }
-  if (filters.active !== undefined) {
-    clauses.push('p.active = ?')
-    params.push(filters.active ? 1 : 0)
-  }
-  if (filters.lowStockOnly) {
-    clauses.push('p.stock <= p.min_stock')
-  }
-
-  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
-  const rows = requireDb()
-    .prepare(
-      `SELECT p.*, c.name AS category_name, s.name AS supplier_name
-       FROM products p
-       LEFT JOIN categories c ON c.id = p.category_id
-       LEFT JOIN suppliers s ON s.id = p.supplier_id
-       ${where}
-       ORDER BY p.name`,
-    )
-    .all(...params) as Record<string, unknown>[]
-
-  return rows.map(mapProduct)
+  return listProductsRepository(requireDb(), filters)
 }
 
 export function getProduct(id: string): Product | null {
-  const row = requireDb()
-    .prepare(
-      `SELECT p.*, c.name AS category_name, s.name AS supplier_name
-       FROM products p
-       LEFT JOIN categories c ON c.id = p.category_id
-       LEFT JOIN suppliers s ON s.id = p.supplier_id
-       WHERE p.id = ?`,
-    )
-    .get(id) as Record<string, unknown> | undefined
-  return row ? mapProduct(row) : null
+  return getProductRepository(requireDb(), id)
 }
 
 function validateProductFields(input: {
@@ -1107,12 +669,16 @@ function validateProductFields(input: {
   costPrice: number
   salePrice: number
   minStock: number
+  purchaseConversionFactor?: number
 }): void {
   if (!input.sku.trim()) throw new Error('Código é obrigatório')
   if (!input.name.trim()) throw new Error('Nome do produto é obrigatório')
   if (!input.unit.trim()) throw new Error('Unidade é obrigatória')
   if (input.costPrice < 0 || input.salePrice < 0) throw new Error('Preços não podem ser negativos')
-  if (input.minStock < 0) throw new Error('Estoque mínimo não pode ser negativo')
+  if (input.minStock < 0) throw new Error('O stock mínimo não pode ser negativo')
+  if (input.purchaseConversionFactor !== undefined && !(input.purchaseConversionFactor > 0)) {
+    throw new Error('O fator de conversão deve ser superior a zero')
+  }
 }
 
 export function createProduct(input: ProductInput): Product {
@@ -1134,8 +700,9 @@ export function createProduct(input: ProductInput): Product {
         .prepare(
           `INSERT INTO products (
             id, sku, name, description, category_id, supplier_id, kind, unit,
-            cost_price, sale_price, min_stock, stock, active, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, ?, ?)`,
+            cost_price, sale_price, min_stock, stock, active, created_at, updated_at,
+            purchase_unit, purchase_conversion_factor, lot_control
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, ?, ?, ?, ?, ?)`,
         )
         .run(
           id,
@@ -1151,6 +718,9 @@ export function createProduct(input: ProductInput): Product {
           input.minStock,
           ts,
           ts,
+          input.purchaseUnit?.trim() || null,
+          input.purchaseConversionFactor ?? 1,
+          input.lotControl ? 1 : 0,
         )
     } catch (err) {
       if (String(err).includes('UNIQUE')) throw new Error('Já existe um produto com este código')
@@ -1159,6 +729,7 @@ export function createProduct(input: ProductInput): Product {
   })
 
   tx()
+  recordAudit('create', 'product', id, { sku: normalizedSku, kind })
   return getProduct(id)!
 }
 
@@ -1179,7 +750,8 @@ export function updateProduct(input: ProductUpdateInput): Product {
       .prepare(
         `UPDATE products SET
           sku = ?, name = ?, description = ?, category_id = ?, supplier_id = ?,
-          kind = ?, unit = ?, cost_price = ?, sale_price = ?, min_stock = ?, updated_at = ?
+          kind = ?, unit = ?, cost_price = ?, sale_price = ?, min_stock = ?, updated_at = ?,
+          purchase_unit = ?, purchase_conversion_factor = ?, lot_control = ?
          WHERE id = ?`,
       )
       .run(
@@ -1194,6 +766,9 @@ export function updateProduct(input: ProductUpdateInput): Product {
         input.salePrice,
         input.minStock,
         ts,
+        input.purchaseUnit?.trim() || null,
+        input.purchaseConversionFactor ?? 1,
+        input.lotControl ? 1 : 0,
         input.id,
       )
     if (result.changes === 0) throw new Error('Produto não encontrado')
@@ -1201,6 +776,7 @@ export function updateProduct(input: ProductUpdateInput): Product {
     if (String(err).includes('UNIQUE')) throw new Error('Já existe um produto com este código')
     throw err
   }
+  recordAudit('update', 'product', input.id, { sku: normalizedSku, kind: input.kind })
   return getProduct(input.id)!
 }
 
@@ -1230,126 +806,12 @@ export function registerMovement(input: MovementInput): StockMovement {
   })
 }
 
-type ApplyMovementInput = {
-  productId: string
-  type: MovementType
-  quantity?: number
-  newStock?: number
-  reason: string
-  reference: string
-  origin: MovementOrigin
-}
-
 function applyStockMovement(input: ApplyMovementInput): StockMovement {
-  const reason = input.reason.trim()
-  if (!reason) throw new Error('Motivo é obrigatório')
-
-  const database = requireDb()
-  const product = database.prepare('SELECT * FROM products WHERE id = ?').get(input.productId) as
-    | Record<string, unknown>
-    | undefined
-
-  if (!product) throw new Error('Produto não encontrado')
-  if (!product.active) throw new Error('Produto inativo não pode receber movimentações')
-
-  const previous = roundQuantity(Number(product.stock))
-  let quantity = roundQuantity(input.quantity ?? 0)
-  let newStock: number
-
-  if (input.type === 'entrada') {
-    if (!(quantity > 0)) throw new Error('Quantidade da entrada deve ser maior que zero')
-    newStock = roundQuantity(previous + quantity)
-  } else if (input.type === 'saida') {
-    if (!(quantity > 0)) throw new Error('Quantidade da saída deve ser maior que zero')
-    if (quantity > previous) {
-      throw new Error(`Saldo insuficiente. Disponível: ${previous}`)
-    }
-    newStock = roundQuantity(previous - quantity)
-  } else if (input.type === 'ajuste') {
-    if (input.newStock === undefined || input.newStock < 0) {
-      throw new Error('Informe o novo saldo (≥ 0) para o ajuste')
-    }
-    newStock = roundQuantity(input.newStock)
-    quantity = roundQuantity(newStock - previous)
-  } else {
-    throw new Error('Tipo de movimentação inválido')
-  }
-
-  const id = randomUUID()
-  const ts = nowIso()
-
-  const tx = database.transaction(() => {
-    database
-      .prepare(
-        `INSERT INTO stock_movements (
-          id, product_id, type, quantity, previous_stock, new_stock, reason, reference, origin, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      )
-      .run(
-        id,
-        input.productId,
-        input.type,
-        quantity,
-        previous,
-        newStock,
-        reason,
-        input.reference.trim(),
-        input.origin,
-        ts,
-      )
-    database
-      .prepare('UPDATE products SET stock = ?, updated_at = ? WHERE id = ?')
-      .run(newStock, ts, input.productId)
-  })
-
-  tx()
-
-  const row = database
-    .prepare(
-      `SELECT m.*, p.name AS product_name, p.sku AS product_sku
-       FROM stock_movements m
-       JOIN products p ON p.id = m.product_id
-       WHERE m.id = ?`,
-    )
-    .get(id) as Record<string, unknown>
-
-  return mapMovement(row)
+  return applyStockMovementService(requireDb(), input, nowIso())
 }
 
 export function listMovements(filters: MovementFilters = {}): StockMovement[] {
-  const clauses: string[] = []
-  const params: unknown[] = []
-
-  if (filters.productId) {
-    clauses.push('m.product_id = ?')
-    params.push(filters.productId)
-  }
-  if (filters.type) {
-    clauses.push('m.type = ?')
-    params.push(filters.type)
-  }
-  if (filters.from) {
-    clauses.push('m.created_at >= ?')
-    params.push(filters.from)
-  }
-  if (filters.to) {
-    clauses.push('m.created_at <= ?')
-    params.push(filters.to)
-  }
-
-  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
-  const rows = requireDb()
-    .prepare(
-      `SELECT m.*, p.name AS product_name, p.sku AS product_sku
-       FROM stock_movements m
-       JOIN products p ON p.id = m.product_id
-       ${where}
-       ORDER BY m.created_at DESC
-       LIMIT 500`,
-    )
-    .all(...params) as Record<string, unknown>[]
-
-  return rows.map(mapMovement)
+  return queryMovements(requireDb(), filters, mapMovement)
 }
 
 export function getDashboard(): DashboardData {
@@ -1402,7 +864,7 @@ export function getDashboard(): DashboardData {
 }
 
 export function buildReport(
-  type: 'posicao' | 'movimentacoes' | 'baixo' | 'custo-venda',
+  type: ReportType,
   filters: MovementFilters = {},
 ): { columns: string[]; rows: Record<string, string | number | boolean | null>[] } {
   if (type === 'posicao') {
@@ -1457,6 +919,75 @@ export function buildReport(
     }
   }
 
+  if (type === 'auditoria') {
+    const clauses: string[] = []
+    const params: string[] = []
+    if (filters.from) { clauses.push('created_at >= ?'); params.push(filters.from) }
+    if (filters.to) { clauses.push('created_at <= ?'); params.push(filters.to) }
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
+    const rows = requireDb().prepare(`SELECT created_at, username, action, entity_type, entity_id,
+      previous_values, new_values, origin, computer_name FROM audit_logs ${where}
+      ORDER BY created_at DESC LIMIT 1000`).all(...params) as Record<string, unknown>[]
+    return { columns: ['Data', 'Utilizador', 'Ação', 'Entidade', 'Identificador', 'Valor anterior', 'Valor novo', 'Origem', 'Computador'],
+      rows: rows.map((row) => ({ Data: String(row.created_at), Utilizador: String(row.username || 'sistema'),
+        Ação: String(row.action), Entidade: String(row.entity_type), Identificador: String(row.entity_id),
+        'Valor anterior': String(row.previous_values ?? '{}'), 'Valor novo': String(row.new_values ?? '{}'),
+        Origem: String(row.origin ?? 'desktop'), Computador: String(row.computer_name ?? '') })) }
+  }
+
+  if (type === 'inventarios') {
+    const rows = requireDb().prepare(`SELECT s.code, s.created_at, s.reference_at, s.status,
+      COUNT(c.id) products, SUM(CASE WHEN c.counted_stock IS NOT NULL THEN 1 ELSE 0 END) counted,
+      COALESCE(SUM(ABS(COALESCE(c.difference, 0))), 0) total_difference, s.approved_at
+      FROM inventory_sessions s LEFT JOIN inventory_counts c ON c.session_id = s.id
+      GROUP BY s.id ORDER BY s.created_at DESC`).all() as Record<string, unknown>[]
+    return { columns: ['Código', 'Abertura', 'Referência', 'Estado', 'Produtos', 'Contados', 'Diferença absoluta', 'Aprovação'],
+      rows: rows.map((row) => ({ Código: String(row.code), Abertura: String(row.created_at),
+        Referência: String(row.reference_at), Estado: String(row.status), Produtos: Number(row.products),
+        Contados: Number(row.counted), 'Diferença absoluta': Number(row.total_difference),
+        Aprovação: String(row.approved_at ?? '') })) }
+  }
+
+  const fromDate = filters.from?.slice(0, 10)
+  const toDate = filters.to?.slice(0, 10)
+  const dateClauses: string[] = []
+  const dateParams: string[] = []
+  if (fromDate) { dateClauses.push('i.issue_date >= ?'); dateParams.push(fromDate) }
+  if (toDate) { dateClauses.push('i.issue_date <= ?'); dateParams.push(toDate) }
+  const invoiceWhere = dateClauses.length ? `WHERE ${dateClauses.join(' AND ')}` : ''
+  const database = requireDb()
+
+  if (type === 'compras') {
+    const rows = database.prepare(`SELECT i.issue_date, i.number, COALESCE(s.name, 'Sem fornecedor') supplier, p.sku, p.name product, ii.quantity, p.unit, ii.unit_cost, ii.quantity * ii.unit_cost total FROM purchase_invoices i LEFT JOIN suppliers s ON s.id = i.supplier_id JOIN purchase_invoice_items ii ON ii.invoice_id = i.id JOIN products p ON p.id = ii.product_id ${invoiceWhere} ORDER BY i.issue_date DESC, i.number, p.name`).all(...dateParams) as Record<string, unknown>[]
+    return { columns: ['Data', 'Fatura', 'Fornecedor', 'Código', 'Matéria-prima', 'Quantidade', 'Unidade', 'Custo unitário', 'Total da compra'], rows: rows.map((row) => ({ Data: String(row.issue_date), Fatura: String(row.number), Fornecedor: String(row.supplier), Código: String(row.sku), 'Matéria-prima': String(row.product), Quantidade: Number(row.quantity), Unidade: String(row.unit), 'Custo unitário': Number(row.unit_cost), 'Total da compra': Number(row.total) })) }
+  }
+
+  if (type === 'vendas' || type === 'margem-vendas') {
+    const rows = database.prepare(`SELECT i.issue_date, i.number, c.name customer, c.tax_number, p.sku, p.name product, si.quantity, p.unit, si.unit_price, si.unit_cost_snapshot, si.quantity * si.unit_price revenue, si.quantity * si.unit_cost_snapshot cost FROM sales_invoices i JOIN customers c ON c.id = i.customer_id JOIN sales_invoice_items si ON si.invoice_id = i.id JOIN products p ON p.id = si.product_id ${invoiceWhere} ORDER BY i.issue_date DESC, i.number, p.name`).all(...dateParams) as Record<string, unknown>[]
+    if (type === 'vendas') return { columns: ['Data', 'Fatura', 'Cliente', 'NIF', 'Código', 'Produto final', 'Quantidade', 'Unidade', 'Preço unitário', 'Total faturado'], rows: rows.map((row) => ({ Data: String(row.issue_date), Fatura: String(row.number), Cliente: String(row.customer), NIF: String(row.tax_number ?? ''), Código: String(row.sku), 'Produto final': String(row.product), Quantidade: Number(row.quantity), Unidade: String(row.unit), 'Preço unitário': Number(row.unit_price), 'Total faturado': Number(row.revenue) })) }
+    return { columns: ['Data', 'Fatura', 'Cliente', 'Produto final', 'Quantidade', 'Receita', 'Custo', 'Margem bruta', 'Margem %'], rows: rows.map((row) => { const revenue = Number(row.revenue); const cost = Number(row.cost); const margin = revenue - cost; return { Data: String(row.issue_date), Fatura: String(row.number), Cliente: String(row.customer), 'Produto final': String(row.product), Quantidade: Number(row.quantity), Receita: revenue, Custo: cost, 'Margem bruta': margin, 'Margem %': revenue > 0 ? margin / revenue * 100 : 0 } }) }
+  }
+
+  if (type === 'producao') {
+    const clauses: string[] = []
+    const params: string[] = []
+    if (filters.from) { clauses.push('o.created_at >= ?'); params.push(filters.from) }
+    if (filters.to) { clauses.push('o.created_at <= ?'); params.push(filters.to) }
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : ''
+    const rows = database.prepare(`SELECT o.created_at, p.sku, p.name product, o.quantity, p.unit, o.unit_cost_snapshot, o.total_cost_snapshot, o.notes FROM production_orders o JOIN products p ON p.id = o.product_id ${where} ORDER BY o.created_at DESC`).all(...params) as Record<string, unknown>[]
+    return { columns: ['Data', 'Código', 'Produto final', 'Quantidade produzida', 'Unidade', 'Custo unitário', 'Custo total da produção', 'Observações'], rows: rows.map((row) => ({ Data: String(row.created_at), Código: String(row.sku), 'Produto final': String(row.product), 'Quantidade produzida': Number(row.quantity), Unidade: String(row.unit), 'Custo unitário': Number(row.unit_cost_snapshot), 'Custo total da produção': Number(row.total_cost_snapshot), Observações: String(row.notes ?? '') })) }
+  }
+
+  if (type === 'clientes') {
+    const rows = database.prepare(`SELECT c.name, c.tax_number, COUNT(DISTINCT i.id) invoices, COALESCE(SUM(si.quantity), 0) quantity, COALESCE(SUM(si.quantity * si.unit_price), 0) billed, COALESCE(SUM(si.quantity * si.unit_cost_snapshot), 0) cost FROM customers c LEFT JOIN sales_invoices i ON i.customer_id = c.id LEFT JOIN sales_invoice_items si ON si.invoice_id = i.id GROUP BY c.id ORDER BY billed DESC, c.name`).all() as Record<string, unknown>[]
+    return { columns: ['Cliente', 'NIF', 'Faturas emitidas', 'Unidades vendidas', 'Total faturado', 'Custo associado', 'Margem bruta'], rows: rows.map((row) => ({ Cliente: String(row.name), NIF: String(row.tax_number ?? ''), 'Faturas emitidas': Number(row.invoices), 'Unidades vendidas': Number(row.quantity), 'Total faturado': Number(row.billed), 'Custo associado': Number(row.cost), 'Margem bruta': Number(row.billed) - Number(row.cost) })) }
+  }
+
+  if (type === 'fornecedores') {
+    const rows = database.prepare(`SELECT COALESCE(s.name, 'Sem fornecedor') supplier, COUNT(DISTINCT i.id) invoices, COALESCE(SUM(ii.quantity), 0) quantity, COALESCE(SUM(ii.quantity * ii.unit_cost), 0) purchased, MAX(i.issue_date) last_purchase FROM purchase_invoices i LEFT JOIN suppliers s ON s.id = i.supplier_id JOIN purchase_invoice_items ii ON ii.invoice_id = i.id GROUP BY i.supplier_id ORDER BY purchased DESC, supplier`).all() as Record<string, unknown>[]
+    return { columns: ['Fornecedor', 'Faturas registadas', 'Unidades compradas', 'Valor comprado', 'Última compra'], rows: rows.map((row) => ({ Fornecedor: String(row.supplier), 'Faturas registadas': Number(row.invoices), 'Unidades compradas': Number(row.quantity), 'Valor comprado': Number(row.purchased), 'Última compra': String(row.last_purchase ?? '') })) }
+  }
+
   const movements = listMovements(filters)
   return {
     columns: ['Data', 'Código', 'Produto', 'Tipo', 'Quantidade', 'Saldo anterior', 'Saldo novo', 'Motivo'],
@@ -1473,54 +1004,8 @@ export function buildReport(
   }
 }
 
-function mapInvoiceRow(
-  row: Record<string, unknown>,
-  items: PurchaseInvoice['items'],
-): PurchaseInvoice {
-  return {
-    id: String(row.id),
-    number: String(row.number),
-    supplierId: row.supplier_id ? String(row.supplier_id) : null,
-    supplierName: row.supplier_name != null ? String(row.supplier_name) : null,
-    issueDate: String(row.issue_date),
-    notes: String(row.notes ?? ''),
-    createdAt: String(row.created_at),
-    items,
-  }
-}
-
 export function listPurchaseInvoices(): PurchaseInvoice[] {
-  const database = requireDb()
-  const rows = database
-    .prepare(
-      `SELECT i.*, s.name AS supplier_name
-       FROM purchase_invoices i
-       LEFT JOIN suppliers s ON s.id = i.supplier_id
-       ORDER BY i.created_at DESC
-       LIMIT 200`,
-    )
-    .all() as Record<string, unknown>[]
-
-  const itemStmt = database.prepare(
-    `SELECT ii.*, p.name AS product_name, p.sku AS product_sku, p.unit AS product_unit
-     FROM purchase_invoice_items ii
-     JOIN products p ON p.id = ii.product_id
-     WHERE ii.invoice_id = ?
-     ORDER BY p.name`,
-  )
-
-  return rows.map((row) => {
-    const items = (itemStmt.all(row.id) as Record<string, unknown>[]).map((item) => ({
-      id: String(item.id),
-      productId: String(item.product_id),
-      productName: String(item.product_name),
-      productSku: String(item.product_sku),
-      productUnit: String(item.product_unit),
-      quantity: Number(item.quantity),
-      unitCost: Number(item.unit_cost),
-    }))
-    return mapInvoiceRow(row, items)
-  })
+  return listPurchaseInvoicesRepository(requireDb())
 }
 
 export function createPurchaseInvoice(input: PurchaseInvoiceInput): PurchaseInvoice {
@@ -1536,8 +1021,8 @@ export function createPurchaseInvoice(input: PurchaseInvoiceInput): PurchaseInvo
   const tx = database.transaction(() => {
     database
       .prepare(
-        `INSERT INTO purchase_invoices (id, number, supplier_id, issue_date, notes, created_at)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO purchase_invoices (id, number, supplier_id, issue_date, notes, created_at, status, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, 'confirmado', ?)`,
       )
       .run(
         invoiceId,
@@ -1546,11 +1031,12 @@ export function createPurchaseInvoice(input: PurchaseInvoiceInput): PurchaseInvo
         input.issueDate,
         input.notes?.trim() ?? '',
         ts,
+        getAuditContext().userId,
       )
 
     const insertItem = database.prepare(
-      `INSERT INTO purchase_invoice_items (id, invoice_id, product_id, quantity, unit_cost)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT INTO purchase_invoice_items (id, invoice_id, product_id, quantity, unit_cost, lot_number, manufactured_at, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     )
 
     const affectedIds = new Set<string>()
@@ -1559,19 +1045,21 @@ export function createPurchaseInvoice(input: PurchaseInvoiceInput): PurchaseInvo
       if (item.unitCost < 0) throw new Error('Custo unitário não pode ser negativo')
 
       const product = database
-        .prepare('SELECT id, kind, active FROM products WHERE id = ?')
-        .get(item.productId) as { id: string; kind: string; active: number } | undefined
+        .prepare('SELECT id, kind, active, purchase_unit FROM products WHERE id = ?')
+        .get(item.productId) as { id: string; kind: string; active: number; purchase_unit: string | null } | undefined
       if (!product) throw new Error('Produto não encontrado')
       if (!product.active) throw new Error('Produto inativo não pode entrar por fatura')
       if (product.kind !== 'insumo') {
         throw new Error('Entrada por fatura permitida apenas para insumos')
       }
 
-      const quantity = roundQuantity(item.quantity)
+      const quantity = convertToStockUnit(database, item.productId, item.quantity, product.purchase_unit ?? undefined)
+      const stockUnitCost = Math.round((item.unitCost / (quantity / item.quantity)) * 10_000) / 10_000
       affectedIds.add(item.productId)
-      insertItem.run(randomUUID(), invoiceId, item.productId, quantity, item.unitCost)
+      insertItem.run(randomUUID(), invoiceId, item.productId, quantity, stockUnitCost,
+        item.lotNumber?.trim() ?? '', item.manufacturedAt || null, item.expiresAt || null)
 
-      applyStockMovement({
+      const movement = applyStockMovement({
         productId: item.productId,
         type: 'entrada',
         quantity,
@@ -1579,12 +1067,16 @@ export function createPurchaseInvoice(input: PurchaseInvoiceInput): PurchaseInvo
         reference: invoiceId,
         origin: 'fatura',
       })
+      receiveLot(database, { productId: item.productId, supplierId: input.supplierId,
+        lotNumber: item.lotNumber, manufacturedAt: item.manufacturedAt, expiresAt: item.expiresAt,
+        quantity, stockMovementId: movement.id, timestamp: ts })
 
     }
     affectedIds.forEach((productId) => updateInvoiceAverageCost(database, productId, ts))
   })
 
   tx()
+  recordAudit('create', 'purchase_invoice', invoiceId, { number, itemCount: input.items.length })
 
   return listPurchaseInvoices().find((i) => i.id === invoiceId)!
 }
@@ -1598,6 +1090,9 @@ export function updatePurchaseInvoice(input: PurchaseInvoiceUpdateInput): Purcha
   const database = requireDb()
   const current = listPurchaseInvoices().find((invoice) => invoice.id === input.id)
   if (!current) throw new Error('Fatura não encontrada')
+  if (current.status !== 'rascunho') {
+    throw new Error('Uma fatura confirmada não pode ser alterada. Utilize o estorno para preservar o histórico.')
+  }
 
   const duplicate = database.prepare(
     `SELECT id FROM purchase_invoices
@@ -1632,7 +1127,7 @@ export function updatePurchaseInvoice(input: PurchaseInvoiceUpdateInput): Purcha
     if (delta >= 0) continue
     const row = database.prepare('SELECT stock FROM products WHERE id = ?').get(productId) as { stock: number }
     if (roundQuantity(row.stock + delta) < 0) {
-      throw new Error('Não é possível reduzir a fatura: parte deste estoque já foi consumida')
+      throw new Error('Não é possível reduzir a fatura: parte deste stock já foi consumida')
     }
   }
 
@@ -1663,56 +1158,58 @@ export function updatePurchaseInvoice(input: PurchaseInvoiceUpdateInput): Purcha
     affectedIds.forEach((productId) => updateInvoiceAverageCost(database, productId, ts))
   })
   tx()
+  recordAudit('update', 'purchase_invoice', input.id, { number, itemCount: input.items.length })
   return listPurchaseInvoices().find((invoice) => invoice.id === input.id)!
 }
 
-function mapRecipeRow(row: Record<string, unknown>, items: RecipeItem[]): Recipe {
-  return {
-    id: String(row.id),
-    productId: String(row.product_id),
-    productName: String(row.product_name),
-    productSku: String(row.product_sku),
-    notes: String(row.notes ?? ''),
-    active: Boolean(row.active),
-    createdAt: String(row.created_at),
-    updatedAt: String(row.updated_at),
-    items,
+export function listSalesInvoices(): SalesInvoice[] {
+  return listSalesInvoicesRepository(requireDb())
+}
+
+export function createSalesInvoice(input: SalesInvoiceInput): SalesInvoice {
+  const number = input.number.trim()
+  if (!number) throw new Error('O número da fatura é obrigatório')
+  if (!input.issueDate) throw new Error('A data da fatura é obrigatória')
+  if (!input.customerId) throw new Error('Selecione um cliente')
+  if (!input.items.length) throw new Error('Adicione, pelo menos, um produto final')
+  const database = requireDb()
+  const customer = database.prepare('SELECT active FROM customers WHERE id = ?').get(input.customerId) as { active: number } | undefined
+  if (!customer?.active) throw new Error('Selecione um cliente ativo')
+  const invoiceId = randomUUID()
+  const ts = nowIso()
+  const tx = database.transaction(() => {
+    database.prepare(`INSERT INTO sales_invoices (id, number, customer_id, issue_date, notes, created_at, status, created_by) VALUES (?, ?, ?, ?, ?, ?, 'confirmado', ?)`).run(invoiceId, number, input.customerId, input.issueDate, input.notes?.trim() ?? '', ts, getAuditContext().userId)
+    const insertItem = database.prepare(`INSERT INTO sales_invoice_items (id, invoice_id, product_id, quantity, unit_price, unit_cost_snapshot) VALUES (?, ?, ?, ?, ?, ?)`)
+    const used = new Set<string>()
+    for (const item of input.items) {
+      if (used.has(item.productId)) throw new Error('Não repita o mesmo produto na fatura')
+      used.add(item.productId)
+      const product = database.prepare('SELECT name, kind, active, stock, cost_price FROM products WHERE id = ?').get(item.productId) as { name: string; kind: string; active: number; stock: number; cost_price: number } | undefined
+      if (!product) throw new Error('Produto não encontrado')
+      if (!product.active) throw new Error(`O produto ${product.name} está inativo`)
+      if (product.kind !== 'acabado') throw new Error('A faturação de saída aceita apenas produtos finais')
+      const quantity = roundQuantity(item.quantity)
+      if (!(quantity > 0)) throw new Error('A quantidade deve ser superior a zero')
+      if (!Number.isFinite(item.unitPrice) || item.unitPrice < 0) throw new Error('O preço unitário não pode ser negativo')
+      if (quantity > Number(product.stock)) throw new Error(`Stock insuficiente de ${product.name}. Disponível: ${roundQuantity(Number(product.stock))}`)
+      insertItem.run(randomUUID(), invoiceId, item.productId, quantity, item.unitPrice, Number(product.cost_price))
+      applyStockMovement({ productId: item.productId, type: 'saida', quantity, reason: `Fatura de saída ${number}`, reference: invoiceId, origin: 'fatura_saida' })
+    }
+  })
+  try { tx() } catch (error) {
+    if (String(error).includes('UNIQUE')) throw new Error('Já existe uma fatura de saída com este número')
+    throw error
   }
+  recordAudit('create', 'sales_invoice', invoiceId, { number, customerId: input.customerId, itemCount: input.items.length })
+  return listSalesInvoices().find((invoice) => invoice.id === invoiceId)!
 }
 
 export function listRecipes(): Recipe[] {
-  const database = requireDb()
-  const rows = database
-    .prepare(
-      `SELECT r.*, p.name AS product_name, p.sku AS product_sku
-       FROM recipes r
-       JOIN products p ON p.id = r.product_id
-       ORDER BY p.name`,
-    )
-    .all() as Record<string, unknown>[]
-
-  const itemStmt = database.prepare(
-    `SELECT ri.*, p.name AS product_name, p.sku AS product_sku
-     FROM recipe_items ri
-     JOIN products p ON p.id = ri.product_id
-     WHERE ri.recipe_id = ?
-     ORDER BY p.name`,
-  )
-
-  return rows.map((row) => {
-    const items = (itemStmt.all(row.id) as Record<string, unknown>[]).map((item) => ({
-      id: String(item.id),
-      productId: String(item.product_id),
-      productName: String(item.product_name),
-      productSku: String(item.product_sku),
-      quantity: Number(item.quantity),
-    }))
-    return mapRecipeRow(row, items)
-  })
+  return listRecipesRepository(requireDb())
 }
 
 export function getRecipeByProductId(productId: string): Recipe | null {
-  return listRecipes().find((r) => r.productId === productId) ?? null
+  return getRecipeByProductIdRepository(requireDb(), productId)
 }
 
 export function saveRecipe(input: RecipeInput): Recipe {
@@ -1770,31 +1267,12 @@ export function saveRecipe(input: RecipeInput): Recipe {
 
   tx()
   updateFinishedProductCost(database, input.productId, ts)
+  recordAudit('save', 'recipe', recipeId, { productId: input.productId, itemCount: input.items.length })
   return getRecipeByProductId(input.productId)!
 }
 
 export function listProductionOrders(): ProductionOrder[] {
-  const database = requireDb()
-  const rows = database
-    .prepare(
-      `SELECT po.*, p.name AS product_name, p.sku AS product_sku
-       FROM production_orders po
-       JOIN products p ON p.id = po.product_id
-       ORDER BY po.created_at DESC
-       LIMIT 200`,
-    )
-    .all() as Record<string, unknown>[]
-
-  return rows.map((row) => ({
-    id: String(row.id),
-    recipeId: String(row.recipe_id),
-    productId: String(row.product_id),
-    productName: String(row.product_name),
-    productSku: String(row.product_sku),
-    quantity: Number(row.quantity),
-    notes: String(row.notes ?? ''),
-    createdAt: String(row.created_at),
-  }))
+  return listProductionOrdersRepository(requireDb())
 }
 
 export function createProduction(input: ProductionInput): ProductionOrder {
@@ -1831,17 +1309,24 @@ export function createProduction(input: ProductionInput): ProductionOrder {
 
   const orderId = randomUUID()
   const ts = nowIso()
+  const unitCostSnapshot = calculateFinishedProductCost(database, input.productId)
+  const totalCostSnapshot = Math.round(unitCostSnapshot * productionQuantity * 10_000) / 10_000
 
   const tx = database.transaction(() => {
     database
       .prepare(
-        `INSERT INTO production_orders (id, recipe_id, product_id, quantity, notes, created_at)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO production_orders (id, recipe_id, product_id, quantity, notes, created_at, unit_cost_snapshot, total_cost_snapshot, status, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'confirmado', ?)`,
       )
-      .run(orderId, recipe.id, input.productId, productionQuantity, input.notes?.trim() ?? '', ts)
+      .run(orderId, recipe.id, input.productId, productionQuantity, input.notes?.trim() ?? '', ts, unitCostSnapshot, totalCostSnapshot, getAuditContext().userId)
+
+    const insertSnapshot = database.prepare(`INSERT INTO production_order_items
+      (id, order_id, product_id, quantity, unit_cost_snapshot) VALUES (?, ?, ?, ?, ?)`)
 
     for (const item of recipe.items) {
       const qty = roundQuantity(item.quantity * productionQuantity)
+      const component = database.prepare('SELECT cost_price FROM products WHERE id = ?').get(item.productId) as { cost_price: number }
+      insertSnapshot.run(randomUUID(), orderId, item.productId, qty, component.cost_price)
       applyStockMovement({
         productId: item.productId,
         type: 'saida',
@@ -1863,6 +1348,46 @@ export function createProduction(input: ProductionInput): ProductionOrder {
   })
 
   tx()
+  recordAudit('create', 'production_order', orderId, { productId: input.productId, quantity: productionQuantity })
 
   return listProductionOrders().find((o) => o.id === orderId)!
+}
+
+export function reversePurchaseInvoice(input: CancelOperationInput): PurchaseInvoice {
+  reversePurchase(requireDb(), input.id, input.reason, nowIso())
+  return listPurchaseInvoices().find((item) => item.id === input.id)!
+}
+
+export function reverseSalesInvoice(input: CancelOperationInput): SalesInvoice {
+  reverseSale(requireDb(), input.id, input.reason, nowIso())
+  return listSalesInvoices().find((item) => item.id === input.id)!
+}
+
+export function reverseProductionOrder(input: CancelOperationInput): ProductionOrder {
+  reverseProduction(requireDb(), input.id, input.reason, nowIso())
+  return listProductionOrders().find((item) => item.id === input.id)!
+}
+
+export function listInventorySessions(): InventorySession[] {
+  return listInventorySessionsService(requireDb())
+}
+
+export function openInventorySession(notes = ''): InventorySession {
+  return openInventorySessionService(requireDb(), notes, nowIso())
+}
+
+export function recordInventoryCount(sessionId: string, productId: string, countedStock: number): InventorySession {
+  return recordInventoryCountService(requireDb(), sessionId, productId, countedStock, nowIso())
+}
+
+export function submitInventorySession(id: string): InventorySession {
+  return submitInventorySessionService(requireDb(), id, nowIso())
+}
+
+export function approveInventorySession(id: string): InventorySession {
+  return approveInventorySessionService(requireDb(), id, nowIso())
+}
+
+export function cancelInventorySession(id: string, reason: string): InventorySession {
+  return cancelInventorySessionService(requireDb(), id, reason, nowIso())
 }

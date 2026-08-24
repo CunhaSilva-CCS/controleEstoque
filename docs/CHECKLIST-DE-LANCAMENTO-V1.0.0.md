@@ -1,4 +1,4 @@
-# Checklist Go/No-Go — Release v1.0.0
+# Checklist de Lançamento (Go/No-Go) — v1.0.0
 
 Checklist de aprovação final antes da publicação do Controle de Estoque em produção.
 
@@ -70,7 +70,7 @@ Checklist de aprovação final antes da publicação do Controle de Estoque em p
 |---|----------|------------|--------|-------------|------|
 | S01 | `npm audit` — zero High/Critical | Alta | ☐ | | |
 | S02 | Varredura de dependências nativas (Trivy/Grype) | Alta | ☐ | | |
-| S03 | Code signing configurado (win/mac) — ver [CODE-SIGNING.md](./CODE-SIGNING.md) | Alta | ☐ | | |
+| S03 | Assinatura configurada (Windows/macOS) — ver [Guia de Assinatura](./GUIA-DE-ASSINATURA-E-NOTARIZACAO.md) | Alta | ☐ | | |
 | S04 | macOS notarização aprovada (secrets Apple) | Alta | ☐ | | |
 | S05 | IPC surface mínima (preload auditado) | Alta | ☐ | | |
 | S06 | DevTools desabilitado em produção | Média | ☐ | | |

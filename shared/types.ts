@@ -1,11 +1,15 @@
 export type ProductStatus = 'ok' | 'low' | 'zero'
 export type ProductKind = 'insumo' | 'acabado'
+export type OperationStatus = 'rascunho' | 'confirmado' | 'cancelado' | 'estornado'
 export type MovementType = 'entrada' | 'saida' | 'ajuste'
 export type MovementOrigin =
   | 'fatura'
   | 'fabricacao_consumo'
   | 'fabricacao_producao'
+  | 'fatura_saida'
   | 'ajuste'
+  | 'inventario_fisico'
+  | 'estorno'
   | 'seed'
   | 'legacy'
 
@@ -30,6 +34,33 @@ export interface Supplier {
   updatedAt: string
 }
 
+export interface Customer {
+  id: string
+  name: string
+  taxNumber: string
+  address: string
+  phone: string
+  email: string
+  notes: string
+  active: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CustomerInput {
+  name: string
+  taxNumber?: string
+  address?: string
+  phone?: string
+  email?: string
+  notes?: string
+}
+
+export interface CustomerUpdateInput extends CustomerInput {
+  id: string
+  active: boolean
+}
+
 export interface Product {
   id: string
   sku: string
@@ -50,6 +81,9 @@ export interface Product {
   supplierName?: string | null
   status?: ProductStatus
   stockValue?: number
+  purchaseUnit?: string | null
+  purchaseConversionFactor?: number
+  lotControl?: boolean
 }
 
 export interface StockMovement {
@@ -65,6 +99,7 @@ export interface StockMovement {
   createdAt: string
   productName?: string
   productSku?: string
+  reversalOf?: string | null
 }
 
 export interface ProductInput {
@@ -78,6 +113,9 @@ export interface ProductInput {
   costPrice: number
   salePrice: number
   minStock: number
+  purchaseUnit?: string | null
+  purchaseConversionFactor?: number
+  lotControl?: boolean
   /** Ignorado: estoque entra somente via fatura ou fabricação */
   initialStock?: number
 }
@@ -94,6 +132,9 @@ export interface ProductUpdateInput {
   costPrice: number
   salePrice: number
   minStock: number
+  purchaseUnit?: string | null
+  purchaseConversionFactor?: number
+  lotControl?: boolean
 }
 
 export interface MovementInput {
@@ -110,6 +151,9 @@ export interface PurchaseInvoiceItemInput {
   productId: string
   quantity: number
   unitCost: number
+  lotNumber?: string
+  manufacturedAt?: string
+  expiresAt?: string
 }
 
 export interface PurchaseInvoiceInput {
@@ -143,6 +187,46 @@ export interface PurchaseInvoice {
   notes: string
   createdAt: string
   items: PurchaseInvoiceItem[]
+  status: OperationStatus
+  cancelledAt?: string | null
+  cancellationReason?: string
+}
+
+export interface SalesInvoiceItemInput {
+  productId: string
+  quantity: number
+  unitPrice: number
+}
+
+export interface SalesInvoiceInput {
+  number: string
+  customerId: string
+  issueDate: string
+  notes?: string
+  items: SalesInvoiceItemInput[]
+}
+
+export interface SalesInvoiceItem extends SalesInvoiceItemInput {
+  id: string
+  productName: string
+  productSku: string
+  productUnit: string
+}
+
+export interface SalesInvoice {
+  id: string
+  number: string
+  customerId: string
+  customerName: string
+  customerTaxNumber: string
+  customerAddress: string
+  issueDate: string
+  notes: string
+  createdAt: string
+  items: SalesInvoiceItem[]
+  status: OperationStatus
+  cancelledAt?: string | null
+  cancellationReason?: string
 }
 
 export interface RecipeItemInput {
@@ -189,8 +273,78 @@ export interface ProductionOrder {
   productName: string
   productSku: string
   quantity: number
+  unitCostSnapshot: number
+  totalCostSnapshot: number
   notes: string
   createdAt: string
+  status: OperationStatus
+  cancelledAt?: string | null
+  cancellationReason?: string
+}
+
+export interface CancelOperationInput {
+  id: string
+  reason: string
+}
+
+export type InventoryStatus = 'aberto' | 'em_contagem' | 'aguarda_aprovacao' | 'aprovado' | 'cancelado'
+
+export interface InventoryCount {
+  id: string
+  productId: string
+  productName: string
+  productSku: string
+  unit: string
+  referenceStock: number
+  countedStock: number | null
+  difference: number | null
+}
+
+export interface InventorySession {
+  id: string
+  code: string
+  status: InventoryStatus
+  referenceAt: string
+  notes: string
+  createdAt: string
+  approvedAt: string | null
+  counts: InventoryCount[]
+}
+
+export interface AuditEntry {
+  id: string
+  userId: string | null
+  username: string
+  createdAt: string
+  action: string
+  entityType: string
+  entityId: string
+  origin: string
+  computerName: string
+  previousValues: Record<string, unknown>
+  newValues: Record<string, unknown>
+}
+
+export interface UnitConversion {
+  id: string
+  productId: string
+  fromUnit: string
+  toUnit: string
+  factor: number
+  active: boolean
+}
+
+export interface StockLot {
+  id: string
+  productId: string
+  supplierId: string | null
+  lotNumber: string
+  manufacturedAt: string | null
+  expiresAt: string | null
+  receivedAt: string
+  initialQuantity: number
+  availableQuantity: number
+  status: string
 }
 
 export interface ProductFilters {
@@ -222,7 +376,19 @@ export interface ReportRow {
   [key: string]: string | number | boolean | null
 }
 
-export type ReportType = 'posicao' | 'movimentacoes' | 'baixo' | 'custo-venda'
+export type ReportType =
+  | 'posicao'
+  | 'movimentacoes'
+  | 'baixo'
+  | 'custo-venda'
+  | 'compras'
+  | 'vendas'
+  | 'margem-vendas'
+  | 'producao'
+  | 'clientes'
+  | 'fornecedores'
+  | 'auditoria'
+  | 'inventarios'
 
 export interface ApiResult<T> {
   ok: true
@@ -284,6 +450,15 @@ export interface LicenseDetails {
 export type LicenseStatus =
   | { active: true; details: LicenseDetails }
   | { active: false; reason: string; installationId: string }
+
+export interface LocalDiagnostics {
+  appVersion: string
+  databaseVersion: number
+  integrity: 'ok' | 'error'
+  lastAutomaticBackup: string | null
+  availableDiskBytes: number | null
+  recentErrors: { at: string; message: string }[]
+}
 
 export type UpdateStatus =
   | { state: 'idle' }

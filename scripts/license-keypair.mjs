@@ -3,8 +3,9 @@ import path from 'node:path'
 import { generateKeyPairSync } from 'node:crypto'
 
 const root = process.cwd()
-const privateDir = path.join(root, 'private')
-const privatePath = path.join(privateDir, 'license-private-key.pem')
+const privatePath = process.env.CORTEXIS_LICENSE_PRIVATE_KEY
+if (!privatePath || !path.isAbsolute(privatePath)) throw new Error('Defina CORTEXIS_LICENSE_PRIVATE_KEY com um caminho absoluto fora deste projeto.')
+const privateDir = path.dirname(privatePath)
 const publicSourcePath = path.join(root, 'shared', 'license-public-key.ts')
 
 if (fs.existsSync(privatePath)) {

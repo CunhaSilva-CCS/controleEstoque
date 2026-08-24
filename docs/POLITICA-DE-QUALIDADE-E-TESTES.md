@@ -1,4 +1,4 @@
-# Política de Cobertura de Testes — Controle de Estoque
+# Política de Qualidade e Testes
 
 Documento oficial de requisitos de qualidade para release de produção.
 
@@ -30,7 +30,7 @@ Garantir que o aplicativo desktop Controle de Estoque atenda aos requisitos func
 | Escopo | Meta | Método |
 |--------|------|--------|
 | API IPC completa (renderer ↔ main ↔ SQLite) | **100%** dos handlers | better-sqlite3 in-memory ou temp file |
-| Transações atômicas (fatura, fabricação, ajuste) | **100%** dos tipos | Unit + integração |
+| Transações atômicas (compra, venda, fabricação, ajuste, estorno e inventário aprovado) | **100%** dos tipos | Unit + integração |
 | Seed de demonstração | **1 cenário** completo | Smoke test |
 | Exportação CSV | **1 cenário** por tipo de relatório | Manual + smoke |
 
@@ -49,8 +49,10 @@ Garantir que o aplicativo desktop Controle de Estoque atenda aos requisitos func
 | F09 — Painel | Obrigatório | Alta |
 | F10 — Relatório + export CSV | Recomendado | Média |
 | F11 — Configurações (backup / updates stub) | Obrigatório | Média |
+| F12 — Estorno auditável | Obrigatório | Alta |
+| F13 — Inventário físico | Obrigatório | Alta |
 
-**Meta E2E:** 100% dos fluxos **Must** de [FLUXOS.md](./FLUXOS.md) cobertos por automação ou checklist manual em build empacotado.
+**Meta E2E:** 100% dos fluxos **Must** de [Fluxos Operacionais](./FLUXOS-OPERACIONAIS-DO-SISTEMA.md) cobertos por automação ou checklist manual em build empacotado.
 
 ### 2.4 Smoke test automatizado
 
@@ -72,6 +74,7 @@ Cenários cobertos pelo smoke (API em memória):
 6. Ajuste de inventário
 7. Relatório de posição
 8. Cópia de segurança / status de atualização
+9. Diagnóstico redigido e pacote de suporte
 
 ---
 
@@ -100,7 +103,7 @@ npm run electron:build
 
 Executar em **build empacotado** em cada plataforma alvo:
 
-### 4.1 Critérios de aceite ([REQUISITOS.md](./REQUISITOS.md) §8)
+### 4.1 Critérios de aceite ([Especificação Funcional](./ESPECIFICACAO-FUNCIONAL-E-REGRAS-DE-NEGOCIO.md) §8)
 
 | # | Cenário | Resultado esperado |
 |---|---------|-------------------|
@@ -173,7 +176,7 @@ Executar em **build empacotado** em cada plataforma alvo:
 
 ### Manual
 - [ ] Critérios de aceite (§8): PASS / FAIL
-- [ ] Fluxos Must (FLUXOS.md): PASS / FAIL
+- [ ] Fluxos Must: PASS / FAIL
 - [ ] Cross-platform: PASS / FAIL
 - [ ] Resiliência: PASS / FAIL
 - [ ] Performance: PASS / FAIL

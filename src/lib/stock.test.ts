@@ -55,7 +55,7 @@ describe('regras de estoque (API em memória)', () => {
     expect(afterInvoice?.stock).toBe(5)
   })
 
-  it('edição de fatura recalcula apenas a diferença no estoque', async () => {
+  it('fatura confirmada não pode ser editada e deve ser estornada em vez disso', async () => {
     const product = await unwrap(api.createProduct({
       sku: `EDIT-${crypto.randomUUID().slice(0, 8)}`,
       name: 'Insumo editável',
@@ -70,18 +70,19 @@ describe('regras de estoque (API em memória)', () => {
       issueDate: '2026-01-01',
       items: [{ productId: product.id, quantity: 2.5, unitCost: 3 }],
     }))
+    expect(invoice.status).toBe('confirmado')
 
-    const updated = await unwrap(api.updatePurchaseInvoice({
+    await expect(unwrap(api.updatePurchaseInvoice({
       id: invoice.id,
       number: invoice.number,
       issueDate: '2026-01-02',
       notes: 'Fatura corrigida',
       items: [{ productId: product.id, quantity: 3.125, unitCost: 4 }],
-    }))
+    }))).rejects.toThrow('Uma fatura confirmada não pode ser alterada')
 
-    expect(updated.issueDate).toBe('2026-01-02')
-    expect(updated.items[0].quantity).toBe(3.125)
-    expect((await unwrap(api.getProduct(product.id)))?.stock).toBe(3.125)
+    const reversed = await unwrap(api.reversePurchaseInvoice({ id: invoice.id, reason: 'Fatura lançada em duplicado' }))
+    expect(reversed.status).toBe('estornado')
+    expect((await unwrap(api.getProduct(product.id)))?.stock).toBe(0)
   })
 
   it('calcula o custo médio ponderado de todas as faturas', async () => {
@@ -274,9 +275,9 @@ describe('regras de estoque (API em memória)', () => {
 
 describe('formatadores', () => {
   it('formata moeda e rótulos', () => {
-    expect(formatCurrency(10)).toMatch(/R\$/)
+    expect(formatCurrency(10)).toMatch(/€/)
     expect(statusLabel('ok')).toBe('Normal')
-    expect(statusLabel('zero')).toBe('Zerado')
+    expect(statusLabel('zero')).toBe('Esgotado')
     expect(statusLabel('low')).toBe('Baixo')
     expect(movementLabel('entrada')).toBe('Entrada')
   })

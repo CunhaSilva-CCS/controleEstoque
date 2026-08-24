@@ -1,4 +1,4 @@
-# Criptografia do banco de dados
+# Arquitetura de Criptografia da Base de Dados
 
 ## Implementação
 
@@ -25,6 +25,19 @@ Ao encontrar um banco SQLite sem criptografia, o aplicativo:
 Novos backups preservam a criptografia. Backups antigos em SQLite puro continuam sendo
 aceitos e são criptografados durante a restauração. Arquivos inválidos ou bancos de
 outro sistema são rejeitados antes de substituir os dados ativos.
+
+## Proteção das palavras-passe
+
+- Algoritmo: `scrypt`, com salt aleatório de 128 bits por utilizador.
+- Parâmetros atuais: `N=32768`, `r=8`, `p=1` e chave derivada de 64 bytes.
+- Formato versionado para permitir aumento futuro do custo sem bloquear contas existentes.
+- Comparação em tempo constante para reduzir fugas por análise de tempo.
+- Hashes SHA-256 antigos são aceites apenas para validar uma autenticação legítima e são
+  substituídos imediatamente por `scrypt` com um novo salt.
+- As últimas cinco palavras-passe ficam registadas apenas como hashes e não podem ser reutilizadas.
+- A redefinição administrativa cria uma credencial temporária e obriga o utilizador a alterá-la.
+
+Nenhuma palavra-passe em texto simples é guardada na base de dados ou nos registos de auditoria.
 
 ## Recuperação
 

@@ -1,4 +1,4 @@
-# Controle de Estoque — Requisitos do Sistema
+# Especificação Funcional e Regras de Negócio — Controlo de Stock
 
 ## 1. Visão geral
 
@@ -42,10 +42,11 @@ O aplicativo exige login. O usuário padrão `admin` / `admin123` deve trocar a 
 |----|-----------|------------|
 | RF-A01 | Login com usuário e senha; sessão local no processo Electron. | Must |
 | RF-A02 | Troca obrigatória da senha padrão no primeiro acesso (e enquanto a senha for a padrão). | Must |
-| RF-A03 | Usuário autenticado pode alterar a própria senha (mín. 6 caracteres; diferente da atual; não pode ser a senha padrão). | Must |
-| RF-A04 | Administrador cadastra usuários (nome, usuário, senha, perfil admin/operador) e ativa/inativa. | Must |
+| RF-A03 | Utilizador autenticado pode alterar a própria palavra-passe, respeitando complexidade e histórico das últimas cinco. | Must |
+| RF-A04 | Administrador regista utilizadores, ativa/inativa e define uma palavra-passe temporária de recuperação. | Must |
 | RF-A05 | Impedir desativar o último administrador ativo. | Must |
 | RF-A06 | Operações administrativas (usuários, seed, marca, backup, updates) bloqueadas no IPC para operador. | Must |
+| RF-A07 | Guardar palavras-passe com scrypt e salt individual; migrar automaticamente hashes SHA-256 após autenticação válida. | Must |
 
 ### 4.2 Produtos (RF-P)
 
@@ -91,7 +92,7 @@ O aplicativo exige login. O usuário padrão `admin` / `admin123` deve trocar a 
 | RF-I02 | Cada item gera entrada de estoque e atualiza o custo do produto. | Must |
 | RF-I03 | Somente **insumos** entram por fatura. | Must |
 | RF-I04 | Unicidade de fatura por número + fornecedor. | Must |
-| RF-I05 | Histórico de fatura imutável na v1 (sem estorno/edição). | Must |
+| RF-I05 | Fatura confirmada é imutável; administrador pode estornar com motivo obrigatório e movimento inverso. | Must |
 
 ### 4.7 Fabricação (RF-FB)
 
@@ -101,7 +102,7 @@ O aplicativo exige login. O usuário padrão `admin` / `admin123` deve trocar a 
 | RF-FB02 | Exigir receita cadastrada antes de fabricar. | Must |
 | RF-FB03 | Consumir insumos da receita × quantidade; bloquear se saldo insuficiente. | Must |
 | RF-FB04 | Creditar o acabado na mesma transação atômica. | Must |
-| RF-FB05 | Ordem de fabricação imutável na v1 (sem cancelamento). | Must |
+| RF-FB05 | Ordem confirmada é imutável; administrador pode estornar se o produto final ainda estiver disponível. | Must |
 
 ### 4.8 Ajustes e histórico (RF-M)
 
@@ -174,16 +175,24 @@ O aplicativo exige login. O usuário padrão `admin` / `admin123` deve trocar a 
 
 ---
 
-## 7. Escopo fora da versão atual
+## 7. Funcionalidades implementadas após o escopo inicial
+
+- Venda de produtos finais, clientes e recibo interno.
+- Estados `rascunho`, `confirmado`, `cancelado` e `estornado` nos documentos aplicáveis; estorno exige motivo, regista utilizador/data e cria movimentos inversos.
+- Auditoria administrativa com utilizador, data, entidade, valores anterior/novo, origem e identificação do computador.
+- Inventário físico por sessão: posição de referência, contagens, submissão, aprovação e ajustes automáticos.
+- Unidades de stock, conversões com precisão decimal e rastreabilidade de lotes/validade.
+- Diagnóstico local e pacote de suporte redigido; cópia automática e verificação de integridade.
+
+## 8. Escopo fora da versão atual
 
 - Multi-empresa / multi-depósito
 - Código de barras / leitor
 - Integração fiscal (NF-e / XML)
-- Estorno de fatura ou cancelamento de fabricação
 - Sincronização em nuvem / estoque compartilhado entre PCs
-- Contagem inventarial guiada com divergências
-- Lote, validade e localização de prateleira
 - Aprovação de documentos por segundo perfil
+- Portal de licenças, revogação online, limite centralizado de ativações e transferência de licença
+- Requisitos fiscais portugueses (SAF-T, ATCUD, QR Code, comunicação à AT e certificação): o documento de venda atual é operacional interno e não deve ser apresentado como faturação fiscal certificada.
 
 ---
 

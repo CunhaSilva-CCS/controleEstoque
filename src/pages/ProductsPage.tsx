@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ModalForm } from '../components/ModalForm'
 import { CollectionEmpty, CollectionPageHeader } from '../components/CollectionPage'
@@ -95,7 +95,7 @@ export function ProductsPage() {
       setSuppliers(slist)
       setRecipeInputs(activeProducts.filter((product) => product.kind === 'insumo'))
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Erro ao listar produtos', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível carregar os produtos', 'err')
     }
   }, [search, categoryId, lowOnly, showInactive, push])
 
@@ -157,7 +157,7 @@ export function ProductsPage() {
           })) ?? [],
         )
       } catch (err) {
-        push(err instanceof Error ? err.message : 'Falha ao carregar composição', 'err')
+        push(err instanceof Error ? err.message : 'Não foi possível carregar a composição do produto', 'err')
       }
     }
   }
@@ -165,9 +165,9 @@ export function ProductsPage() {
   async function saveProduct(e: FormEvent) {
     e.preventDefault()
     try {
-      const normalizedSku = form.sku.trim().toLocaleLowerCase('pt-BR')
+      const normalizedSku = form.sku.trim().toLocaleLowerCase('pt-PT')
       const registeredProducts = await unwrap(api.listProducts({}))
-      if (registeredProducts.some((product) => product.id !== editing?.id && product.sku.trim().toLocaleLowerCase('pt-BR') === normalizedSku)) {
+      if (registeredProducts.some((product) => product.id !== editing?.id && product.sku.trim().toLocaleLowerCase('pt-PT') === normalizedSku)) {
         throw new Error('Já existe um produto com este código')
       }
       const wasEditing = Boolean(editing)
@@ -184,12 +184,12 @@ export function ProductsPage() {
         minStock: Number(form.minStock),
       }
       if (form.kind === 'acabado') {
-        if (recipeLines.length === 0) throw new Error('Adicione ao menos um insumo ao produto final')
+        if (recipeLines.length === 0) throw new Error('Adicione, pelo menos, uma matéria-prima ao produto final')
         if (recipeLines.some((line) => !line.productId || !(Number(line.quantity) > 0))) {
-          throw new Error('Informe o insumo e uma quantidade maior que zero')
+          throw new Error('Indique a matéria-prima e uma quantidade superior a zero')
         }
         if (new Set(recipeLines.map((line) => line.productId)).size !== recipeLines.length) {
-          throw new Error('Não repita o mesmo insumo na composição')
+          throw new Error('Não repita a mesma matéria-prima na composição')
         }
       }
       let savedProduct: Product
@@ -213,15 +213,15 @@ export function ProductsPage() {
         form.kind === 'acabado'
           ? wasEditing
             ? 'Produto final e composição atualizados'
-            : 'Produto final e composição cadastrados'
+            : 'Produto final e composição registados'
           : wasEditing
             ? 'Produto atualizado'
-            : 'Produto cadastrado',
+            : 'Produto registado',
       )
       setOpen(false)
       await load()
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Falha ao salvar', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível guardar o produto', 'err')
     }
   }
 
@@ -231,7 +231,7 @@ export function ProductsPage() {
       push(p.active ? 'Produto inativado' : 'Produto reativado')
       await load()
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Falha ao alterar status', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível alterar a situação do produto', 'err')
     }
   }
 
@@ -256,9 +256,9 @@ export function ProductsPage() {
       setCategories(await unwrap(api.listCategories(true)))
       setForm((current) => ({ ...current, categoryId: created.id }))
       setAuxiliary(null)
-      push('Categoria cadastrada e selecionada')
+      push('Categoria registada e selecionada com sucesso')
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Falha ao cadastrar categoria', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível registar a categoria', 'err')
     }
   }
 
@@ -269,17 +269,22 @@ export function ProductsPage() {
       setSuppliers(await unwrap(api.listSuppliers(true)))
       setForm((current) => ({ ...current, supplierId: created.id }))
       setAuxiliary(null)
-      push('Fornecedor cadastrado e selecionado')
+      push('Fornecedor registado e selecionado com sucesso')
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Falha ao cadastrar fornecedor', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível registar o fornecedor', 'err')
     }
   }
+
+  const productGroups = [
+    { key: 'insumo', label: 'Matérias-primas', items: products.filter((product) => product.kind === 'insumo') },
+    { key: 'acabado', label: 'Produtos finais', items: products.filter((product) => product.kind === 'acabado') },
+  ]
 
   return (
     <div className="collection-page products-page" data-testid="products-page">
       <CollectionPageHeader
         icon="▦"
-        description="Cadastro de insumos e produtos finais. Estoque entra por fatura ou fabricação."
+        description="Faça a gestão das matérias-primas e dos produtos finais, com saldos atualizados pelas compras e fabricações."
         count={products.length}
         singular="produto encontrado"
         plural="produtos encontrados"
@@ -317,7 +322,7 @@ export function ProductsPage() {
             checked={lowOnly}
             onChange={(e) => setLowOnly(e.target.checked)}
           />
-          Só estoque baixo
+          Apenas stock baixo
         </label>
         <label className="check-chip">
           <input
@@ -331,26 +336,35 @@ export function ProductsPage() {
 
       <div className="panel panel-flush">
         {products.length === 0 ? (
-          <CollectionEmpty icon="▦" title="Nenhum produto encontrado" description="Cadastre um produto ou altere os filtros da consulta." />
+          <CollectionEmpty icon="▦" title="Ainda não há produtos nesta lista" description="Cadastre um produto ou ajuste os filtros para encontrar o que procura." />
         ) : (
           <div className="table-wrap">
             <table className="collection-table products-table">
               <thead>
                 <tr>
-                  <th>Código</th>
-                  <th>Nome</th>
-                  <th>Tipo</th>
-                  <th>Unid.</th>
+                  <th>Código do<br />produto</th>
+                  <th>Nome do<br />produto</th>
+                  <th>Tipo de<br />produto</th>
                   <th>Categoria</th>
-                  <th>Saldo</th>
-                  <th>Mín.</th>
-                  <th>Valor</th>
-                  <th>Status</th>
+                  <th>Unidade</th>
+                  <th className="numeric-column">Stock atual</th>
+                  <th className="numeric-column">Stock mínimo</th>
+                  <th className="money-column">Preço de venda<br />unitário</th>
+                  <th className="money-column">Custo total<br />em stock</th>
+                  <th>Estado do<br />stock</th>
                   <th>Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {products.map((p) => (
+                {productGroups.map((group) => group.items.length > 0 ? (
+                  <Fragment key={group.key}>
+                    <tr className={`products-group-row products-group-${group.key}`}>
+                      <td colSpan={11}>
+                        <strong>{group.label}</strong>
+                        <span>{group.items.length} {group.items.length === 1 ? 'produto' : 'produtos'}</span>
+                      </td>
+                    </tr>
+                    {group.items.map((p) => (
                   <tr key={p.id}>
                     <td>{p.sku}</td>
                     <td>
@@ -358,17 +372,18 @@ export function ProductsPage() {
                       {!p.active ? <span className="muted"> · inativo</span> : null}
                     </td>
                     <td>{productKindLabel(p.kind)}</td>
-                    <td>{p.unit}</td>
                     <td>{p.categoryName ?? '—'}</td>
-                    <td>
+                    <td className="unit-column">{p.unit}</td>
+                    <td className="numeric-column">
                       {formatNumber(p.stock)} {p.unit}
                     </td>
-                    <td>{formatNumber(p.minStock)}</td>
-                    <td>{formatCurrency(p.stockValue ?? 0)}</td>
-                    <td>
+                    <td className="numeric-column">{formatNumber(p.minStock)} {p.unit}</td>
+                    <td className="money-column"><strong>{formatCurrency(p.salePrice)}</strong></td>
+                    <td className="money-column">{formatCurrency(p.stockValue ?? 0)}</td>
+                    <td className="status-column">
                       <StatusBadge status={p.status} />
                     </td>
-                    <td>
+                    <td className="actions-column">
                       <div className="row-actions">
                         <button className="btn btn-ghost" onClick={() => void openEdit(p)}>
                           Editar
@@ -379,7 +394,9 @@ export function ProductsPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                    ))}
+                  </Fragment>
+                ) : null)}
               </tbody>
             </table>
           </div>
@@ -392,7 +409,7 @@ export function ProductsPage() {
           hint={
             editing
               ? 'A edição cadastral não altera o saldo.'
-              : 'Insumos entram no estoque por fatura. Produtos finais entram pela fabricação.'
+              : 'As matérias-primas entram no stock por fatura. Os produtos finais entram pela fabricação.'
           }
           onClose={() => setOpen(false)}
           onSubmit={saveProduct}
@@ -456,7 +473,7 @@ export function ProductsPage() {
                   }
                 }}
               >
-                <option value="insumo">Insumo</option>
+                <option value="insumo">Matéria-prima</option>
                 <option value="acabado">Produto final</option>
               </select>
             </div>
@@ -470,7 +487,7 @@ export function ProductsPage() {
               />
             </div>
             <div className="field full">
-              <label htmlFor="desc">Descrição</label>
+              <label htmlFor="desc">Descrição do produto</label>
               <textarea
                 id="desc"
                 value={form.description}
@@ -486,7 +503,7 @@ export function ProductsPage() {
                   data-testid="btn-product-new-category"
                   onClick={openCategoryQuickCreate}
                 >
-                  Cadastrar categoria
+                  Registar categoria
                 </button>
               </div>
               <select
@@ -511,7 +528,7 @@ export function ProductsPage() {
                   data-testid="btn-product-new-supplier"
                   onClick={openSupplierQuickCreate}
                 >
-                  Cadastrar fornecedor
+                  Registar fornecedor
                 </button>
               </div>
               <select
@@ -539,7 +556,7 @@ export function ProductsPage() {
                 value={form.kind === 'acabado' ? calculatedRecipeCost : form.costPrice}
                 onChange={(e) => setForm({ ...form, costPrice: e.target.value })}
               />
-              <small>{form.kind === 'insumo' ? 'Calculado pela média ponderada das faturas de compra.' : `Soma proporcional dos insumos: ${formatCurrency(calculatedRecipeCost)}.`}</small>
+              <small>{form.kind === 'insumo' ? 'Calculado pela média ponderada das faturas de compra.' : `Soma proporcional das matérias-primas: ${formatCurrency(calculatedRecipeCost)}.`}</small>
             </div>
             <div className="field">
               <label htmlFor="sale">Preço de venda</label>
@@ -553,7 +570,7 @@ export function ProductsPage() {
               />
             </div>
             <div className="field">
-              <label htmlFor="min">Estoque mínimo *</label>
+              <label htmlFor="min">Stock mínimo *</label>
               <input
                 id="min" data-testid="input-product-min"
                 type="number"
@@ -569,7 +586,7 @@ export function ProductsPage() {
                 <div className="product-recipe-heading">
                   <div>
                     <strong>Composição para fabricação</strong>
-                    <span>Quantidades de insumo consumidas para produzir 1 unidade.</span>
+                    <span>Quantidades de matéria-prima consumidas para produzir 1 unidade.</span>
                   </div>
                   <button
                     type="button"
@@ -581,19 +598,19 @@ export function ProductsPage() {
                       { productId: recipeInputs[0]?.id ?? '', quantity: '1' },
                     ])}
                   >
-                    + Adicionar insumo
+                    + Adicionar matéria-prima
                   </button>
                 </div>
                 {recipeInputs.length === 0 ? (
                   <div className="alert alert-error">
-                    Cadastre ao menos um produto do tipo Insumo antes de criar um produto final.
+                    Registe, pelo menos, um produto do tipo Matéria-prima antes de criar um produto final.
                   </div>
                 ) : null}
                 <div className="product-recipe-lines">
                   {recipeLines.map((line, index) => (
                     <div className="product-recipe-line" key={`${line.productId}-${index}`}>
                       <div className="field">
-                        <label htmlFor={`product-recipe-input-${index}`}>Insumo {index + 1} *</label>
+                        <label htmlFor={`product-recipe-input-${index}`}>Matéria-prima {index + 1} *</label>
                         <select
                           id={`product-recipe-input-${index}`}
                           data-testid={index === 0 ? 'select-product-recipe-input' : undefined}
@@ -644,7 +661,7 @@ export function ProductsPage() {
                     id="product-recipe-notes"
                     value={recipeNotes}
                     onChange={(e) => setRecipeNotes(e.target.value)}
-                    placeholder="Ex.: perdas previstas, instruções ou observações técnicas"
+                    placeholder="Ex.: perdas previstas, orientações de produção ou outras observações"
                   />
                 </div>
               </div>
@@ -656,7 +673,7 @@ export function ProductsPage() {
       {auxiliary === 'category' ? (
         <ModalForm
           title="Nova categoria"
-          hint="Após salvar, você voltará ao produto com esta categoria selecionada."
+          hint="Depois de guardar, regressará ao produto com esta categoria selecionada."
           onClose={() => setAuxiliary(null)}
           onSubmit={saveCategoryQuick}
         >
@@ -686,7 +703,7 @@ export function ProductsPage() {
       {auxiliary === 'supplier' ? (
         <ModalForm
           title="Novo fornecedor"
-          hint="Após salvar, você voltará ao produto com este fornecedor selecionado."
+          hint="Depois de guardar, regressará ao produto com este fornecedor selecionado."
           onClose={() => setAuxiliary(null)}
           onSubmit={saveSupplierQuick}
         >

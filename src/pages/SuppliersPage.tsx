@@ -32,7 +32,7 @@ export function SuppliersPage() {
     try {
       setItems(await unwrap(api.listSuppliers()))
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Erro ao listar fornecedores', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível carregar os fornecedores', 'err')
     }
   }, [push])
 
@@ -72,12 +72,12 @@ export function SuppliersPage() {
         push('Fornecedor atualizado')
       } else {
         await unwrap(api.createSupplier(form))
-        push('Fornecedor cadastrado')
+        push('Fornecedor registado')
       }
       setOpen(false)
       await load()
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Falha ao salvar', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível guardar o fornecedor', 'err')
     }
   }
 
@@ -97,13 +97,13 @@ export function SuppliersPage() {
       push(s.active ? 'Fornecedor inativado' : 'Fornecedor reativado')
       await load()
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Falha ao alterar status', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível alterar a situação do fornecedor', 'err')
     }
   }
 
   return (
     <div className="collection-page suppliers-page" data-testid="suppliers-page">
-      <CollectionPageHeader icon="◇" description="Cadastro dos parceiros responsáveis pelo fornecimento de insumos." count={items.length} singular="fornecedor cadastrado" plural="fornecedores cadastrados">
+      <CollectionPageHeader icon="◇" description="Faça a gestão dos parceiros que fornecem matérias-primas à sua operação." count={items.length} singular="fornecedor registado" plural="fornecedores registados">
         <button className="btn btn-primary" data-testid="btn-new-supplier" onClick={openCreate}>
           <span aria-hidden>+</span>
           Novo fornecedor
@@ -112,7 +112,7 @@ export function SuppliersPage() {
 
       <div className="panel panel-flush">
         {items.length === 0 ? (
-          <CollectionEmpty icon="◇" title="Nenhum fornecedor cadastrado" description="Cadastre um fornecedor para relacioná-lo aos produtos e faturas." />
+          <CollectionEmpty icon="◇" title="Ainda não existem fornecedores registados" description="Registe o primeiro fornecedor para o associar a produtos e faturas." />
         ) : (
           <div className="table-wrap">
             <table className="collection-table suppliers-table">

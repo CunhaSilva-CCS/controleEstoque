@@ -5,18 +5,32 @@ import { useToast } from '../lib/toast'
 import { formatCurrency, formatNumber } from '../lib/format'
 import type { ReportType } from '@shared/types'
 
-const labels: Record<ReportType, string> = {
-  posicao: 'Posição de estoque',
-  movimentacoes: 'Movimentações',
-  baixo: 'Estoque baixo / zerado',
-  'custo-venda': 'Produto - Custo x Venda',
+const reports: Record<ReportType, { label: string; description: string; period: boolean }> = {
+  posicao: { label: 'Posição de stock', description: 'Saldos, custos e valor atual de cada produto.', period: false },
+  movimentacoes: { label: 'Movimentações de stock', description: 'Histórico detalhado de entradas, saídas e ajustes.', period: true },
+  baixo: { label: 'Stock baixo ou esgotado', description: 'Produtos que exigem reposição ou atenção imediata.', period: false },
+  'custo-venda': { label: 'Produto — Custo x Venda', description: 'Comparação de preços e margem potencial dos produtos finais.', period: false },
+  compras: { label: 'Compras detalhadas', description: 'Matérias-primas compradas, fornecedores, custos e totais.', period: true },
+  vendas: { label: 'Vendas detalhadas', description: 'Produtos vendidos, clientes, preços e valores faturados.', period: true },
+  'margem-vendas': { label: 'Margem das vendas', description: 'Receita, custo histórico e margem efetivamente realizada.', period: true },
+  producao: { label: 'Produção e custos', description: 'Quantidades fabricadas e custos registados em cada produção.', period: true },
+  clientes: { label: 'Desempenho por cliente', description: 'Faturação, volume vendido e margem acumulada por cliente.', period: false },
+  fornecedores: { label: 'Compras por fornecedor', description: 'Volume comprado, número de faturas e última compra.', period: false },
+  auditoria: { label: 'Auditoria administrativa', description: 'Utilizadores, ações, alterações e computador de origem.', period: true },
+  inventarios: { label: 'Inventários físicos', description: 'Sessões, contagens, diferenças e aprovações de inventário.', period: false },
 }
 
-function formatReportValue(type: ReportType, column: string, value: string | number | boolean | null) {
-  if (type !== 'custo-venda' || typeof value !== 'number') return String(value ?? '')
-  if (['Preço de custo', 'Preço de venda', 'Diferença'].includes(column)) return formatCurrency(value)
-  if (column === 'Margem') return `${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
-  if (column === 'Saldo') return formatNumber(value)
+const currencyColumns = new Set(['Custo', 'Valor', 'Preço de custo', 'Preço de venda', 'Diferença', 'Custo unitário', 'Total da compra', 'Preço unitário', 'Total faturado', 'Receita', 'Margem bruta', 'Custo total da produção', 'Valor comprado', 'Custo associado'])
+const quantityColumns = new Set(['Saldo', 'Mínimo', 'Quantidade', 'Saldo anterior', 'Saldo novo', 'Quantidade produzida', 'Unidades vendidas', 'Unidades compradas'])
+
+function formatReportValue(_type: ReportType, column: string, value: string | number | boolean | null) {
+  if (typeof value !== 'number') {
+    if ((column === 'Data' || column === 'Última compra') && value) return new Date(String(value).length === 10 ? `${value}T12:00:00` : String(value)).toLocaleDateString('pt-PT')
+    return String(value ?? '')
+  }
+  if (currencyColumns.has(column)) return formatCurrency(value)
+  if (column === 'Margem' || column === 'Margem %') return `${value.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
+  if (quantityColumns.has(column)) return formatNumber(value)
   return String(value)
 }
 
@@ -27,6 +41,12 @@ export function ReportsPage() {
   const [to, setTo] = useState('')
   const [columns, setColumns] = useState<string[]>([])
   const [rows, setRows] = useState<Record<string, string | number | boolean | null>[]>([])
+  const selectedReport = reports[type]
+  const summaryColumns = columns.filter((column) => currencyColumns.has(column))
+  const summaryValues = summaryColumns.slice(-2).map((column) => ({
+    column,
+    value: rows.reduce((sum, row) => sum + (typeof row[column] === 'number' ? Number(row[column]) : 0), 0),
+  }))
 
   const load = useCallback(async () => {
     try {
@@ -39,7 +59,7 @@ export function ReportsPage() {
       setColumns(report.columns)
       setRows(report.rows)
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Erro ao gerar relatório', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível gerar o relatório', 'err')
     }
   }, [type, from, to, push])
 
@@ -59,15 +79,15 @@ export function ReportsPage() {
           defaultName: `relatorio-${type}-${new Date().toISOString().slice(0, 10)}.csv`,
         }),
       )
-      if (result.saved) push('Relatório exportado')
+      if (result.saved) push('Relatório exportado com sucesso')
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Falha na exportação', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível exportar o relatório', 'err')
     }
   }
 
   return (
     <div className="collection-page reports-page" data-testid="reports-page">
-      <CollectionPageHeader icon="▥" description="Consultas gerenciais, conferência de dados e exportação em CSV." count={rows.length} singular="linha no relatório" plural="linhas no relatório">
+      <CollectionPageHeader icon="▥" description="Analise os dados da operação e exporte as informações para conferência." count={rows.length} singular="linha no relatório" plural="linhas no relatório">
         <button className="btn btn-primary" onClick={() => void exportCsv()}>
           Exportar CSV
         </button>
@@ -81,14 +101,14 @@ export function ReportsPage() {
             value={type}
             onChange={(e) => setType(e.target.value as ReportType)}
           >
-            {(Object.keys(labels) as ReportType[]).map((key) => (
+            {(Object.keys(reports) as ReportType[]).map((key) => (
               <option key={key} value={key}>
-                {labels[key]}
+                {reports[key].label}
               </option>
             ))}
           </select>
         </div>
-        {type === 'movimentacoes' ? (
+        {selectedReport.period ? (
           <>
             <div className="field-inline">
               <label htmlFor="rfrom">De</label>
@@ -107,9 +127,14 @@ export function ReportsPage() {
         ) : null}
       </div>
 
+      <div className="report-context panel">
+        <div><span className="report-context-label">Relatório selecionado</span><strong>{selectedReport.label}</strong><p>{selectedReport.description}</p></div>
+        <div className="report-summary"><div><span>Registos</span><strong>{rows.length}</strong></div>{summaryValues.map((summary) => <div key={summary.column}><span>{summary.column}</span><strong>{formatCurrency(summary.value)}</strong></div>)}</div>
+      </div>
+
       <div className="panel panel-flush">
         {rows.length === 0 ? (
-          <CollectionEmpty icon="▥" title="Sem dados para este relatório" description="Selecione outro relatório ou altere o período consultado." />
+          <CollectionEmpty icon="▥" title="Não há dados para exibir" description="Escolha outro relatório ou ajuste o período da consulta." />
         ) : (
           <div className="table-wrap">
             <table className={`collection-table reports-table ${type === 'custo-venda' ? 'control-table' : ''}`}>

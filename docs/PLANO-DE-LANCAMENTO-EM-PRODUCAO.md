@@ -1,4 +1,4 @@
-# Plano de Produção Corporativo — Controle de Estoque v1.0.0
+# Plano de Lançamento em Produção — v1.0.0
 
 Plano de ação para release de produção do aplicativo **desktop** Controle de Estoque, adaptado ao stack real do projeto.
 
@@ -21,7 +21,7 @@ Plano de ação para release de produção do aplicativo **desktop** Controle de
 
 ### Ações para Gestão / PMO
 
-- [ ] **[Alta]** Definir critérios de go/no-go e matriz RACI por área (ver [CHECKLIST-GO-NOGO.md](./CHECKLIST-GO-NOGO.md))
+- [ ] **[Alta]** Definir critérios de go/no-go e matriz RACI por área (ver [Checklist de Lançamento](./CHECKLIST-DE-LANCAMENTO-V1.0.0.md))
 - [ ] **[Alta]** Estabelecer janela de release e responsáveis on-call pós-lançamento (72h)
 - [ ] **[Alta]** Aprovar política de suporte à v1 (SLA de resposta a incidentes críticos)
 - [ ] **[Média]** Comunicar feature freeze e escopo congelado da v1.0.0
@@ -30,12 +30,12 @@ Plano de ação para release de produção do aplicativo **desktop** Controle de
 
 ### Ações para Produto (PO / PM)
 
-- [ ] **[Alta]** Validar critérios de aceite de [REQUISITOS.md](./REQUISITOS.md) seção 8 (100% Must)
+- [ ] **[Alta]** Validar critérios de aceite da [Especificação Funcional](./ESPECIFICACAO-FUNCIONAL-E-REGRAS-DE-NEGOCIO.md) seção 8 (100% Must)
 - [ ] **[Alta]** Congelar backlog — apenas hotfixes entram na release
 - [ ] **[Alta]** Preparar release notes para usuários finais (funcionalidades, requisitos de SO)
 - [ ] **[Média]** Documentar escopo **fora da versão** (sem sync entre PCs, sem multi-depósito, sem NF-e)
 - [ ] **[Média]** Definir canal de feedback pós-lançamento (e-mail, formulário)
-- [ ] **[Baixa]** Planejar roadmap (estorno de fatura/fabricação, hash com salt, filtro insumo/acabado)
+- [ ] **[Baixa]** Planejar roadmap de licenciamento centralizado, sincronização entre PCs e requisitos fiscais, mantendo fora do escopo da versão atual.
 
 ---
 
@@ -59,11 +59,11 @@ Plano de ação para release de produção do aplicativo **desktop** Controle de
 
 ### Ações para QA / Qualidade
 
-- [ ] **[Alta]** Executar suite completa conforme [POLITICA-COBERTURA-TESTES.md](./POLITICA-COBERTURA-TESTES.md)
+- [ ] **[Alta]** Executar a suite completa conforme a [Política de Qualidade e Testes](./POLITICA-DE-QUALIDADE-E-TESTES.md)
 - [ ] **[Alta]** Rodar `npm test` + `npm run typecheck` — zero falhas
 - [ ] **[Alta]** Executar smoke test: `npx tsx scripts/smoke.mts` → deve imprimir `SMOKE_OK`
-- [ ] **[Alta]** Testes manuais dos fluxos F01–F11 em [FLUXOS.md](./FLUXOS.md) em build empacotado (não só dev)
-- [ ] **[Alta]** Regressão nos critérios de aceite (seção 8 de REQUISITOS.md):
+- [ ] **[Alta]** Testes manuais dos fluxos em [Fluxos Operacionais](./FLUXOS-OPERACIONAIS-DO-SISTEMA.md) num build empacotado (não só dev)
+- [ ] **[Alta]** Regressão nos critérios de aceite da Especificação Funcional:
   - Login + troca da senha padrão
   - Código duplicado bloqueado
   - Produto novo com saldo 0
@@ -180,7 +180,7 @@ Plano de ação para release de produção do aplicativo **desktop** Controle de
 - [ ] **[Alta]** Instrumentar erros de IPC com contexto (handler, payload sanitizado)
 - [ ] **[Alta]** Log de falha ao abrir banco (F01-A1) com path e código de erro
 - [ ] **[Média]** Correlation ID por sessão do app (UUID gerado no startup)
-- [ ] **[Média]** Documentar troubleshooting por erro comum (ver [RUNBOOK-OPERACAO.md](./RUNBOOK-OPERACAO.md))
+- [ ] **[Média]** Documentar resolução de erros comuns (ver [Guia de Operação](./GUIA-DE-OPERACAO-E-RECUPERACAO.md))
 - [ ] **[Baixa]** Profiling de startup time em build empacotado
 
 ---
@@ -190,7 +190,7 @@ Plano de ação para release de produção do aplicativo **desktop** Controle de
 ### Ações para Produto / PO
 
 - [ ] **[Alta]** UAT com operadores reais (loja/depósito) em build de staging
-- [ ] **[Alta]** Sign-off formal de aceite (CHECKLIST-GO-NOGO assinado)
+- [ ] **[Alta]** Aprovação formal do Checklist de Lançamento
 - [ ] **[Alta]** Release notes publicadas com requisitos mínimos (Node não necessário — app empacotado)
 - [ ] **[Média]** FAQ de suporte: instalação, backup, recuperação de dados
 - [ ] **[Média]** Guia rápido de primeiro uso (fluxo F01–F04)
@@ -273,9 +273,9 @@ gantt
 
 ## Documentos relacionados
 
-- [POLITICA-COBERTURA-TESTES.md](./POLITICA-COBERTURA-TESTES.md)
-- [CHECKLIST-GO-NOGO.md](./CHECKLIST-GO-NOGO.md)
-- [RUNBOOK-OPERACAO.md](./RUNBOOK-OPERACAO.md)
-- [REQUISITOS.md](./REQUISITOS.md)
-- [FLUXOS.md](./FLUXOS.md)
-- [CODE-SIGNING.md](./CODE-SIGNING.md)
+- [Política de Qualidade e Testes](./POLITICA-DE-QUALIDADE-E-TESTES.md)
+- [Checklist de Lançamento](./CHECKLIST-DE-LANCAMENTO-V1.0.0.md)
+- [Guia de Operação e Recuperação](./GUIA-DE-OPERACAO-E-RECUPERACAO.md)
+- [Especificação Funcional e Regras de Negócio](./ESPECIFICACAO-FUNCIONAL-E-REGRAS-DE-NEGOCIO.md)
+- [Fluxos Operacionais](./FLUXOS-OPERACIONAIS-DO-SISTEMA.md)
+- [Guia de Assinatura e Notarização](./GUIA-DE-ASSINATURA-E-NOTARIZACAO.md)

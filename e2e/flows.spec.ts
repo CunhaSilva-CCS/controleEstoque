@@ -32,7 +32,7 @@ async function loginIfNeeded(page: Page) {
   }
 }
 
-test.describe('Fluxos F01–F08 (web/memory)', () => {
+test.describe('Fluxos operacionais (web/memory)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
     await loginIfNeeded(page)
@@ -65,8 +65,9 @@ test.describe('Fluxos F01–F08 (web/memory)', () => {
     await skipOrAcceptSeed(page, true)
     await page.setViewportSize({ width: 1024, height: 768 })
     const destinations = [
-      'nav-dashboard', 'nav-produtos', 'nav-categorias', 'nav-fornecedores', 'nav-receitas',
-      'nav-faturas', 'nav-fabricacao', 'nav-movimentacoes', 'nav-relatorios', 'nav-configuracoes',
+      'nav-dashboard', 'nav-produtos', 'nav-categorias', 'nav-fornecedores', 'nav-clientes',
+      'nav-receitas', 'nav-faturacao-entrada', 'nav-faturacao-saida', 'nav-fabricacao',
+      'nav-movimentacoes', 'nav-relatorios', 'nav-configuracoes',
     ]
     for (const destination of destinations) {
       await page.getByTestId(destination).click()
@@ -118,7 +119,7 @@ test.describe('Fluxos F01–F08 (web/memory)', () => {
     await expect(page.getByText('Fornecedor E2E')).toBeVisible()
   })
 
-  test('F04/F06/F07/F08 — produto, fatura, fabricação e ajuste', async ({ page }) => {
+  test('produto, fatura de entrada, fabrico e ajuste', async ({ page }) => {
     await skipOrAcceptSeed(page, false)
 
     // F04 produto insumo
@@ -134,7 +135,7 @@ test.describe('Fluxos F01–F08 (web/memory)', () => {
     await expect(page.getByText('E2E-001')).toBeVisible()
 
     // F06 entrada via fatura
-    await page.getByTestId('nav-faturas').click()
+    await page.getByTestId('nav-faturacao-entrada').click()
     await page.getByTestId('btn-new-invoice').click()
     await page.getByTestId('input-invoice-number').fill('NF-E2E-001')
     await page.getByTestId('select-invoice-product').selectOption({ label: 'E2E-001 · Produto E2E · Unidade: un' })
@@ -158,7 +159,7 @@ test.describe('Fluxos F01–F08 (web/memory)', () => {
     await saveModal(page)
     await expect(page.getByText('E2E-FINAL-001')).toBeVisible()
 
-    // F07 fabricação: a composição cadastrada no produto consome 2 insumos por unidade
+    // Fabrico: a composição registada no produto consome 2 matérias-primas por unidade
     await page.getByTestId('nav-fabricacao').click()
     await page.getByTestId('btn-new-production').click()
     await page.getByTestId('select-production-product').selectOption({ label: 'E2E-FINAL-001 · Produto Final E2E' })

@@ -11,7 +11,6 @@ CANDIDATES = [
     ROOT / 'logo-original.jpeg',
 ]
 OUT_PNG = ROOT / 'public' / 'branding' / 'cortexis-logo.png'
-OUT_JPEG = ROOT / 'public' / 'branding' / 'cortexis-logo.jpeg'
 
 
 def main() -> None:
@@ -22,7 +21,6 @@ def main() -> None:
     im = Image.open(src)
     OUT_PNG.parent.mkdir(parents=True, exist_ok=True)
     im.save(OUT_PNG, format='PNG')
-    im.convert('RGB').save(OUT_JPEG, quality=95)
     print(f'Logo publicada: {im.size[0]}x{im.size[1]} ← {src.name}')
 
 

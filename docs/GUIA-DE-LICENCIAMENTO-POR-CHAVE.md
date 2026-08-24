@@ -1,4 +1,4 @@
-# Licenciamento por chave
+# Guia de Licenciamento por Chave
 
 ## Modelo
 
@@ -26,7 +26,7 @@ O par inicial já foi criado. Para uma implantação nova, execute apenas uma ve
 npm run license:keypair
 ```
 
-A chave privada fica em `private/license-private-key.pem` e é ignorada pelo Git e pelo
+A chave privada fica num cofre local, fora do projeto e fora de pastas sincronizadas. Configure o caminho absoluto em `CORTEXIS_LICENSE_PRIVATE_KEY`; ela é ignorada pelo Git e pelo
 instalador. Faça ao menos duas cópias seguras e criptografadas. Perder essa chave impede
 emitir novas licenças compatíveis. Vazar a chave permite a terceiros fabricar licenças.
 
@@ -43,7 +43,7 @@ npm run license:generate -- \
   --installation "CODIGO-EXIBIDO-PELO-CLIENTE" \
   --edition professional \
   --days 365 \
-  --out private/empresa-cliente.license
+  --out /caminho/seguro/empresa-cliente.license
 ```
 
 Para licença perpétua, omita `--days`. Envie ao cliente somente o conteúdo do arquivo

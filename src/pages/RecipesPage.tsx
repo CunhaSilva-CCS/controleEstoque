@@ -30,7 +30,7 @@ export function RecipesPage() {
       setFinished(prods.filter((p) => p.kind === 'acabado'))
       setInsumos(prods.filter((p) => p.kind === 'insumo'))
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Erro ao carregar receitas', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível carregar as receitas', 'err')
     }
   }, [push])
 
@@ -63,17 +63,17 @@ export function RecipesPage() {
           })),
         }),
       )
-      push('Receita salva')
+      push('Receita salva com sucesso')
       setOpen(false)
       await load()
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Falha ao salvar receita', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível guardar a receita', 'err')
     }
   }
 
   return (
     <div className="collection-page recipes-page" data-testid="recipes-page">
-      <CollectionPageHeader icon="≡" description="Composição dos produtos finais e consumo de insumos por unidade produzida." count={recipes.length} singular="receita cadastrada" plural="receitas cadastradas">
+      <CollectionPageHeader icon="≡" description="Defina as matérias-primas e as quantidades necessárias para fabricar cada produto final." count={recipes.length} singular="receita registada" plural="receitas registadas">
         <button
           className="btn btn-primary"
           data-testid="btn-new-recipe"
@@ -87,14 +87,14 @@ export function RecipesPage() {
 
       <div className="panel panel-flush">
         {recipes.length === 0 ? (
-          <CollectionEmpty icon="≡" title="Nenhuma receita cadastrada" description="Cadastre a composição de um produto final para iniciar a fabricação." />
+          <CollectionEmpty icon="≡" title="Ainda não existem receitas registadas" description="Crie a primeira receita para disponibilizar o produto final para fabricação." />
         ) : (
           <div className="table-wrap">
             <table className="collection-table recipes-table">
               <thead>
                 <tr>
                   <th>Produto final</th>
-                  <th>Insumos</th>
+                  <th>Matérias-primas</th>
                   <th>Ações</th>
                 </tr>
               </thead>
@@ -129,8 +129,8 @@ export function RecipesPage() {
           <div className="form-grid">
             <div className="field full">
               <div className="field-label-actions">
-                <label htmlFor="recipe-product">Produto final cadastrado *</label>
-                <button type="button" className="field-link" onClick={() => navigate('/produtos')}>Abrir produtos</button>
+                <label htmlFor="recipe-product">Produto final *</label>
+                <button type="button" className="field-link" onClick={() => navigate('/produtos')}>Registar ou consultar produtos</button>
               </div>
               <select
                 id="recipe-product"
@@ -153,11 +153,11 @@ export function RecipesPage() {
           </div>
 
           <div className="stack form-section">
-            <strong>Insumos por unidade</strong>
+            <strong>Matérias-primas por unidade</strong>
             {lines.map((line, idx) => (
               <div key={idx} className="line-item-card">
                 <div className="line-item-header">
-                  <strong>Insumo {idx + 1}</strong>
+                  <strong>Matéria-prima {idx + 1}</strong>
                   {lines.length > 1 ? (
                     <button
                       type="button"
@@ -171,10 +171,11 @@ export function RecipesPage() {
                 <div className="form-grid">
                 <div className="field">
                   <div className="field-label-actions">
-                    <label>Insumo cadastrado *</label>
-                    <button type="button" className="field-link" onClick={() => navigate('/produtos')}>Abrir produtos</button>
+                    <label htmlFor={`recipe-component-${idx}`}>Matéria-prima *</label>
+                    <button type="button" className="field-link" onClick={() => navigate('/produtos')}>Registar ou consultar produtos</button>
                   </div>
                   <select
+                    id={`recipe-component-${idx}`}
                     data-testid={idx === 0 ? 'select-recipe-component' : undefined}
                     required
                     value={line.productId}
@@ -192,8 +193,9 @@ export function RecipesPage() {
                   </select>
                 </div>
                 <div className="field">
-                  <label>Quantidade *</label>
+                  <label htmlFor={`recipe-qty-${idx}`}>Quantidade *</label>
                   <input
+                    id={`recipe-qty-${idx}`}
                     data-testid={idx === 0 ? 'input-recipe-qty' : undefined}
                     type="number"
                     min="0.001"
@@ -215,7 +217,7 @@ export function RecipesPage() {
               className="btn btn-ghost"
               onClick={() => setLines([...lines, { productId: insumos[0]?.id ?? '', quantity: '1' }])}
             >
-              Adicionar insumo
+              Adicionar matéria-prima
             </button>
           </div>
         </ModalForm>

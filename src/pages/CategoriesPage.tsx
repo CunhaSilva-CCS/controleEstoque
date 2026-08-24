@@ -17,7 +17,7 @@ export function CategoriesPage() {
     try {
       setItems(await unwrap(api.listCategories()))
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Erro ao listar categorias', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível carregar as categorias', 'err')
     }
   }, [push])
 
@@ -54,12 +54,12 @@ export function CategoriesPage() {
         push('Categoria atualizada')
       } else {
         await unwrap(api.createCategory({ name, description }))
-        push('Categoria cadastrada')
+        push('Categoria registada')
       }
       setOpen(false)
       await load()
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Falha ao salvar', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível guardar a categoria', 'err')
     }
   }
 
@@ -76,13 +76,13 @@ export function CategoriesPage() {
       push(c.active ? 'Categoria inativada' : 'Categoria reativada')
       await load()
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Falha ao alterar status', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível alterar a situação da categoria', 'err')
     }
   }
 
   return (
     <div className="collection-page categories-page" data-testid="categories-page">
-      <CollectionPageHeader icon="□" description="Organização dos produtos por grupo." count={items.length} singular="categoria cadastrada" plural="categorias cadastradas">
+      <CollectionPageHeader icon="□" description="Organize os produtos por grupos para facilitar as consultas e os registos." count={items.length} singular="categoria registada" plural="categorias registadas">
         <button className="btn btn-primary" data-testid="btn-new-category" onClick={openCreate}>
           <span aria-hidden>+</span>
           Nova categoria
@@ -91,7 +91,7 @@ export function CategoriesPage() {
 
       <div className="panel panel-flush">
         {items.length === 0 ? (
-          <CollectionEmpty icon="□" title="Nenhuma categoria cadastrada" description="Crie categorias para organizar melhor seus produtos." />
+          <CollectionEmpty icon="□" title="Ainda não existem categorias registadas" description="Crie a primeira categoria para organizar os seus produtos." />
         ) : (
           <div className="table-wrap">
             <table className="collection-table categories-table">

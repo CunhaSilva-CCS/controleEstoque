@@ -24,7 +24,7 @@ export function DashboardPage({ needsSeed, onSeedDone }: Props) {
     try {
       setData(await unwrap(api.getDashboard()))
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Erro ao carregar o painel', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível carregar o painel', 'err')
     } finally {
       setLoading(false)
     }
@@ -39,16 +39,16 @@ export function DashboardPage({ needsSeed, onSeedDone }: Props) {
       await unwrap(api.seed(accept))
       onSeedDone()
       await load()
-      push(accept ? 'Dados de demonstração carregados' : 'Começando com estoque vazio')
+      push(accept ? 'Dados de demonstração prontos a utilizar' : 'Tudo pronto para começar com o stock vazio')
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Falha ao carregar demonstração', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível preparar os dados de demonstração', 'err')
     }
   }
 
   return (
     <div data-testid="dashboard-page">
       <div className="page-header">
-        <p>Visão geral do estoque e alertas operacionais</p>
+        <p>Acompanhe o stock e os principais indicadores da operação.</p>
         <button className="btn btn-ghost" onClick={() => void load()}>
           Atualizar
         </button>
@@ -59,12 +59,12 @@ export function DashboardPage({ needsSeed, onSeedDone }: Props) {
           <div>
             <strong>Primeiro uso</strong>
             <p className="muted seed-banner-text">
-              Deseja carregar dados de demonstração para explorar o fluxo completo?
+              Você pode carregar dados de exemplo para conhecer o fluxo completo do sistema.
             </p>
           </div>
           <div className="row-actions">
             <button className="btn btn-ghost" data-testid="btn-seed-skip" onClick={() => void handleSeed(false)}>
-              Começar vazio
+              Começar sem dados
             </button>
             <button className="btn btn-primary" data-testid="btn-seed-accept" onClick={() => void handleSeed(true)}>
               Carregar demonstração
@@ -80,8 +80,8 @@ export function DashboardPage({ needsSeed, onSeedDone }: Props) {
           <section className="dashboard-hero">
             <div className="dashboard-hero-copy">
               <span className="dashboard-eyebrow">Resumo operacional</span>
-              <h2>Controle do estoque</h2>
-              <p>Acompanhe os saldos e acesse rapidamente as operações do dia.</p>
+              <h2>O seu stock num só lugar</h2>
+              <p>Consulte saldos, identifique prioridades e acesse as operações do dia.</p>
             </div>
             <div className="dashboard-quick-actions" aria-label="Ações rápidas">
               <Link className="dashboard-action" to="/faturas">
@@ -104,21 +104,21 @@ export function DashboardPage({ needsSeed, onSeedDone }: Props) {
               <div>
                 <span>Produtos ativos</span>
                 <strong>{data.activeProducts}</strong>
-                <small>itens cadastrados e disponíveis</small>
+                <small>itens disponíveis para movimentação</small>
               </div>
             </div>
             <div className="dashboard-metric metric-value">
               <span className="dashboard-metric-icon" aria-hidden="true">$</span>
               <div>
-                <span>Valor em estoque</span>
+                <span>Valor em stock</span>
                 <strong>{formatCurrency(data.totalStockValue)}</strong>
-                <small>valor estimado dos saldos atuais</small>
+                <small>estimativa com base nos saldos atuais</small>
               </div>
             </div>
             <div className="dashboard-metric metric-alert">
               <span className="dashboard-metric-icon" aria-hidden="true">!</span>
               <div>
-                <span>Estoque baixo / zerado</span>
+                <span>Stock baixo / esgotado</span>
                 <strong>{data.lowStockCount} / {data.zeroStockCount}</strong>
                 <small>itens que exigem atenção</small>
               </div>
@@ -137,7 +137,7 @@ export function DashboardPage({ needsSeed, onSeedDone }: Props) {
             <section className="panel dashboard-critical">
               <div className="section-header">
                 <div>
-                  <h3>Estoque crítico</h3>
+                  <h3>Stock crítico</h3>
                   <p>Produtos com saldo ≤ mínimo</p>
                 </div>
                 <Link className="btn btn-ghost" to="/produtos?low=1">
@@ -145,7 +145,7 @@ export function DashboardPage({ needsSeed, onSeedDone }: Props) {
                 </Link>
               </div>
               {data.criticalProducts.length === 0 ? (
-                <div className="empty">Nenhum alerta no momento</div>
+                <div className="empty">Tudo em ordem: não existem artigos com stock crítico.</div>
               ) : (
                 <div className="table-wrap">
                   <table>
@@ -185,11 +185,11 @@ export function DashboardPage({ needsSeed, onSeedDone }: Props) {
                   <p>Histórico recente</p>
                 </div>
                 <Link className="btn btn-ghost" to="/movimentacoes">
-                  Abrir
+                  Ver histórico
                 </Link>
               </div>
               {data.recentMovements.length === 0 ? (
-                <div className="empty">Sem movimentações ainda</div>
+                <div className="empty">As movimentações mais recentes aparecerão aqui.</div>
               ) : (
                 <div className="table-wrap">
                   <table>

@@ -1,7 +1,7 @@
 {
   "name": "controle-estoque",
   "version": "1.0.0",
-  "description": "ERP Cortexis Tech — Módulo Controle de Estoque",
+  "description": "ERP Cortexis Tech — Módulo Controlo de Stock",
   "main": "dist-electron/main.js",
   "author": "Cortexis Tech (cortexists.com)",
   "license": "MIT",
@@ -11,7 +11,7 @@
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "preview": "vite preview",
     "electron:build": "npm run build && electron-builder --config electron-builder.config.cjs --dir",
-    "electron:build:release": "npm run build && electron-builder --config electron-builder.config.cjs --publish never",
+    "electron:build:release": "npm run build && electron-builder --config electron-builder.config.cjs --publish onTagOrDraft",
     "start": "electron .",
     "smoke": "tsx scripts/smoke.mts",
     "test": "vitest run",
@@ -20,9 +20,11 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "icons": "python3 scripts/generate-icons.py",
-    "logo:prepare": "python3 scripts/prepare-logo.py"
-    ,"license:keypair": "node scripts/license-keypair.mjs"
-    ,"license:generate": "node scripts/license-generate.mjs"
+    "logo:prepare": "python3 scripts/prepare-logo.py",
+    "manual": "node scripts/generate-user-manual.mjs",
+    "manual:developer": "node scripts/generate-developer-guide.mjs",
+    "license:keypair": "node scripts/license-keypair.mjs",
+    "license:generate": "node scripts/license-generate.mjs"
   },
   "dependencies": {
     "@sentry/electron": "^7.17.0",
@@ -45,7 +47,6 @@
     "typescript": "^5.7.2",
     "vite": "^6.0.7",
     "vite-plugin-electron": "^0.28.8",
-    "vite-plugin-electron-renderer": "^0.14.6",
     "vitest": "^4.1.11"
   }
 }

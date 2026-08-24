@@ -1,4 +1,4 @@
-# Code Signing — Controle de Estoque
+# Guia de Assinatura Digital e Notarização
 
 Guia para configurar assinatura de código e notarização nos releases corporativos via GitHub Actions.
 
@@ -176,5 +176,5 @@ dpkg-sig --verify release/controle-estoque_1.0.0_amd64.deb
 
 - [electron-builder — Code Signing](https://www.electron.build/code-signing)
 - [Apple Notarization](https://developer.apple.com/documentation/security/notarizing_macos_software_before_distribution)
-- [RUNBOOK-OPERACAO.md](./RUNBOOK-OPERACAO.md)
-- [CHECKLIST-GO-NOGO.md](./CHECKLIST-GO-NOGO.md)
+- [Guia de Operação e Recuperação](./GUIA-DE-OPERACAO-E-RECUPERACAO.md)
+- [Checklist de Lançamento](./CHECKLIST-DE-LANCAMENTO-V1.0.0.md)

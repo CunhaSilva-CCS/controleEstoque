@@ -21,7 +21,9 @@ module.exports = {
     signAndEditExecutable: true,
   },
   mac: {
-    target: ['dmg'],
+    // O DMG é o instalador entregue ao cliente; o ZIP é obrigatório para o
+    // electron-updater gerar e consumir o latest-mac.yml.
+    target: ['dmg', 'zip'],
     icon: 'build/icon.icns',
     hardenedRuntime: true,
     gatekeeperAssess: false,
@@ -42,6 +44,7 @@ module.exports = {
       provider: 'github',
       owner: 'CunhaSilva-CCS',
       repo: 'controleEstoque',
+      releaseType: 'draft',
     },
   ],
 }

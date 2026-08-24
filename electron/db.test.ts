@@ -11,14 +11,19 @@ vi.mock('electron', () => ({
 import {
   closeDatabase,
   authenticateUser,
+  changePassword,
   backupDatabase,
   createProduct,
   createProduction,
   createPurchaseInvoice,
+  createCustomer,
+  createSalesInvoice,
+  createUser,
   getProduct,
   initDatabaseAtPath,
   listMovements,
   restoreDatabase,
+  resetUserPassword,
   saveRecipe,
 } from './db'
 
@@ -151,10 +156,52 @@ describe('integração SQLite de estoque', () => {
     expect(getProduct(finalProduct.id)?.stock).toBe(0)
   })
 
+  it('fatura apenas produtos finais e baixa o stock de forma atómica', (context) => {
+    if (!ensureDatabase(context)) return
+    const material = createProduct({ sku: 'SQL-SALE-MAT', name: 'Matéria-prima venda', kind: 'insumo', unit: 'un', costPrice: 1, salePrice: 1, minStock: 0 })
+    const finished = createProduct({ sku: 'SQL-SALE-FINAL', name: 'Produto final venda', kind: 'acabado', unit: 'un', costPrice: 0, salePrice: 15, minStock: 0 })
+    createPurchaseInvoice({ number: 'NF-SALE-MAT', issueDate: '2026-08-24', items: [{ productId: material.id, quantity: 10, unitCost: 2 }] })
+    saveRecipe({ productId: finished.id, items: [{ productId: material.id, quantity: 1 }] })
+    createProduction({ productId: finished.id, quantity: 5 })
+    const customer = createCustomer({ name: 'Cliente Teste', taxNumber: '123456789' })
+
+    expect(() => createSalesInvoice({ number: 'FS-INVALID', customerId: customer.id, issueDate: '2026-08-24', items: [{ productId: finished.id, quantity: 1, unitPrice: 15 }, { productId: material.id, quantity: 1, unitPrice: 2 }] })).toThrow(/apenas produtos finais/)
+    expect(getProduct(finished.id)?.stock).toBe(5)
+
+    const invoice = createSalesInvoice({ number: 'FS-VALID', customerId: customer.id, issueDate: '2026-08-24', items: [{ productId: finished.id, quantity: 2, unitPrice: 15 }] })
+    expect(invoice.customerName).toBe('Cliente Teste')
+    expect(getProduct(finished.id)?.stock).toBe(3)
+    expect(listMovements({ productId: finished.id }).some((movement) => movement.origin === 'fatura_saida' && movement.quantity === 2)).toBe(true)
+  })
+
   it('rejeita tentativa de injeção SQL no login', (context) => {
     if (!ensureDatabase(context)) return
     expect(authenticateUser("admin' OR 1=1 --", 'qualquer')).toBeNull()
     expect(authenticateUser('admin', "' OR '1'='1")).toBeNull()
+  })
+
+  it('protege palavras-passe com política, troca obrigatória e histórico', (context) => {
+    if (!ensureDatabase(context)) return
+    expect(() => createUser({ name: 'Fraco', username: 'fraco', password: '123456', role: 'operador' }))
+      .toThrow(/10 caracteres/)
+    const user = createUser({
+      name: 'Utilizador Seguro',
+      username: 'utilizador-seguro',
+      password: 'Temporaria#123',
+      role: 'operador',
+    })
+    expect(user.mustChangePassword).toBe(true)
+    expect(authenticateUser(user.username, 'Temporaria#123')?.id).toBe(user.id)
+
+    const changed = changePassword(user.id, 'Temporaria#123', 'Definitiva#456')
+    expect(changed.mustChangePassword).toBe(false)
+    expect(authenticateUser(user.username, 'Temporaria#123')).toBeNull()
+    expect(authenticateUser(user.username, 'Definitiva#456')?.id).toBe(user.id)
+    expect(() => changePassword(user.id, 'Definitiva#456', 'Temporaria#123')).toThrow(/últimas 5/)
+
+    const reset = resetUserPassword(user.id, 'Recuperacao#789')
+    expect(reset.mustChangePassword).toBe(true)
+    expect(authenticateUser(user.username, 'Recuperacao#789')?.mustChangePassword).toBe(true)
   })
 
   it('rejeita restauração inválida sem fechar ou substituir o banco ativo', (context) => {

@@ -1,4 +1,4 @@
-# Relatório de Prontidão — v1.0.0
+# Avaliação de Prontidão para Lançamento — v1.0.0
 
 **Data da avaliação:** 2026-08-24  
 **Estado:** **NO-GO administrativo** até concluir os gates externos abaixo.
@@ -47,5 +47,4 @@
 
 ## Decisão
 
-Não publicar automaticamente enquanto qualquer bloqueador `EXT-*` permanecer sem evidência e assinatura no [Checklist Go/No-Go](./CHECKLIST-GO-NOGO.md).
-
+Não publicar automaticamente enquanto qualquer bloqueador `EXT-*` permanecer sem evidência e assinatura no [Checklist de Lançamento](./CHECKLIST-DE-LANCAMENTO-V1.0.0.md).

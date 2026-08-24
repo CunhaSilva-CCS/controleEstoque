@@ -1,29 +1,24 @@
-# ERP Cortexis Tech — Módulo Controle de Estoque
+# ERP Cortexis Tech — Controlo de Stock
 
-Aplicativo **desktop** (Electron + React + TypeScript + SQLite) do ecossistema **ERP Cortexis Tech**, desenvolvido pela [Cortexis Tech](https://cortexists.com), para gestão de estoque **offline**.
+Aplicação **desktop** (Electron + React + TypeScript + SQLite) do ecossistema **ERP Cortexis Tech**, desenvolvida pela [Cortexis Tech](https://cortexists.com), para gestão de stock **offline**.
 
 ## Documentação
 
-- [Requisitos detalhados](docs/REQUISITOS.md)
-- [Fluxos do sistema](docs/FLUXOS.md)
-
-### Release e operação
-
-- [Plano de produção corporativo](docs/PLANO-PRODUCAO.md)
-- [Política de cobertura de testes](docs/POLITICA-COBERTURA-TESTES.md)
-- [Checklist Go/No-Go](docs/CHECKLIST-GO-NOGO.md)
-- [Relatório de prontidão da v1](docs/RELATORIO-PRONTIDAO-V1.md)
-- [Runbook de operação](docs/RUNBOOK-OPERACAO.md)
-- [Code signing e notarização](docs/CODE-SIGNING.md)
+- [Índice completo da documentação](docs/README.md)
+- [Manual do Utilizador (PDF)](docs/Manual-do-Utilizador-ERP-Cortexis-Tech.pdf)
+- [Especificação funcional e regras de negócio](docs/ESPECIFICACAO-FUNCIONAL-E-REGRAS-DE-NEGOCIO.md)
+- [Fluxos operacionais do sistema](docs/FLUXOS-OPERACIONAIS-DO-SISTEMA.md)
+- [Guia de operação e recuperação](docs/GUIA-DE-OPERACAO-E-RECUPERACAO.md)
 
 ## Funcionalidades
 
 - Login local com perfis **administrador** e **operador** (troca obrigatória da senha padrão)
 - Licenciamento offline por chave assinada, vinculada ao código da instalação
 - Painel com indicadores e alertas de estoque baixo / zerado
-- Cadastro de produtos (insumo ou produto final), categorias, fornecedores e receitas
-- Entrada de insumos por **fatura de compra**
-- Saída de insumos e entrada de produtos finais por **fabricação** (receita / BOM)
+- Registo de matérias-primas e produtos finais, categorias, fornecedores, clientes e receitas
+- Entrada de matérias-primas por **fatura de compra**, com custo médio ponderado
+- Saída de matérias-primas e entrada de produtos finais por **fabrico** (receita / BOM)
+- Faturação de saída de produtos finais, baixa de stock e emissão de recibo
 - **Ajuste de inventário** manual (saldo absoluto)
 - Relatórios com exportação CSV
 - Marca da empresa contratante, tema claro/escuro, cópia de segurança e atualizações
@@ -35,8 +30,9 @@ O cadastro de produto **não** gera estoque. O saldo só muda por:
 
 | Origem | Efeito |
 |--------|--------|
-| Fatura de compra | Entrada de **insumo** |
-| Fabricação | Saída de insumos da receita + entrada do **produto final** |
+| Fatura de entrada | Entrada de **matéria-prima** e atualização do custo médio |
+| Fabrico | Saída de matérias-primas da receita + entrada do **produto final** |
+| Fatura de saída | Saída de **produto final** |
 | Ajuste de inventário | Define o novo saldo absoluto |
 
 ## Pré-requisitos
@@ -76,8 +72,11 @@ npm run dev:web
 | `npm run typecheck` | Verificação TypeScript |
 | `npm run electron:build` | Empacota instalador (electron-builder) |
 | `npm run icons` | Regenera ícones a partir do logo |
+| `npm run manual` | Regenera o PDF do Manual do Utilizador |
 | `npm run license:keypair` | Cria uma única vez o par de licenciamento |
 | `npm run license:generate -- ...` | Emite uma licença para um cliente/instalação |
+
+> Antes de usar os comandos de licenciamento, defina `CORTEXIS_LICENSE_PRIVATE_KEY` com o caminho absoluto da chave privada armazenada fora deste projeto. A aplicação distribuída contém apenas a chave pública.
 
 ## CI/CD
 
@@ -102,7 +101,7 @@ Sem `SENTRY_DSN`, o app funciona sem enviar eventos. Em desenvolvimento, use `SE
 
 ## Code signing (produção)
 
-Para releases corporativos, configure os secrets no GitHub conforme [docs/CODE-SIGNING.md](docs/CODE-SIGNING.md):
+Para releases corporativos, configure os secrets no GitHub conforme o [Guia de assinatura e notarização](docs/GUIA-DE-ASSINATURA-E-NOTARIZACAO.md):
 
 | Secret | Plataforma |
 |--------|------------|
@@ -117,16 +116,17 @@ Sem secrets, o CI gera instaladores **sem assinatura** (OK para QA).
 
 1. Abrir o app → entrar como `admin` → trocar a senha padrão
 2. (Admin) Aceitar ou recusar dados de demonstração no painel
-3. Cadastrar categorias e fornecedores
-4. Cadastrar insumos e produtos finais (saldo inicia em zero)
-5. Lançar fatura de compra para entrar insumos
-6. Cadastrar receita do produto final e registrar fabricação
-7. Usar ajuste de inventário só para correção física
-8. Acompanhar o painel e exportar relatórios
+3. Registar categorias, fornecedores e clientes
+4. Registar matérias-primas e produtos finais (o saldo começa em zero)
+5. Lançar a fatura de entrada para receber matérias-primas
+6. Definir a Receita de Fabrico e registar o fabrico
+7. Emitir a fatura de saída para vender produtos finais
+8. Utilizar ajustes de inventário apenas para correções físicas
+9. Acompanhar o painel e exportar relatórios
 
 ## Stack
 
-- Electron 33
+- Electron 42
 - React 19 + React Router
 - Vite 6
 - better-sqlite3-multiple-ciphers (SQLite com criptografia AES-256 compatível com SQLCipher)
@@ -136,4 +136,6 @@ Sem secrets, o CI gera instaladores **sem assinatura** (OK para QA).
 
 - Em **Configurações** (admin): exportar / restaurar o banco SQLite (`.db`).
 - Auto-update via GitHub Releases em builds empacotados (`electron-updater`).
+- Uma tag `vX.Y.Z` cria um draft com instaladores e metadados `latest*.yml`; a atualização fica disponível aos clientes após publicar o draft.
+- No macOS são publicados DMG para instalação manual e ZIP para o mecanismo de atualização automática.
 - Em desenvolvimento / modo web, as atualizações aparecem como indisponíveis.

@@ -1,4 +1,4 @@
-# Relatório de segurança — 24/08/2026
+# Avaliação de Segurança — 24/08/2026
 
 ## Escopo
 

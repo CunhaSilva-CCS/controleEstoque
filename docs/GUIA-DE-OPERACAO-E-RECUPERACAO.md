@@ -1,4 +1,4 @@
-# Runbook de Operação — Controle de Estoque
+# Guia de Operação, Manutenção e Recuperação
 
 Procedimentos operacionais para suporte, troubleshooting e manutenção do aplicativo desktop.
 
@@ -49,19 +49,23 @@ npm run electron:build
 ```
 
 Artefatos gerados em `release/`:
-- Windows: `Controle de Estoque Setup X.X.X.exe`
+- Windows: `Controle de Estoque Setup X.X.X.exe`, `.blockmap` e `latest.yml`
 - Linux: `Controle de Estoque-X.X.X.AppImage`, `.deb`
-- macOS: `Controle de Estoque-X.X.X.dmg`
+- macOS: `Controle de Estoque-X.X.X.dmg`, `.zip`, `.blockmap` e `latest-mac.yml`
 
 ### 2.2 Publicar release
 
-1. Garantir checklist [CHECKLIST-GO-NOGO.md](./CHECKLIST-GO-NOGO.md) aprovado
-2. Configurar secrets de assinatura — ver [CODE-SIGNING.md](./CODE-SIGNING.md)
+1. Garantir o [Checklist de Lançamento](./CHECKLIST-DE-LANCAMENTO-V1.0.0.md) aprovado
+2. Configurar secrets de assinatura — ver [Guia de Assinatura e Notarização](./GUIA-DE-ASSINATURA-E-NOTARIZACAO.md)
 3. Criar tag: `git tag -a v1.0.0 -m "Release v1.0.0"`
 4. Push tag: `git push origin v1.0.0`
 5. CI gera artefatos (assinados se secrets configurados)
 6. Revisar draft no GitHub Releases e publicar
 7. Executar smoke test pós-publicação
+
+> **Importante:** o atualizador não encontra releases em rascunho. Publique o draft
+> somente depois de confirmar que os instaladores, os ficheiros `latest*.yml`, as
+> assinaturas e os checksums pertencem à mesma versão.
 
 ### 2.3 Rollback
 
@@ -81,22 +85,21 @@ Artefatos gerados em `release/`:
 
 **Procedimento para o usuário final:**
 
-1. Fechar o aplicativo completamente
-2. Navegar até o diretório `{userData}/data/`
-3. Copiar os 3 arquivos:
-   - `estoque.db`
-   - `estoque.db-wal` (se existir)
-   - `estoque.db-shm` (se existir)
-4. Salvar em local seguro (pendrive, nuvem pessoal, NAS)
+1. Entre como administrador.
+2. Aceda a **Configurações → Cópia de segurança → Escolher localização e guardar**.
+3. Guarde o ficheiro `.db` num destino protegido e confirme que o ficheiro foi criado.
+4. Para uma cópia externa completa, preserve também a chave protegida do sistema operativo conforme a arquitetura de criptografia; não copie nem altere a base em uso manualmente.
 
 **Frequência recomendada:** diária (operações críticas) ou semanal.
 
 ### 3.2 Restaurar backup
 
-1. Fechar o aplicativo
-2. Substituir arquivos em `{userData}/data/` pelos do backup
-3. Abrir o aplicativo
-4. Validar dashboard e saldos
+1. Entre como administrador e abra **Configurações → Restaurar cópia**.
+2. Selecione o ficheiro `.db` e confirme o aviso de substituição.
+3. O sistema valida o ficheiro, substitui a base de forma controlada e recarrega a interface.
+4. Valide painel, saldos e relatório de movimentações.
+
+> Não substitua manualmente `estoque.db`, `-wal` ou `-shm` numa instalação cifrada: a chave protegida pode não corresponder ao ficheiro e o aplicativo recusará abrir uma base incompatível.
 
 ### 3.3 Backup programático (suporte avançado)
 
@@ -282,11 +285,11 @@ Eventos capturados automaticamente:
 
 ## 9. Referências
 
-- [PLANO-PRODUCAO.md](./PLANO-PRODUCAO.md)
-- [POLITICA-COBERTURA-TESTES.md](./POLITICA-COBERTURA-TESTES.md)
-- [CHECKLIST-GO-NOGO.md](./CHECKLIST-GO-NOGO.md)
-- [REQUISITOS.md](./REQUISITOS.md)
-- [FLUXOS.md](./FLUXOS.md)
+- [Plano de Lançamento em Produção](./PLANO-DE-LANCAMENTO-EM-PRODUCAO.md)
+- [Política de Qualidade e Testes](./POLITICA-DE-QUALIDADE-E-TESTES.md)
+- [Checklist de Lançamento](./CHECKLIST-DE-LANCAMENTO-V1.0.0.md)
+- [Especificação Funcional e Regras de Negócio](./ESPECIFICACAO-FUNCIONAL-E-REGRAS-DE-NEGOCIO.md)
+- [Fluxos Operacionais do Sistema](./FLUXOS-OPERACIONAIS-DO-SISTEMA.md)
 
 
 ## Backup e restauração pelo aplicativo

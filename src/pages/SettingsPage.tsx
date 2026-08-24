@@ -1,26 +1,27 @@
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import type { AppOutletContext } from '../components/AppLayout'
+import { ModalForm } from '../components/ModalForm'
 import { api, unwrap } from '../lib/api'
 import { BRAND } from '../lib/branding'
 import { useClientBrand } from '../lib/client-brand'
 import { roleLabel } from '../lib/format'
 import { useTheme } from '../lib/theme'
 import { useToast } from '../lib/toast'
-import type { ClientBrand, LicenseStatus, UpdateStatus, User } from '@shared/types'
+import type { ClientBrand, LicenseStatus, LocalDiagnostics, UpdateStatus, User } from '@shared/types'
 
 function formatUpdateStatus(status: UpdateStatus): string {
   switch (status.state) {
     case 'idle':
       return 'Aguardando verificação'
     case 'checking':
-      return 'Verificando atualizações…'
+      return 'A verificar atualizações…'
     case 'available':
       return `Nova versão disponível: ${status.version}`
     case 'not-available':
-      return `Você está na versão mais recente (${status.version})`
+      return `A aplicação está atualizada (${status.version})`
     case 'downloading':
-      return `Baixando atualização… ${status.percent}%`
+      return `A transferir atualização… ${status.percent}%`
     case 'downloaded':
       return `Versão ${status.version} pronta para instalar`
     case 'error':
@@ -28,7 +29,7 @@ function formatUpdateStatus(status: UpdateStatus): string {
     case 'disabled':
       return status.reason
     default:
-      return 'Status desconhecido'
+      return 'Estado desconhecido'
   }
 }
 
@@ -44,6 +45,7 @@ export function SettingsPage() {
   const [version, setVersion] = useState('')
   const [packaged, setPackaged] = useState(false)
   const [licenseStatus, setLicenseStatus] = useState<LicenseStatus | null>(null)
+  const [diagnostics, setDiagnostics] = useState<LocalDiagnostics | null>(null)
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ state: 'idle' })
   const [busy, setBusy] = useState(false)
   const [users, setUsers] = useState<User[]>([])
@@ -53,9 +55,14 @@ export function SettingsPage() {
   const [newUsername, setNewUsername] = useState('')
   const [newUserPassword, setNewUserPassword] = useState('')
   const [newUserRole, setNewUserRole] = useState<'admin' | 'operador'>('operador')
+  const [userFormOpen, setUserFormOpen] = useState(false)
+  const [passwordFormOpen, setPasswordFormOpen] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [resetUser, setResetUser] = useState<User | null>(null)
+  const [temporaryPassword, setTemporaryPassword] = useState('')
+  const [confirmTemporaryPassword, setConfirmTemporaryPassword] = useState('')
 
   useEffect(() => {
     setClientName(brand.name)
@@ -72,9 +79,10 @@ export function SettingsPage() {
       if (isAdmin) {
         setUsers(await unwrap(api.listUsers()))
         setUpdateStatus(await unwrap(api.getUpdateStatus()))
+        setDiagnostics(await unwrap(api.getDiagnostics()))
       }
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Erro ao carregar informações', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível carregar as configurações', 'err')
     }
   }, [push, isAdmin])
 
@@ -93,10 +101,10 @@ export function SettingsPage() {
         setLastBackupPath(result.path ?? '')
         push(result.path ? `Cópia de segurança salva em ${result.path}` : 'Cópia de segurança exportada')
       } else {
-        push('Exportação cancelada', 'err')
+        push('Criação da cópia de segurança cancelada')
       }
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Falha ao exportar a cópia de segurança', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível criar a cópia de segurança', 'err')
     } finally {
       setBusy(false)
     }
@@ -107,13 +115,13 @@ export function SettingsPage() {
     try {
       const result = await unwrap(api.restoreBackup())
       if (result.restored) {
-        push('Cópia de segurança restaurada. Recarregando…')
+        push('Cópia de segurança restaurada. Preparando o sistema…')
         await loadInfo()
       } else {
-        push('Restauração cancelada', 'err')
+        push('Restauração cancelada')
       }
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Falha ao restaurar a cópia de segurança', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível restaurar a cópia de segurança', 'err')
     } finally {
       setBusy(false)
     }
@@ -126,7 +134,7 @@ export function SettingsPage() {
       setUpdateStatus(status)
       push(formatUpdateStatus(status))
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Falha ao verificar atualizações', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível verificar as atualizações', 'err')
     } finally {
       setBusy(false)
     }
@@ -138,14 +146,22 @@ export function SettingsPage() {
       await unwrap(api.installUpdate())
       push('Reiniciando para aplicar a atualização…')
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Falha ao instalar atualização', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível instalar a atualização', 'err')
       setBusy(false)
     }
   }
 
+  async function handleSupportPackage() {
+    setBusy(true)
+    try {
+      const result = await unwrap(api.exportSupportPackage())
+      push(result.saved ? `Pacote de suporte guardado em ${result.path}` : 'Geração do pacote cancelada')
+    } catch (err) { push(err instanceof Error ? err.message : 'Não foi possível gerar o pacote de suporte', 'err') } finally { setBusy(false) }
+  }
+
   function readLogoFile(file: File) {
     if (!file.type.startsWith('image/')) {
-      push('Selecione um arquivo de imagem', 'err')
+      push('Escolha um ficheiro de imagem válido', 'err')
       return
     }
     if (file.size > 2_000_000) {
@@ -174,9 +190,9 @@ export function SettingsPage() {
         logoDataUrl: clientLogo,
       }
       await saveBrand(payload)
-      push('Marca da empresa salva')
+      push('Identidade visual salva com sucesso')
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Falha ao salvar a marca', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível guardar a identidade visual', 'err')
     } finally {
       setBusy(false)
     }
@@ -198,9 +214,10 @@ export function SettingsPage() {
       setNewUserPassword('')
       setNewUserRole('operador')
       setUsers(await unwrap(api.listUsers()))
-      push('Usuário cadastrado')
+      push('Utilizador registado com sucesso')
+      setUserFormOpen(false)
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Falha ao criar usuário', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível registar o utilizador', 'err')
     } finally {
       setBusy(false)
     }
@@ -211,9 +228,9 @@ export function SettingsPage() {
     try {
       await unwrap(api.setUserActive(user.id, !user.active))
       setUsers(await unwrap(api.listUsers()))
-      push(user.active ? 'Usuário inativado' : 'Usuário ativado')
+      push(user.active ? 'Utilizador desativado' : 'Utilizador ativado')
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Falha ao atualizar usuário', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível atualizar o utilizador', 'err')
     } finally {
       setBusy(false)
     }
@@ -221,7 +238,7 @@ export function SettingsPage() {
 
   async function handleChangePassword() {
     if (newPassword !== confirmPassword) {
-      push('A confirmação não confere com a nova senha', 'err')
+      push('As palavras-passe introduzidas não coincidem', 'err')
       return
     }
     setBusy(true)
@@ -235,9 +252,31 @@ export function SettingsPage() {
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
-      push('Senha alterada')
+      push('Palavra-passe atualizada com sucesso')
+      setPasswordFormOpen(false)
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Falha ao alterar senha', 'err')
+      push(err instanceof Error ? err.message : 'Não foi possível atualizar a palavra-passe', 'err')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleResetPassword() {
+    if (!resetUser) return
+    if (temporaryPassword !== confirmTemporaryPassword) {
+      push('As palavras-passe temporárias não coincidem', 'err')
+      return
+    }
+    setBusy(true)
+    try {
+      await unwrap(api.resetUserPassword(resetUser.id, temporaryPassword))
+      setUsers(await unwrap(api.listUsers()))
+      setTemporaryPassword('')
+      setConfirmTemporaryPassword('')
+      setResetUser(null)
+      push('Palavra-passe temporária definida. O utilizador deverá alterá-la na próxima entrada.')
+    } catch (err) {
+      push(err instanceof Error ? err.message : 'Não foi possível redefinir a palavra-passe', 'err')
     } finally {
       setBusy(false)
     }
@@ -246,75 +285,27 @@ export function SettingsPage() {
   return (
     <div className="settings-page" data-testid="settings-page">
       <div className="page-header">
-        <p>
-          {isAdmin
-            ? 'Marca da empresa, usuários, cópia de segurança, aparência e atualizações'
-            : 'Aparência e alteração de senha'}
-        </p>
+        <div className="settings-page-intro">
+          <span className="settings-page-icon" aria-hidden>⚙</span>
+          <div>
+            <h2>Sobre o sistema</h2>
+            <p>{isAdmin ? 'Informações da aplicação e gestão das preferências do sistema.' : 'Informações da aplicação e preferências da sua conta.'}</p>
+          </div>
+        </div>
       </div>
 
       <div className="stack">
-        <div className="panel" data-testid="settings-password">
-          <h3>Alterar senha</h3>
-          <p className="muted">A nova senha deve ter no mínimo 6 caracteres e ser diferente da atual.</p>
-          <div className="form-grid">
-            <div className="field">
-              <label htmlFor="settings-current-password">Senha atual</label>
-              <input
-                id="settings-current-password"
-                data-testid="input-settings-current-password"
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                autoComplete="current-password"
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="settings-new-password">Nova senha</label>
-              <input
-                id="settings-new-password"
-                data-testid="input-settings-new-password"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                autoComplete="new-password"
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="settings-confirm-password">Confirmar nova senha</label>
-              <input
-                id="settings-confirm-password"
-                data-testid="input-settings-confirm-password"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                autoComplete="new-password"
-              />
-            </div>
-          </div>
-          <div className="row-actions settings-actions">
-            <button
-              className="btn btn-primary"
-              data-testid="btn-settings-change-password"
-              disabled={busy}
-              onClick={() => void handleChangePassword()}
-            >
-              Salvar senha
-            </button>
-          </div>
-        </div>
-
         {isAdmin ? (
         <div className="panel" data-testid="settings-client-brand">
-          <h3>Marca da empresa</h3>
+          <h3>Identidade visual da empresa</h3>
           <p className="muted">
-            A logo grande da sidebar é da empresa que usa o sistema. A Cortexis Tech permanece como desenvolvedora.
+            Personalize o nome e a logo exibidos no menu. A Cortexis Tech continuará identificada como desenvolvedora.
           </p>
           <div className="client-brand-editor">
             {clientLogo ? (
               <img src={clientLogo} alt="Logo da empresa" className="client-brand-preview" />
             ) : (
-              <div className="client-brand-preview empty">Sem logo</div>
+              <div className="client-brand-preview empty">Sua logo aparecerá aqui</div>
             )}
             <div className="stack stack-grow">
               <div className="field">
@@ -356,7 +347,7 @@ export function SettingsPage() {
                   disabled={busy}
                   onClick={() => void handleSaveBrand()}
                 >
-                  Salvar marca
+                  Guardar identidade visual
                 </button>
               </div>
             </div>
@@ -364,87 +355,42 @@ export function SettingsPage() {
         </div>
         ) : null}
 
-        <div className="panel brand-panel" data-testid="settings-brand">
-          <div className="brand-panel-inner">
+        <div className="panel settings-about" data-testid="settings-app-info">
+          <div className="settings-about-heading">
             <img src={BRAND.logoSrc} alt={BRAND.company} className="brand-panel-logo" />
-            <div className="brand-panel-copy">
-              <span className="brand-eyebrow">{BRAND.productLine}</span>
-              <h3>{BRAND.module}</h3>
-              <p className="muted">
-                {BRAND.fullName} ·{' '}
-                <a className="link-accent" href={BRAND.website} target="_blank" rel="noreferrer">
-                  {BRAND.websiteLabel}
-                </a>
-              </p>
-            </div>
+            <div><span className="brand-eyebrow">{BRAND.productLine}</span><h3>{BRAND.module}</h3><a className="link-accent" href={BRAND.website} target="_blank" rel="noreferrer">Desenvolvido por {BRAND.company} · {BRAND.websiteLabel}</a></div>
           </div>
-        </div>
-
-        <div className="panel" data-testid="settings-app-info">
-          <h3>Aplicativo</h3>
-          <p className="muted info-row">
-            Versão: <strong data-testid="app-version">{version || '—'}</strong>
-            {packaged ? ' · instalado' : ' · desenvolvimento'}
-          </p>
-          {isAdmin ? (
-            <p className="muted info-row break-all">
-              Banco de dados: <code data-testid="db-path">{dbPath || '—'}</code>
-            </p>
-          ) : null}
-        </div>
-
-        <div className="panel" data-testid="settings-license">
-          <h3>Licença</h3>
-          {licenseStatus?.active ? (
-            <div className="license-details">
-              <p className="muted info-row">Cliente: <strong>{licenseStatus.details.customer}</strong></p>
-              <p className="muted info-row">Edição: <strong>{licenseStatus.details.edition === 'professional' ? 'Profissional' : 'Standard'}</strong></p>
-              <p className="muted info-row">Validade: <strong>{licenseStatus.details.expiresAt ? new Date(licenseStatus.details.expiresAt).toLocaleDateString('pt-BR') : 'Perpétua'}</strong></p>
-              <p className="muted info-row break-all">Identificação: <code>{licenseStatus.details.licenseId}</code></p>
-            </div>
-          ) : (
-            <p className="muted">{licenseStatus?.reason ?? 'Consultando licença…'}</p>
-          )}
+          <div className="settings-about-grid">
+            <div><span>Versão</span><strong data-testid="app-version">{version || '—'}</strong><small>{packaged ? 'Aplicação instalada' : 'Ambiente de desenvolvimento'}</small></div>
+            <div><span>Licença</span>{licenseStatus?.active ? <><strong>{licenseStatus.details.edition === 'professional' ? 'Profissional' : 'Padrão'}</strong><small>{licenseStatus.details.customer} · {licenseStatus.details.expiresAt ? `válida até ${new Date(licenseStatus.details.expiresAt).toLocaleDateString('pt-PT')}` : 'validade perpétua'}</small></> : <small>{licenseStatus?.reason ?? 'A consultar…'}</small>}</div>
+          </div>
+          {isAdmin ? <details className="settings-technical-details"><summary>Informações técnicas</summary><p className="muted info-row break-all">Base de dados: <code data-testid="db-path">{dbPath || '—'}</code></p>{licenseStatus?.active ? <p className="muted info-row break-all">Identificação da licença: <code>{licenseStatus.details.licenseId}</code></p> : null}</details> : null}
         </div>
 
         {isAdmin ? (
         <div className="panel" data-testid="settings-users">
-          <h3>Usuários</h3>
-          <p className="muted">Cadastre administradores e operadores com acesso local.</p>
-          <div className="form-grid">
-            <div className="field">
-              <label htmlFor="new-user-name">Nome</label>
-              <input id="new-user-name" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} />
+          <div className="settings-section-header">
+            <div>
+              <h3>Utilizadores registados</h3>
+              <p className="muted">Consulte os acessos existentes e altere o respetivo estado.</p>
             </div>
-            <div className="field">
-              <label htmlFor="new-user-username">Usuário</label>
-              <input id="new-user-username" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} />
+            <div className="row-actions">
+              <button className="btn btn-ghost" disabled={busy} onClick={() => setPasswordFormOpen(true)}>
+                Alterar a minha palavra-passe
+              </button>
+              <button className="btn btn-primary" disabled={busy} onClick={() => setUserFormOpen(true)}>
+                <span aria-hidden>+</span> Novo utilizador
+              </button>
             </div>
-            <div className="field">
-              <label htmlFor="new-user-password">Senha</label>
-              <input id="new-user-password" type="password" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} />
-            </div>
-            <div className="field">
-              <label htmlFor="new-user-role">Perfil</label>
-              <select id="new-user-role" value={newUserRole} onChange={(e) => setNewUserRole(e.target.value as 'admin' | 'operador')}>
-                <option value="operador">Operador</option>
-                <option value="admin">Administrador</option>
-              </select>
-            </div>
-          </div>
-          <div className="row-actions settings-actions">
-            <button className="btn btn-primary" disabled={busy} onClick={() => void handleCreateUser()}>
-              Cadastrar usuário
-            </button>
           </div>
           <div className="table-wrap settings-table">
-            <table>
+            <table className="collection-table settings-users-table">
               <thead>
                 <tr>
                   <th>Nome</th>
-                  <th>Usuário</th>
+                  <th>Utilizador</th>
                   <th>Perfil</th>
-                  <th>Status</th>
+                  <th>Estado</th>
                   <th>Ações</th>
                 </tr>
               </thead>
@@ -454,11 +400,12 @@ export function SettingsPage() {
                     <td>{u.name}</td>
                     <td>{u.username}</td>
                     <td>{roleLabel(u.role)}</td>
-                    <td>{u.active ? 'Ativo' : 'Inativo'}</td>
+                    <td><span className={`badge badge-${u.active ? 'entrada' : 'saida'}`}>{u.active ? 'Ativo' : 'Inativo'}</span>{u.id === user.id ? <small className="current-user-label">Sessão atual</small> : null}</td>
                     <td>
                       <button className="btn btn-ghost" onClick={() => void handleToggleUser(u)}>
                         {u.active ? 'Inativar' : 'Ativar'}
                       </button>
+                      {u.id !== user.id ? <button className="btn btn-ghost" onClick={() => setResetUser(u)}>Redefinir palavra-passe</button> : null}
                     </td>
                   </tr>
                 ))}
@@ -468,9 +415,65 @@ export function SettingsPage() {
         </div>
         ) : null}
 
+        {isAdmin && userFormOpen ? (
+          <ModalForm
+            title="Novo utilizador"
+            hint="Defina os dados de acesso. Na primeira entrada, o utilizador deverá alterar a palavra-passe."
+            onClose={() => setUserFormOpen(false)}
+            onSubmit={(event) => { event.preventDefault(); void handleCreateUser() }}
+            submitLabel="Registar utilizador"
+          >
+            <div className="form-grid">
+              <div className="field full"><label htmlFor="new-user-name">Nome completo *</label><input id="new-user-name" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} required /></div>
+              <div className="field"><label htmlFor="new-user-username">Utilizador *</label><input id="new-user-username" value={newUsername} onChange={(e) => setNewUsername(e.target.value)} autoComplete="off" required /></div>
+              <div className="field"><label htmlFor="new-user-role">Perfil *</label><select id="new-user-role" value={newUserRole} onChange={(e) => setNewUserRole(e.target.value as 'admin' | 'operador')}><option value="operador">Operador</option><option value="admin">Administrador</option></select></div>
+              <div className="field full"><label htmlFor="new-user-password">Palavra-passe temporária *</label><input id="new-user-password" type="password" value={newUserPassword} onChange={(e) => setNewUserPassword(e.target.value)} minLength={10} maxLength={128} autoComplete="new-password" required /><small>Mínimo de 10 caracteres, com maiúscula, minúscula, número e carácter especial.</small></div>
+            </div>
+          </ModalForm>
+        ) : null}
+
+        {!isAdmin ? (
+          <div className="panel settings-account-panel" data-testid="settings-account">
+            <div><h3>A minha conta</h3><p className="muted">{user.name} · {roleLabel(user.role)}</p></div>
+            <button className="btn btn-primary" onClick={() => setPasswordFormOpen(true)}>Alterar palavra-passe</button>
+          </div>
+        ) : null}
+
+        {passwordFormOpen ? (
+          <ModalForm
+            title="Alterar a minha palavra-passe"
+            hint="Utilize pelo menos 10 caracteres, com maiúscula, minúscula, número e carácter especial."
+            onClose={() => setPasswordFormOpen(false)}
+            onSubmit={(event) => { event.preventDefault(); void handleChangePassword() }}
+            submitLabel="Guardar palavra-passe"
+          >
+            <div className="form-grid">
+              <div className="field full"><label htmlFor="settings-current-password">Palavra-passe atual *</label><input id="settings-current-password" data-testid="input-settings-current-password" type="password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} autoComplete="current-password" required /></div>
+              <div className="field"><label htmlFor="settings-new-password">Nova palavra-passe *</label><input id="settings-new-password" data-testid="input-settings-new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} minLength={10} maxLength={128} autoComplete="new-password" required /></div>
+              <div className="field"><label htmlFor="settings-confirm-password">Confirmar palavra-passe *</label><input id="settings-confirm-password" data-testid="input-settings-confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} minLength={10} maxLength={128} autoComplete="new-password" required /></div>
+            </div>
+          </ModalForm>
+        ) : null}
+
+        {isAdmin && resetUser ? (
+          <ModalForm
+            title={`Redefinir palavra-passe · ${resetUser.name}`}
+            hint="Defina uma palavra-passe temporária forte. O utilizador deverá alterá-la na próxima entrada."
+            onClose={() => { setResetUser(null); setTemporaryPassword(''); setConfirmTemporaryPassword('') }}
+            onSubmit={(event) => { event.preventDefault(); void handleResetPassword() }}
+            submitLabel="Guardar palavra-passe temporária"
+          >
+            <div className="form-grid">
+              <div className="field"><label htmlFor="reset-user-password">Palavra-passe temporária *</label><input id="reset-user-password" data-testid="input-reset-user-password" type="password" value={temporaryPassword} onChange={(e) => setTemporaryPassword(e.target.value)} minLength={10} maxLength={128} autoComplete="new-password" required /></div>
+              <div className="field"><label htmlFor="reset-user-password-confirm">Confirmar palavra-passe *</label><input id="reset-user-password-confirm" data-testid="input-reset-user-password-confirm" type="password" value={confirmTemporaryPassword} onChange={(e) => setConfirmTemporaryPassword(e.target.value)} minLength={10} maxLength={128} autoComplete="new-password" required /></div>
+              <p className="muted full">Use maiúscula, minúscula, número e carácter especial. As últimas cinco palavras-passe não podem ser reutilizadas.</p>
+            </div>
+          </ModalForm>
+        ) : null}
+
         <div className="panel" data-testid="settings-appearance">
           <h3>Aparência</h3>
-          <p className="muted">Escolha o tema da interface.</p>
+          <p className="muted">Escolha a aparência mais confortável para trabalhar.</p>
           <div className="theme-options">
             <button
               type="button"
@@ -501,10 +504,20 @@ export function SettingsPage() {
 
         {isAdmin ? (
           <>
+        <div className="panel" data-testid="settings-diagnostics">
+          <h3>Diagnóstico local</h3>
+          <p className="muted">Estado técnico sem expor dados de produtos, clientes, palavras-passe ou chaves.</p>
+          <div className="settings-about-grid">
+            <div><span>Base de dados</span><strong>v{diagnostics?.databaseVersion ?? '—'}</strong><small>{diagnostics?.integrity === 'ok' ? 'Integridade verificada' : 'A verificar…'}</small></div>
+            <div><span>Última cópia automática</span><strong>{diagnostics?.lastAutomaticBackup ?? 'Ainda não criada'}</strong><small>{diagnostics?.availableDiskBytes == null ? 'Espaço em disco indisponível' : `${(diagnostics.availableDiskBytes / 1_073_741_824).toFixed(1)} GB livres`}</small></div>
+          </div>
+          <p className="muted">Erros recentes: {diagnostics?.recentErrors.length ?? 0}</p>
+          <button className="btn btn-ghost" disabled={busy} onClick={() => void handleSupportPackage()}>Gerar pacote de suporte</button>
+        </div>
         <div className="panel" data-testid="settings-backup">
           <h3>Cópia de segurança</h3>
           <p className="muted">
-            Ao criar a cópia, você escolhe a pasta e o nome do arquivo `.db`.
+            Escolha onde guardar uma cópia protegida dos dados do sistema.
             A restauração substitui todos os dados atuais.
           </p>
           <div className="row-actions">
@@ -514,7 +527,7 @@ export function SettingsPage() {
               disabled={busy}
               onClick={() => void handleExportBackup()}
             >
-              Escolher local e salvar
+              Escolher localização e guardar
             </button>
             <button
               className="btn btn-danger"
@@ -527,7 +540,7 @@ export function SettingsPage() {
           </div>
           {lastBackupPath ? (
             <p className="muted info-row break-all" data-testid="last-backup-path">
-              Última cópia salva em: <code>{lastBackupPath}</code>
+              Última cópia guardada em: <code>{lastBackupPath}</code>
             </p>
           ) : null}
         </div>

@@ -15,6 +15,8 @@ const api: EstoqueApi = {
   init: () => ipcRenderer.invoke('app:init'),
   authStatus: () => ipcRenderer.invoke('auth:status'),
   getLicenseStatus: () => ipcRenderer.invoke('license:status'),
+  getDiagnostics: () => ipcRenderer.invoke('diagnostics:get'),
+  exportSupportPackage: () => ipcRenderer.invoke('diagnostics:exportSupport'),
   activateLicense: (licenseKey) => ipcRenderer.invoke('license:activate', licenseKey),
   login: (input) => ipcRenderer.invoke('auth:login', input),
   logout: () => ipcRenderer.invoke('auth:logout'),
@@ -22,6 +24,8 @@ const api: EstoqueApi = {
   listUsers: () => ipcRenderer.invoke('users:list'),
   createUser: (input) => ipcRenderer.invoke('users:create', input),
   setUserActive: (id, active) => ipcRenderer.invoke('users:setActive', id, active),
+  resetUserPassword: (id, temporaryPassword) =>
+    ipcRenderer.invoke('users:resetPassword', id, temporaryPassword),
   seed: (accept: boolean) => ipcRenderer.invoke('app:seed', accept),
 
   listCategories: (activeOnly?: boolean) => ipcRenderer.invoke('categories:list', activeOnly),
@@ -31,6 +35,9 @@ const api: EstoqueApi = {
   listSuppliers: (activeOnly?: boolean) => ipcRenderer.invoke('suppliers:list', activeOnly),
   createSupplier: (input) => ipcRenderer.invoke('suppliers:create', input),
   updateSupplier: (input) => ipcRenderer.invoke('suppliers:update', input),
+  listCustomers: (activeOnly?: boolean) => ipcRenderer.invoke('customers:list', activeOnly),
+  createCustomer: (input) => ipcRenderer.invoke('customers:create', input),
+  updateCustomer: (input) => ipcRenderer.invoke('customers:update', input),
 
   listProducts: (filters?: ProductFilters) => ipcRenderer.invoke('products:list', filters),
   getProduct: (id: string) => ipcRenderer.invoke('products:get', id),
@@ -45,6 +52,10 @@ const api: EstoqueApi = {
   listPurchaseInvoices: () => ipcRenderer.invoke('invoices:list'),
   createPurchaseInvoice: (input) => ipcRenderer.invoke('invoices:create', input),
   updatePurchaseInvoice: (input) => ipcRenderer.invoke('invoices:update', input),
+  reversePurchaseInvoice: (input) => ipcRenderer.invoke('invoices:reverse', input),
+  listSalesInvoices: () => ipcRenderer.invoke('sales:list'),
+  createSalesInvoice: (input) => ipcRenderer.invoke('sales:create', input),
+  reverseSalesInvoice: (input) => ipcRenderer.invoke('sales:reverse', input),
 
   listRecipes: () => ipcRenderer.invoke('recipes:list'),
   getRecipe: (productId: string) => ipcRenderer.invoke('recipes:get', productId),
@@ -52,6 +63,14 @@ const api: EstoqueApi = {
 
   listProductionOrders: () => ipcRenderer.invoke('production:list'),
   createProduction: (input) => ipcRenderer.invoke('production:create', input),
+  reverseProductionOrder: (input) => ipcRenderer.invoke('production:reverse', input),
+  listInventorySessions: () => ipcRenderer.invoke('inventory:list'),
+  openInventorySession: (notes?: string) => ipcRenderer.invoke('inventory:open', notes),
+  recordInventoryCount: (sessionId: string, productId: string, countedStock: number) =>
+    ipcRenderer.invoke('inventory:count', sessionId, productId, countedStock),
+  submitInventorySession: (id: string) => ipcRenderer.invoke('inventory:submit', id),
+  approveInventorySession: (id: string) => ipcRenderer.invoke('inventory:approve', id),
+  cancelInventorySession: (id: string, reason: string) => ipcRenderer.invoke('inventory:cancel', id, reason),
 
   getDashboard: () => ipcRenderer.invoke('dashboard:get'),
 
