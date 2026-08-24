@@ -23,8 +23,8 @@
     "logo:prepare": "python3 scripts/prepare-logo.py"
   },
   "dependencies": {
-    "@sentry/electron": "^6.11.0",
-    "better-sqlite3": "^11.8.1",
+    "@sentry/electron": "^7.17.0",
+    "better-sqlite3": "^13.0.3",
     "electron-updater": "^6.8.9",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
