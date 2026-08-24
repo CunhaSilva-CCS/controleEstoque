@@ -2,7 +2,7 @@ import Database from 'better-sqlite3'
 import { app } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
-import { createHash, randomUUID } from 'node:crypto'
+import { createHash, randomBytes, randomUUID, scryptSync, timingSafeEqual } from 'node:crypto'
 import type {
   Category,
   DashboardData,
@@ -134,7 +134,13 @@ export function getDbPath(): string {
 }
 
 export function initDatabase(): { path: string; seeded: boolean } {
-  const dbPath = getDbPath()
+  return initDatabaseAtPath(getDbPath())
+}
+
+/** Inicializa um banco em caminho explícito para testes e diagnósticos seguros. */
+export function initDatabaseAtPath(dbPath: string): { path: string; seeded: boolean } {
+  closeDatabase()
+  fs.mkdirSync(path.dirname(dbPath), { recursive: true })
   db = new Database(dbPath)
   db.pragma('journal_mode = WAL')
   db.pragma('foreign_keys = ON')
@@ -309,8 +315,27 @@ function migrateSchema(database: Db): void {
 
 const DEFAULT_PASSWORD = 'admin123'
 
-function hashPassword(password: string): string {
+function legacyHashPassword(password: string): string {
   return createHash('sha256').update(password).digest('hex')
+}
+
+function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString('hex')
+  const hash = scryptSync(password, salt, 64).toString('hex')
+  return `scrypt$${salt}$${hash}`
+}
+
+function verifyPassword(password: string, storedHash: string): boolean {
+  if (!storedHash.startsWith('scrypt$')) {
+    const actual = Buffer.from(legacyHashPassword(password), 'hex')
+    const expected = Buffer.from(storedHash, 'hex')
+    return actual.length === expected.length && timingSafeEqual(actual, expected)
+  }
+  const [, salt, expectedHex] = storedHash.split('$')
+  if (!salt || !expectedHex) return false
+  const actual = scryptSync(password, salt, 64)
+  const expected = Buffer.from(expectedHex, 'hex')
+  return actual.length === expected.length && timingSafeEqual(actual, expected)
 }
 
 function assertNewPassword(newPassword: string, currentPassword: string): void {
@@ -334,7 +359,7 @@ function ensureDefaultAdmin(database: Db): void {
 
   database
     .prepare('UPDATE users SET must_change_password = 1 WHERE password_hash = ?')
-    .run(hashPassword(DEFAULT_PASSWORD))
+    .run(legacyHashPassword(DEFAULT_PASSWORD))
 }
 
 function requireDb(): Db {
@@ -493,14 +518,19 @@ export function setUserActive(id: string, active: boolean): User {
 export function authenticateUser(username: string, password: string): User | null {
   const row = requireDb()
     .prepare(
-      `SELECT ${USER_COLUMNS}
+      `SELECT ${USER_COLUMNS}, password_hash
        FROM users
-       WHERE username = ? COLLATE NOCASE AND password_hash = ?`,
+       WHERE username = ? COLLATE NOCASE`,
     )
-    .get(username.trim(), hashPassword(password)) as Record<string, unknown> | undefined
-  if (!row) return null
+    .get(username.trim()) as (Record<string, unknown> & { password_hash: string }) | undefined
+  if (!row || !verifyPassword(password, row.password_hash)) return null
   const user = mapUser(row)
   if (!user.active) return null
+  if (!row.password_hash.startsWith('scrypt$')) {
+    requireDb()
+      .prepare('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?')
+      .run(hashPassword(password), nowIso(), user.id)
+  }
   return user
 }
 
@@ -513,7 +543,7 @@ export function changePassword(
     .prepare('SELECT id, password_hash FROM users WHERE id = ?')
     .get(userId) as { id: string; password_hash: string } | undefined
   if (!row) throw new Error('Usuário não encontrado')
-  if (row.password_hash !== hashPassword(currentPassword)) {
+  if (!verifyPassword(currentPassword, row.password_hash)) {
     throw new Error('Senha atual incorreta')
   }
   assertNewPassword(newPassword, currentPassword)
@@ -1371,9 +1401,9 @@ export function saveRecipe(input: RecipeInput): Recipe {
     .prepare('SELECT id, kind, active FROM products WHERE id = ?')
     .get(input.productId) as { id: string; kind: string; active: number } | undefined
 
-  if (!product) throw new Error('Produto acabado não encontrado')
+  if (!product) throw new Error('Produto final não encontrado')
   if (!product.active) throw new Error('Produto inativo não pode receber receita')
-  if (product.kind !== 'acabado') throw new Error('Receita disponível apenas para produto acabado')
+  if (product.kind !== 'acabado') throw new Error('Receita disponível apenas para produto final')
 
   const ts = nowIso()
   const existing = database
@@ -1403,7 +1433,7 @@ export function saveRecipe(input: RecipeInput): Recipe {
     for (const item of input.items) {
       if (!(item.quantity > 0)) throw new Error('Quantidade do insumo deve ser maior que zero')
       if (item.productId === input.productId) {
-        throw new Error('Produto acabado não pode ser insumo da própria receita')
+        throw new Error('Produto final não pode ser insumo da própria receita')
       }
 
       const insumo = database
@@ -1456,11 +1486,11 @@ export function createProduction(input: ProductionInput): ProductionOrder {
 
   if (!product) throw new Error('Produto não encontrado')
   if (!product.active) throw new Error('Produto inativo não pode ser fabricado')
-  if (product.kind !== 'acabado') throw new Error('Fabricação disponível apenas para produto acabado')
+  if (product.kind !== 'acabado') throw new Error('Fabricação disponível apenas para produto final')
 
   const recipe = getRecipeByProductId(input.productId)
   if (!recipe || !recipe.items.length) {
-    throw new Error('Cadastre a receita do produto acabado antes de fabricar')
+    throw new Error('Cadastre a receita do produto final antes de fabricar')
   }
 
   for (const item of recipe.items) {

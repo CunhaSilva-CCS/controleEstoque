@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ModalForm } from '../components/ModalForm'
 import { api, unwrap } from '../lib/api'
 import { formatDateTime, formatNumber } from '../lib/format'
@@ -14,6 +15,7 @@ type InvoiceItemForm = {
 const emptyItem: InvoiceItemForm = { productId: '', quantity: '1', unitCost: '0' }
 
 export function InvoicesPage() {
+  const navigate = useNavigate()
   const { push } = useToast()
   const [items, setItems] = useState<PurchaseInvoice[]>([])
   const [products, setProducts] = useState<Product[]>([])
@@ -158,7 +160,10 @@ export function InvoicesPage() {
               />
             </div>
             <div className="field full">
-              <label htmlFor="inv-sup">Fornecedor</label>
+              <div className="field-label-actions">
+                <label htmlFor="inv-sup">Fornecedor cadastrado</label>
+                <button type="button" className="field-link" onClick={() => navigate('/fornecedores')}>Abrir fornecedores</button>
+              </div>
               <select id="inv-sup" value={supplierId} onChange={(e) => setSupplierId(e.target.value)}>
                 <option value="">—</option>
                 {suppliers.map((s) => (
@@ -174,12 +179,28 @@ export function InvoicesPage() {
             </div>
           </div>
 
-          <div className="stack" style={{ marginTop: '1rem' }}>
+          <div className="stack form-section">
             <strong>Itens da fatura</strong>
             {lineItems.map((item, idx) => (
-              <div key={idx} className="form-grid">
+              <div key={idx} className="line-item-card">
+                <div className="line-item-header">
+                  <strong>Item {idx + 1}</strong>
+                  {lineItems.length > 1 ? (
+                    <button
+                      type="button"
+                      className="field-link field-link-danger"
+                      onClick={() => setLineItems(lineItems.filter((_, lineIndex) => lineIndex !== idx))}
+                    >
+                      Remover
+                    </button>
+                  ) : null}
+                </div>
+                <div className="form-grid">
                 <div className="field full">
-                  <label>Insumo *</label>
+                  <div className="field-label-actions">
+                    <label>Insumo cadastrado *</label>
+                    <button type="button" className="field-link" onClick={() => navigate('/produtos')}>Abrir produtos</button>
+                  </div>
                   <select
                     data-testid={idx === 0 ? 'select-invoice-product' : undefined}
                     required
@@ -229,6 +250,7 @@ export function InvoicesPage() {
                       setLineItems(next)
                     }}
                   />
+                </div>
                 </div>
               </div>
             ))}

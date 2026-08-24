@@ -45,6 +45,18 @@ test.describe('Fluxos F01–F08 (web/memory)', () => {
     await expect(page.getByTestId('dashboard-page')).toBeVisible()
   })
 
+  test('layout permanece lateral em notebook Windows com escala de exibição', async ({ page }) => {
+    await page.setViewportSize({ width: 720, height: 720 })
+    const columns = await page.getByTestId('app-shell').evaluate(
+      (element) => window.getComputedStyle(element).gridTemplateColumns,
+    )
+    expect(columns.split(' ')).toHaveLength(2)
+    const sidebar = await page.locator('.sidebar').boundingBox()
+    const main = await page.locator('.main-area').boundingBox()
+    expect(sidebar?.width).toBeLessThan(300)
+    expect(main?.x).toBeGreaterThan(200)
+  })
+
   test('F02 — cadastrar categoria', async ({ page }) => {
     await skipOrAcceptSeed(page, false)
     await page.getByTestId('nav-categorias').click()
@@ -90,6 +102,35 @@ test.describe('Fluxos F01–F08 (web/memory)', () => {
     await page.getByTestId('input-invoice-cost').fill('10')
     await saveModal(page)
     await expect(page.getByText('NF-E2E-001')).toBeVisible()
+
+    // F04 produto final
+    await page.getByTestId('nav-produtos').click()
+    await page.getByTestId('btn-new-product').click()
+    await page.getByTestId('input-product-sku').fill('E2E-FINAL-001')
+    await page.getByTestId('input-product-name').fill('Produto Final E2E')
+    await page.getByTestId('select-product-kind').selectOption('acabado')
+    await page.getByTestId('select-product-unit').selectOption('un')
+    await page.getByTestId('input-product-cost').fill('20')
+    await page.getByTestId('input-product-sale').fill('40')
+    await page.getByTestId('input-product-min').fill('1')
+    await saveModal(page)
+    await expect(page.getByText('E2E-FINAL-001')).toBeVisible()
+
+    // F07 receita e fabricação: consome 2 insumos e produz 1 produto final
+    await page.getByTestId('nav-receitas').click()
+    await page.getByTestId('btn-new-recipe').click()
+    await page.getByTestId('select-recipe-product').selectOption({ label: 'E2E-FINAL-001 · Produto Final E2E' })
+    await page.getByTestId('select-recipe-component').selectOption({ label: 'E2E-001 · Produto E2E' })
+    await page.getByTestId('input-recipe-qty').fill('2')
+    await saveModal(page)
+    await expect(page.getByText('E2E-FINAL-001')).toBeVisible()
+
+    await page.getByTestId('nav-fabricacao').click()
+    await page.getByTestId('btn-new-production').click()
+    await page.getByTestId('select-production-product').selectOption({ label: 'E2E-FINAL-001 · Produto Final E2E' })
+    await page.getByTestId('input-production-qty').fill('2')
+    await saveModal(page)
+    await expect(page.getByText('Produto Final E2E')).toBeVisible()
 
     // F08 ajuste manual
     await page.getByTestId('nav-movimentacoes').click()

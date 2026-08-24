@@ -44,7 +44,7 @@ Garantir que o aplicativo desktop Controle de Estoque atenda aos requisitos func
 | F04 — Cadastrar produto (saldo 0) | Obrigatório | Alta |
 | F05 — Inativar produto | Obrigatório | Alta |
 | F06 — Fatura de compra (entrada de insumo) | Obrigatório | Alta |
-| F07 — Receita + fabricação | Recomendado | Alta |
+| F07 — Receita + fabricação | Obrigatório | Alta |
 | F08 — Ajuste de inventário | Obrigatório | Alta |
 | F09 — Painel | Obrigatório | Alta |
 | F10 — Relatório + export CSV | Recomendado | Média |
@@ -204,7 +204,7 @@ Exceções à meta de cobertura requerem:
 
 | Versão | Meta adicional |
 |--------|----------------|
-| Atual | Playwright E2E (web/memory) cobrindo login, seed, cadastros, fatura, ajuste, configurações |
-| Próxima | E2E de receita + fabricação; E2E com Electron empacotado |
+| Atual | Playwright E2E cobrindo login, seed, cadastros, fatura, receita, fabricação, ajuste e configurações; integração SQLite para atomicidade |
+| Próxima | E2E com Electron empacotado nas três plataformas |
 | +1 | Testes de auto-update (`electron-updater`) |
 | Futuro | Cobertura ≥ 85% global + carga com 50.000 produtos |

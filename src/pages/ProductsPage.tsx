@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ModalForm } from '../components/ModalForm'
 import { StatusBadge } from '../components/StatusBadge'
 import { api, unwrap } from '../lib/api'
@@ -35,6 +35,7 @@ const emptyForm: ProductForm = {
 }
 
 export function ProductsPage() {
+  const navigate = useNavigate()
   const { push } = useToast()
   const [params, setParams] = useSearchParams()
   const [products, setProducts] = useState<Product[]>([])
@@ -147,7 +148,7 @@ export function ProductsPage() {
   return (
     <div data-testid="products-page">
       <div className="page-header">
-        <p>Cadastro de insumos e produtos acabados. Estoque entra por fatura ou fabricação.</p>
+        <p>Cadastro de insumos e produtos finais. Estoque entra por fatura ou fabricação.</p>
         <button className="btn btn-primary" data-testid="btn-new-product" onClick={openCreate}>
           Novo produto
         </button>
@@ -255,7 +256,7 @@ export function ProductsPage() {
           hint={
             editing
               ? 'A edição cadastral não altera o saldo.'
-              : 'Insumos entram no estoque por fatura. Produtos acabados entram pela fabricação.'
+              : 'Insumos entram no estoque por fatura. Produtos finais entram pela fabricação.'
           }
           onClose={() => setOpen(false)}
           onSubmit={saveProduct}
@@ -314,7 +315,7 @@ export function ProductsPage() {
                 onChange={(e) => setForm({ ...form, kind: e.target.value as ProductKind })}
               >
                 <option value="insumo">Insumo</option>
-                <option value="acabado">Produto acabado</option>
+                <option value="acabado">Produto final</option>
               </select>
             </div>
             <div className="field full">
@@ -335,7 +336,10 @@ export function ProductsPage() {
               />
             </div>
             <div className="field">
-              <label htmlFor="pcat">Categoria</label>
+              <div className="field-label-actions">
+                <label htmlFor="pcat">Categoria</label>
+                <button type="button" className="field-link" onClick={() => navigate('/categorias')}>Abrir categorias</button>
+              </div>
               <select
                 id="pcat"
                 value={form.categoryId}
@@ -350,7 +354,10 @@ export function ProductsPage() {
               </select>
             </div>
             <div className="field">
-              <label htmlFor="psup">Fornecedor</label>
+              <div className="field-label-actions">
+                <label htmlFor="psup">Fornecedor</label>
+                <button type="button" className="field-link" onClick={() => navigate('/fornecedores')}>Abrir fornecedores</button>
+              </div>
               <select
                 id="psup"
                 value={form.supplierId}

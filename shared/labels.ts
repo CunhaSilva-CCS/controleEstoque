@@ -11,7 +11,7 @@ export function movementLabel(type: string): string {
 }
 
 export function productKindLabel(kind: string): string {
-  if (kind === 'acabado') return 'Acabado'
+  if (kind === 'acabado') return 'Produto final'
   return 'Insumo'
 }
 

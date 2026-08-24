@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ModalForm } from '../components/ModalForm'
 import { api, unwrap } from '../lib/api'
 import { formatDateTime, formatNumber } from '../lib/format'
@@ -6,6 +7,7 @@ import { useToast } from '../lib/toast'
 import type { Product, ProductionOrder, Recipe } from '@shared/types'
 
 export function ProductionPage() {
+  const navigate = useNavigate()
   const { push } = useToast()
   const [orders, setOrders] = useState<ProductionOrder[]>([])
   const [finished, setFinished] = useState<Product[]>([])
@@ -29,7 +31,8 @@ export function ProductionPage() {
       ])
       setOrders(olist)
       setRecipes(rlist)
-      setFinished(prods)
+      const productsWithRecipe = new Set(rlist.filter((recipe) => recipe.active).map((recipe) => recipe.productId))
+      setFinished(prods.filter((product) => productsWithRecipe.has(product.id)))
     } catch (err) {
       push(err instanceof Error ? err.message : 'Erro ao carregar registros de fabricação', 'err')
     }
@@ -67,12 +70,13 @@ export function ProductionPage() {
   return (
     <div data-testid="production-page">
       <div className="page-header">
-        <p>Saída de insumos e entrada de produto acabado</p>
+        <p>Selecione um produto final com receita cadastrada para consumir os insumos automaticamente.</p>
         <button
           className="btn btn-primary"
           data-testid="btn-new-production"
           onClick={openCreate}
           disabled={finished.length === 0}
+          title={finished.length === 0 ? 'Cadastre uma receita para habilitar a fabricação' : undefined}
         >
           Registrar fabricação
         </button>
@@ -115,7 +119,7 @@ export function ProductionPage() {
           hint={
             recipe
               ? `Receita: ${recipe.items.map((i) => `${i.productSku} (${formatNumber(i.quantity)})`).join(', ')}`
-              : 'Cadastre a receita do produto acabado antes de fabricar'
+              : 'Cadastre a receita do produto final antes de fabricar'
           }
           onClose={() => setOpen(false)}
           onSubmit={save}
@@ -123,7 +127,10 @@ export function ProductionPage() {
         >
           <div className="form-grid">
             <div className="field full">
-              <label htmlFor="prod-product">Produto acabado *</label>
+              <div className="field-label-actions">
+                <label htmlFor="prod-product">Produto final com receita *</label>
+                <button type="button" className="field-link" onClick={() => navigate('/receitas')}>Abrir receitas</button>
+              </div>
               <select
                 id="prod-product"
                 data-testid="select-production-product"

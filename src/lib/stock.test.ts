@@ -55,6 +55,78 @@ describe('regras de estoque (API em memória)', () => {
     expect(afterInvoice?.stock).toBe(5)
   })
 
+  it('rejeita toda a fatura antes de movimentar quando um item é inválido', async () => {
+    const product = await unwrap(
+      api.createProduct({
+        sku: `ATOMIC-${crypto.randomUUID().slice(0, 8)}`,
+        name: 'Insumo atômico',
+        kind: 'insumo',
+        unit: 'un',
+        costPrice: 1,
+        salePrice: 2,
+        minStock: 0,
+      }),
+    )
+
+    const result = await api.createPurchaseInvoice({
+      number: `NF-INVALID-${crypto.randomUUID()}`,
+      issueDate: '2026-01-01',
+      items: [
+        { productId: product.id, quantity: 5, unitCost: 1 },
+        { productId: 'produto-inexistente', quantity: 1, unitCost: 1 },
+      ],
+    })
+
+    expect(result.ok).toBe(false)
+    expect((await unwrap(api.getProduct(product.id)))?.stock).toBe(0)
+  })
+
+  it('bloqueia custo negativo, item repetido e fatura duplicada', async () => {
+    const product = await unwrap(
+      api.createProduct({
+        sku: `VALID-${crypto.randomUUID().slice(0, 8)}`,
+        name: 'Insumo validado',
+        kind: 'insumo',
+        unit: 'un',
+        costPrice: 1,
+        salePrice: 2,
+        minStock: 0,
+      }),
+    )
+    const number = `NF-UNIQUE-${crypto.randomUUID()}`
+
+    expect(
+      (await api.createPurchaseInvoice({
+        number: `${number}-NEG`,
+        issueDate: '2026-01-01',
+        items: [{ productId: product.id, quantity: 1, unitCost: -1 }],
+      })).ok,
+    ).toBe(false)
+    expect(
+      (await api.createPurchaseInvoice({
+        number: `${number}-REP`,
+        issueDate: '2026-01-01',
+        items: [
+          { productId: product.id, quantity: 1, unitCost: 1 },
+          { productId: product.id, quantity: 1, unitCost: 1 },
+        ],
+      })).ok,
+    ).toBe(false)
+
+    await unwrap(api.createPurchaseInvoice({
+      number,
+      issueDate: '2026-01-01',
+      items: [{ productId: product.id, quantity: 1, unitCost: 1 }],
+    }))
+    expect(
+      (await api.createPurchaseInvoice({
+        number,
+        issueDate: '2026-01-02',
+        items: [{ productId: product.id, quantity: 1, unitCost: 1 }],
+      })).ok,
+    ).toBe(false)
+  })
+
   it('fabricação consome insumo e produz acabado', async () => {
     const insumo = await unwrap(
       api.createProduct({

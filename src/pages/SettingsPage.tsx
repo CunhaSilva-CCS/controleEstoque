@@ -40,6 +40,7 @@ export function SettingsPage() {
   const { brand, saveBrand } = useClientBrand()
   const fileRef = useRef<HTMLInputElement>(null)
   const [dbPath, setDbPath] = useState('')
+  const [lastBackupPath, setLastBackupPath] = useState('')
   const [version, setVersion] = useState('')
   const [packaged, setPackaged] = useState(false)
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ state: 'idle' })
@@ -87,6 +88,7 @@ export function SettingsPage() {
     try {
       const result = await unwrap(api.exportBackup())
       if (result.saved) {
+        setLastBackupPath(result.path ?? '')
         push(result.path ? `Cópia de segurança salva em ${result.path}` : 'Cópia de segurança exportada')
       } else {
         push('Exportação cancelada', 'err')
@@ -288,7 +290,7 @@ export function SettingsPage() {
               />
             </div>
           </div>
-          <div className="row-actions" style={{ marginTop: '10px' }}>
+          <div className="row-actions settings-actions">
             <button
               className="btn btn-primary"
               data-testid="btn-settings-change-password"
@@ -312,7 +314,7 @@ export function SettingsPage() {
             ) : (
               <div className="client-brand-preview empty">Sem logo</div>
             )}
-            <div className="stack" style={{ flex: 1 }}>
+            <div className="stack stack-grow">
               <div className="field">
                 <label htmlFor="client-name">Nome da empresa</label>
                 <input
@@ -414,12 +416,12 @@ export function SettingsPage() {
               </select>
             </div>
           </div>
-          <div className="row-actions" style={{ marginTop: '10px' }}>
+          <div className="row-actions settings-actions">
             <button className="btn btn-primary" disabled={busy} onClick={() => void handleCreateUser()}>
               Cadastrar usuário
             </button>
           </div>
-          <div className="table-wrap" style={{ marginTop: '12px' }}>
+          <div className="table-wrap settings-table">
             <table>
               <thead>
                 <tr>
@@ -486,7 +488,7 @@ export function SettingsPage() {
         <div className="panel" data-testid="settings-backup">
           <h3>Cópia de segurança</h3>
           <p className="muted">
-            Exporte uma cópia do banco de dados ou restaure a partir de um arquivo `.db`.
+            Ao criar a cópia, você escolhe a pasta e o nome do arquivo `.db`.
             A restauração substitui todos os dados atuais.
           </p>
           <div className="row-actions">
@@ -496,7 +498,7 @@ export function SettingsPage() {
               disabled={busy}
               onClick={() => void handleExportBackup()}
             >
-              Exportar cópia
+              Escolher local e salvar
             </button>
             <button
               className="btn btn-danger"
@@ -507,6 +509,11 @@ export function SettingsPage() {
               Restaurar cópia
             </button>
           </div>
+          {lastBackupPath ? (
+            <p className="muted info-row break-all" data-testid="last-backup-path">
+              Última cópia salva em: <code>{lastBackupPath}</code>
+            </p>
+          ) : null}
         </div>
 
         <div className="panel" data-testid="settings-updates">

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ModalForm } from '../components/ModalForm'
 import { api, unwrap } from '../lib/api'
 import { formatDateTime, formatNumber, movementLabel, movementOriginLabel } from '../lib/format'
@@ -6,6 +7,7 @@ import { useToast } from '../lib/toast'
 import type { MovementType, Product, StockMovement } from '@shared/types'
 
 export function MovementsPage() {
+  const navigate = useNavigate()
   const { push } = useToast()
   const [items, setItems] = useState<StockMovement[]>([])
   const [products, setProducts] = useState<Product[]>([])
@@ -176,7 +178,10 @@ export function MovementsPage() {
         >
           <div className="form-grid">
             <div className="field full">
-              <label htmlFor="mprod">Produto *</label>
+              <div className="field-label-actions">
+                <label htmlFor="mprod">Produto cadastrado *</label>
+                <button type="button" className="field-link" onClick={() => navigate('/produtos')}>Abrir produtos</button>
+              </div>
               <select
                 id="mprod"
                 data-testid="select-movement-product"

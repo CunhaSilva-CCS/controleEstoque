@@ -44,9 +44,9 @@ Plano de ação para release de produção do aplicativo **desktop** Controle de
 ### Ações para Engenharia / Tech Lead / Arquitetura
 
 - [ ] **[Alta]** Code review final em 100% dos PRs da release (foco: `electron/db.ts`, IPC, transações)
-- [ ] **[Alta]** Validar transações atômicas (RNF-05) — fatura, fabricação (consumo + produção) e ajuste + saldo
+- [x] **[Alta]** Validar transações atômicas (RNF-05) — fatura, fabricação (consumo + produção) e ajuste + saldo
 - [ ] **[Alta]** Confirmar ausência de secrets/credenciais no repositório (`git secrets --scan`)
-- [ ] **[Alta]** Revisar hardening Electron em `electron/main.ts`:
+- [x] **[Alta]** Revisar hardening Electron em `electron/main.ts`:
   - `contextIsolation: true`
   - `nodeIntegration: false`
   - Preload expõe apenas API necessária
@@ -101,7 +101,7 @@ Plano de ação para release de produção do aplicativo **desktop** Controle de
 - [ ] **[Alta]** Revisar preload (`electron/preload.ts`) — superfície mínima de API
 - [ ] **[Média]** Executar checklist OWASP Desktop App Security (Electron)
 - [ ] **[Média]** Desabilitar DevTools em build de produção (`app.isPackaged`)
-- [ ] **[Média]** Configurar `Content-Security-Policy` no renderer
+- [x] **[Média]** Configurar `Content-Security-Policy` no renderer
 - [ ] **[Baixa]** Threat modeling STRIDE documentado (IPC, SQLite, export CSV)
 
 ### Ações para Jurídico / DPO / Dados
@@ -143,8 +143,8 @@ Plano de ação para release de produção do aplicativo **desktop** Controle de
   - Backup manual: copiar `estoque.db` + `estoque.db-wal` + `estoque.db-shm`
   - WAL mode já habilitado (`journal_mode = WAL`)
 - [x] **[Alta]** Implementar export/import de backup (Configurações → Exportar/Restaurar)
-- [ ] **[Média]** Cache de dependências npm no CI (reduzir tempo de build)
-- [ ] **[Média]** Builds reproducíveis: Node 20.x LTS, npm ci (não npm install)
+- [x] **[Média]** Cache de dependências npm no CI (reduzir tempo de build)
+- [x] **[Média]** Builds reproduzíveis: Node 20.x LTS, npm ci (não npm install)
 - [x] **[Média]** Configurar auto-update (electron-updater + GitHub Releases)
 - [ ] **[Baixa]** Mirror de artefatos em CDN/storage (S3, GitHub Releases)
 

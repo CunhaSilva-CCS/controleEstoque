@@ -223,11 +223,17 @@ export function AppLayout({
         </div>
       </div>
 
-      <div className="toasts">
+      <div className="toasts" aria-live="polite" aria-atomic="true">
         {toasts.map((t) => (
-          <div key={t.id} className={`toast ${t.tone}`} onClick={() => dismiss(t.id)}>
+          <button
+            type="button"
+            key={t.id}
+            className={`toast ${t.tone}`}
+            aria-label={`${t.message}. Fechar aviso`}
+            onClick={() => dismiss(t.id)}
+          >
             {t.message}
-          </div>
+          </button>
         ))}
       </div>
     </>

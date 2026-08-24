@@ -7,5 +7,5 @@ export const BRAND = {
   tagline: 'Solução corporativa para gestão de estoque',
   website: 'https://cortexists.com',
   websiteLabel: 'cortexists.com',
-  logoSrc: '/branding/cortexis-logo.png?v=3',
+  logoSrc: './branding/cortexis-logo.png?v=3',
 } as const

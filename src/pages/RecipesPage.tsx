@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ModalForm } from '../components/ModalForm'
 import { api, unwrap } from '../lib/api'
 import { formatNumber } from '../lib/format'
@@ -8,6 +9,7 @@ import type { Product, Recipe } from '@shared/types'
 type RecipeLine = { productId: string; quantity: string }
 
 export function RecipesPage() {
+  const navigate = useNavigate()
   const { push } = useToast()
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [finished, setFinished] = useState<Product[]>([])
@@ -71,7 +73,7 @@ export function RecipesPage() {
   return (
     <div data-testid="recipes-page">
       <div className="page-header">
-        <p>Composição de produtos acabados (insumos por unidade produzida)</p>
+        <p>Composição de produtos finais (insumos por unidade produzida)</p>
         <button
           className="btn btn-primary"
           data-testid="btn-new-recipe"
@@ -90,7 +92,7 @@ export function RecipesPage() {
             <table>
               <thead>
                 <tr>
-                  <th>Produto acabado</th>
+                  <th>Produto final</th>
                   <th>Insumos</th>
                   <th>Ações</th>
                 </tr>
@@ -125,7 +127,10 @@ export function RecipesPage() {
         <ModalForm title="Receita de fabricação" onClose={() => setOpen(false)} onSubmit={save}>
           <div className="form-grid">
             <div className="field full">
-              <label htmlFor="recipe-product">Produto acabado *</label>
+              <div className="field-label-actions">
+                <label htmlFor="recipe-product">Produto final cadastrado *</label>
+                <button type="button" className="field-link" onClick={() => navigate('/produtos')}>Abrir produtos</button>
+              </div>
               <select
                 id="recipe-product"
                 data-testid="select-recipe-product"
@@ -146,13 +151,30 @@ export function RecipesPage() {
             </div>
           </div>
 
-          <div className="stack" style={{ marginTop: '1rem' }}>
+          <div className="stack form-section">
             <strong>Insumos por unidade</strong>
             {lines.map((line, idx) => (
-              <div key={idx} className="form-grid">
+              <div key={idx} className="line-item-card">
+                <div className="line-item-header">
+                  <strong>Insumo {idx + 1}</strong>
+                  {lines.length > 1 ? (
+                    <button
+                      type="button"
+                      className="field-link field-link-danger"
+                      onClick={() => setLines(lines.filter((_, lineIndex) => lineIndex !== idx))}
+                    >
+                      Remover
+                    </button>
+                  ) : null}
+                </div>
+                <div className="form-grid">
                 <div className="field">
-                  <label>Insumo *</label>
+                  <div className="field-label-actions">
+                    <label>Insumo cadastrado *</label>
+                    <button type="button" className="field-link" onClick={() => navigate('/produtos')}>Abrir produtos</button>
+                  </div>
                   <select
+                    data-testid={idx === 0 ? 'select-recipe-component' : undefined}
                     required
                     value={line.productId}
                     onChange={(e) => {
@@ -171,6 +193,7 @@ export function RecipesPage() {
                 <div className="field">
                   <label>Quantidade *</label>
                   <input
+                    data-testid={idx === 0 ? 'input-recipe-qty' : undefined}
                     type="number"
                     min="0.001"
                     step="0.001"
@@ -182,6 +205,7 @@ export function RecipesPage() {
                       setLines(next)
                     }}
                   />
+                </div>
                 </div>
               </div>
             ))}

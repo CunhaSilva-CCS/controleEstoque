@@ -12,6 +12,7 @@ Aplicativo **desktop** (Electron + React + TypeScript + SQLite) do ecossistema *
 - [Plano de produção corporativo](docs/PLANO-PRODUCAO.md)
 - [Política de cobertura de testes](docs/POLITICA-COBERTURA-TESTES.md)
 - [Checklist Go/No-Go](docs/CHECKLIST-GO-NOGO.md)
+- [Relatório de prontidão da v1](docs/RELATORIO-PRONTIDAO-V1.md)
 - [Runbook de operação](docs/RUNBOOK-OPERACAO.md)
 - [Code signing e notarização](docs/CODE-SIGNING.md)
 
@@ -19,9 +20,9 @@ Aplicativo **desktop** (Electron + React + TypeScript + SQLite) do ecossistema *
 
 - Login local com perfis **administrador** e **operador** (troca obrigatória da senha padrão)
 - Painel com indicadores e alertas de estoque baixo / zerado
-- Cadastro de produtos (insumo ou acabado), categorias, fornecedores e receitas
+- Cadastro de produtos (insumo ou produto final), categorias, fornecedores e receitas
 - Entrada de insumos por **fatura de compra**
-- Saída de insumos e entrada de acabados por **fabricação** (receita / BOM)
+- Saída de insumos e entrada de produtos finais por **fabricação** (receita / BOM)
 - **Ajuste de inventário** manual (saldo absoluto)
 - Relatórios com exportação CSV
 - Marca da empresa contratante, tema claro/escuro, cópia de segurança e atualizações
@@ -34,7 +35,7 @@ O cadastro de produto **não** gera estoque. O saldo só muda por:
 | Origem | Efeito |
 |--------|--------|
 | Fatura de compra | Entrada de **insumo** |
-| Fabricação | Saída de insumos da receita + entrada do **produto acabado** |
+| Fabricação | Saída de insumos da receita + entrada do **produto final** |
 | Ajuste de inventário | Define o novo saldo absoluto |
 
 ## Pré-requisitos
@@ -114,9 +115,9 @@ Sem secrets, o CI gera instaladores **sem assinatura** (OK para QA).
 1. Abrir o app → entrar como `admin` → trocar a senha padrão
 2. (Admin) Aceitar ou recusar dados de demonstração no painel
 3. Cadastrar categorias e fornecedores
-4. Cadastrar insumos e produtos acabados (saldo inicia em zero)
+4. Cadastrar insumos e produtos finais (saldo inicia em zero)
 5. Lançar fatura de compra para entrar insumos
-6. Cadastrar receita do acabado e registrar fabricação
+6. Cadastrar receita do produto final e registrar fabricação
 7. Usar ajuste de inventário só para correção física
 8. Acompanhar o painel e exportar relatórios
 

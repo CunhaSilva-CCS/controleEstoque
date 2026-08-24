@@ -621,6 +621,31 @@ function createMemoryApi() {
       if (!input.issueDate) return fail('Data da fatura é obrigatória')
       if (!input.items.length) return fail('Informe ao menos um item na fatura')
 
+      const normalizedSupplierId = input.supplierId || null
+      if (
+        invoices.some(
+          (invoice) =>
+            invoice.number.toLowerCase() === number.toLowerCase() &&
+            invoice.supplierId === normalizedSupplierId,
+        )
+      ) {
+        return fail('Já existe uma fatura com este número para o fornecedor informado')
+      }
+
+      const productIds = new Set<string>()
+      for (const item of input.items) {
+        if (productIds.has(item.productId)) return fail('Não repita o mesmo insumo na fatura')
+        productIds.add(item.productId)
+        const product = products.find((p) => p.id === item.productId)
+        if (!product) return fail('Produto não encontrado')
+        if (!product.active) return fail('Produto inativo não pode entrar por fatura')
+        if (product.kind !== 'insumo') return fail('Entrada por fatura permitida apenas para insumos')
+        if (!(item.quantity > 0)) return fail('Quantidade do item deve ser maior que zero')
+        if (!Number.isFinite(item.unitCost) || item.unitCost < 0) {
+          return fail('Custo unitário não pode ser negativo')
+        }
+      }
+
       const ts = now()
       const invoiceId = uid()
       const items = []
@@ -628,10 +653,6 @@ function createMemoryApi() {
       for (const item of input.items) {
         const p = products.find((x) => x.id === item.productId)
         if (!p) return fail('Produto não encontrado')
-        if (!p.active) return fail('Produto inativo não pode entrar por fatura')
-        if (p.kind !== 'insumo') return fail('Entrada por fatura permitida apenas para insumos')
-        if (!(item.quantity > 0)) return fail('Quantidade do item deve ser maior que zero')
-
         const mov = applyMemoryMovement({
           productId: p.id,
           type: 'entrada',
@@ -656,7 +677,7 @@ function createMemoryApi() {
       const invoice: PurchaseInvoice = {
         id: invoiceId,
         number,
-        supplierId: input.supplierId || null,
+        supplierId: normalizedSupplierId,
         supplierName: suppliers.find((s) => s.id === input.supplierId)?.name ?? null,
         issueDate: input.issueDate,
         notes: input.notes?.trim() ?? '',
@@ -675,12 +696,18 @@ function createMemoryApi() {
     async saveRecipe(input: RecipeInput) {
       if (!input.items.length) return fail('Informe ao menos um insumo na receita')
       const product = products.find((p) => p.id === input.productId)
-      if (!product) return fail('Produto acabado não encontrado')
-      if (product.kind !== 'acabado') return fail('Receita disponível apenas para produto acabado')
+      if (!product) return fail('Produto final não encontrado')
+      if (!product.active) return fail('Produto inativo não pode receber receita')
+      if (product.kind !== 'acabado') return fail('Receita disponível apenas para produto final')
 
+      const componentIds = new Set<string>()
       for (const item of input.items) {
+        if (!(item.quantity > 0)) return fail('Quantidade do insumo deve ser maior que zero')
+        if (componentIds.has(item.productId)) return fail('Não repita o mesmo insumo na receita')
+        componentIds.add(item.productId)
         const insumo = products.find((p) => p.id === item.productId)
         if (!insumo) return fail('Insumo não encontrado')
+        if (!insumo.active) return fail('Insumo inativo não pode fazer parte da receita')
         if (insumo.kind !== 'insumo') return fail('Receita aceita apenas insumos como componentes')
       }
 
@@ -721,15 +748,17 @@ function createMemoryApi() {
       if (!(input.quantity > 0)) return fail('Quantidade produzida deve ser maior que zero')
       const product = products.find((p) => p.id === input.productId)
       if (!product) return fail('Produto não encontrado')
-      if (product.kind !== 'acabado') return fail('Fabricação disponível apenas para produto acabado')
+      if (!product.active) return fail('Produto inativo não pode ser fabricado')
+      if (product.kind !== 'acabado') return fail('Fabricação disponível apenas para produto final')
       const recipe = recipes.find((r) => r.productId === input.productId)
       if (!recipe?.items.length) {
-        return fail('Cadastre a receita do produto acabado antes de fabricar')
+        return fail('Cadastre a receita do produto final antes de fabricar')
       }
 
       for (const item of recipe.items) {
         const insumo = products.find((p) => p.id === item.productId)
         if (!insumo) return fail('Insumo não encontrado')
+        if (!insumo.active) return fail(`Insumo inativo não pode ser consumido: ${insumo.name}`)
         const needed = item.quantity * input.quantity
         if (insumo.stock < needed) {
           return fail(

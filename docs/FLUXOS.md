@@ -99,7 +99,7 @@ flowchart TD
 | Passo | Ação | Sistema |
 |------:|------|---------|
 | 1 | Em `Produtos`, clica “Novo produto” | Abre formulário |
-| 2 | Preenche código, nome, tipo (insumo/acabado), unidade, preços, mínimo, categoria, fornecedor | Valida |
+| 2 | Preenche código, nome, tipo (insumo/produto final), unidade, preços, mínimo, categoria, fornecedor | Valida |
 | 3 | Confirma | Insere produto com **saldo 0** (sem movimento) |
 
 **Campos obrigatórios:** código, nome, unidade, tipo, estoque mínimo (≥ 0), preço de custo (≥ 0).
@@ -142,7 +142,7 @@ flowchart TD
 | 2 | Informa número, data, fornecedor, itens (insumo, qtd, custo) | Valida |
 | 3 | Confirma | Transação: fatura + entradas de estoque |
 
-**Bloqueios:** acabado na fatura; quantidade ≤ 0; número duplicado para o mesmo fornecedor.
+**Bloqueios:** produto final na fatura; quantidade ≤ 0; número duplicado para o mesmo fornecedor.
 
 **Resultado:** Saldo dos insumos aumentado; histórico com origem “Fatura”.
 
@@ -150,15 +150,15 @@ flowchart TD
 
 ## F07 — Receita e fabricação
 
-**Pré-condições:** Produto **acabado** ativo; insumos ativos com saldo.
+**Pré-condições:** **Produto final** ativo; insumos ativos com saldo.
 
 ### F07a — Cadastrar receita
 
 | Passo | Ação | Sistema |
 |------:|------|---------|
 | 1 | Cadastro → Receitas → nova/editar | Abre formulário |
-| 2 | Seleciona acabado e insumos com quantidade por unidade | Valida |
-| 3 | Salva | Uma receita por acabado |
+| 2 | Seleciona produto final e insumos com quantidade por unidade | Valida |
+| 3 | Salva | Uma receita por produto final |
 
 ### F07b — Registrar fabricação
 
@@ -170,19 +170,19 @@ flowchart TD
   D -->|Não| E[Erro: saldo insuficiente]
   D -->|Sim| F[Transação]
   F --> G[Saídas de consumo]
-  G --> H[Entrada do acabado]
+  G --> H[Entrada do produto final]
   H --> I[Grava ordem de fabricação]
 ```
 
 | Passo | Ação | Sistema |
 |------:|------|---------|
 | 1 | Operações → Fabricação | Lista ordens |
-| 2 | Informa acabado, quantidade, observações | — |
-| 3 | Confirma | Consome receita × qtd e credita acabado |
+| 2 | Informa produto final, quantidade, observações | — |
+| 3 | Confirma | Consome receita × qtd e credita o produto final |
 
 **Mensagem típica:** “Saldo insuficiente de {insumo}. Necessário: X, disponível: Y.”
 
-**Resultado:** Insumos reduzidos; acabado aumentado; histórico com origem de fabricação.
+**Resultado:** Insumos reduzidos; produto final aumentado; histórico com origem de fabricação.
 
 ---
 

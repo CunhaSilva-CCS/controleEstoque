@@ -77,29 +77,64 @@ export function DashboardPage({ needsSeed, onSeedDone }: Props) {
         <div className="panel empty">Carregando indicadores…</div>
       ) : (
         <>
-          <div className="stats">
-            <div className="stat">
-              <span>Produtos ativos</span>
-              <strong>{data.activeProducts}</strong>
+          <section className="dashboard-hero">
+            <div className="dashboard-hero-copy">
+              <span className="dashboard-eyebrow">Resumo operacional</span>
+              <h2>Controle do estoque</h2>
+              <p>Acompanhe os saldos e acesse rapidamente as operações do dia.</p>
             </div>
-            <div className="stat">
-              <span>Valor em estoque</span>
-              <strong>{formatCurrency(data.totalStockValue)}</strong>
+            <div className="dashboard-quick-actions" aria-label="Ações rápidas">
+              <Link className="dashboard-action" to="/faturas">
+                <span>+</span>
+                Lançar fatura
+              </Link>
+              <Link className="dashboard-action" to="/fabricacao">
+                <span>+</span>
+                Registrar fabricação
+              </Link>
+              <Link className="dashboard-action" to="/movimentacoes">
+                Consultar movimentações
+              </Link>
             </div>
-            <div className="stat">
-              <span>Estoque baixo / zerado</span>
-              <strong>
-                {data.lowStockCount} / {data.zeroStockCount}
-              </strong>
+          </section>
+
+          <div className="dashboard-metrics">
+            <div className="dashboard-metric metric-products">
+              <span className="dashboard-metric-icon" aria-hidden="true">▦</span>
+              <div>
+                <span>Produtos ativos</span>
+                <strong>{data.activeProducts}</strong>
+                <small>itens cadastrados e disponíveis</small>
+              </div>
             </div>
-            <div className="stat">
-              <span>Movimentações hoje</span>
-              <strong>{data.movementsToday}</strong>
+            <div className="dashboard-metric metric-value">
+              <span className="dashboard-metric-icon" aria-hidden="true">$</span>
+              <div>
+                <span>Valor em estoque</span>
+                <strong>{formatCurrency(data.totalStockValue)}</strong>
+                <small>valor estimado dos saldos atuais</small>
+              </div>
+            </div>
+            <div className="dashboard-metric metric-alert">
+              <span className="dashboard-metric-icon" aria-hidden="true">!</span>
+              <div>
+                <span>Estoque baixo / zerado</span>
+                <strong>{data.lowStockCount} / {data.zeroStockCount}</strong>
+                <small>itens que exigem atenção</small>
+              </div>
+            </div>
+            <div className="dashboard-metric metric-movement">
+              <span className="dashboard-metric-icon" aria-hidden="true">↕</span>
+              <div>
+                <span>Movimentações hoje</span>
+                <strong>{data.movementsToday}</strong>
+                <small>entradas e saídas registradas</small>
+              </div>
             </div>
           </div>
 
-          <div className="grid-2">
-            <section className="panel">
+          <div className="dashboard-grid">
+            <section className="panel dashboard-critical">
               <div className="section-header">
                 <div>
                   <h3>Estoque crítico</h3>
@@ -143,7 +178,7 @@ export function DashboardPage({ needsSeed, onSeedDone }: Props) {
               )}
             </section>
 
-            <section className="panel">
+            <section className="panel dashboard-movements">
               <div className="section-header">
                 <div>
                   <h3>Últimas movimentações</h3>

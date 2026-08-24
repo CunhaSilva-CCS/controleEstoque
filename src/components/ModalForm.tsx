@@ -1,4 +1,4 @@
-import { type FormEvent, type ReactNode, useEffect } from 'react'
+import { type FormEvent, type ReactNode, useEffect, useId, useRef } from 'react'
 import { createPortal } from 'react-dom'
 
 type Props = {
@@ -18,25 +18,46 @@ export function ModalForm({
   children,
   submitLabel = 'Salvar',
 }: Props) {
+  const titleId = useId()
+  const modalRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
+    const firstField = modalRef.current?.querySelector<HTMLElement>(
+      'form input:not(:disabled), form select:not(:disabled), form textarea:not(:disabled), form button:not(:disabled)',
+    )
+    firstField?.focus()
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
     return () => {
       document.body.style.overflow = prev
+      window.removeEventListener('keydown', handleKeyDown)
     }
   }, [])
 
   return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div
+        ref={modalRef}
         className="modal"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="modal-title"
+        aria-labelledby={titleId}
       >
-        <h3 id="modal-title">{title}</h3>
-        {hint ? <p className="hint">{hint}</p> : null}
+        <div className="modal-header">
+          <div>
+            <h3 id={titleId}>{title}</h3>
+            {hint ? <p className="hint">{hint}</p> : null}
+          </div>
+          <button type="button" className="modal-close" aria-label="Fechar" onClick={onClose}>
+            ×
+          </button>
+        </div>
         <form
           onSubmit={(e) => {
             e.preventDefault()

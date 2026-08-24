@@ -107,8 +107,9 @@ function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
-    minWidth: 1100,
-    minHeight: 700,
+    minWidth: 900,
+    minHeight: 620,
+    show: false,
     title: 'ERP Cortexis Tech · Controle de Estoque',
     backgroundColor: '#ffffff',
     icon: path.join(__dirname, '../build/icon.png'),
@@ -117,7 +118,20 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
+      zoomFactor: 1,
     },
+  })
+
+  mainWindow.once('ready-to-show', () => {
+    mainWindow?.maximize()
+    mainWindow?.show()
+  })
+
+  // Mantém o layout consistente no Windows mesmo com escala de tela alta ou zoom persistido.
+  mainWindow.webContents.setZoomFactor(1)
+  void mainWindow.webContents.setVisualZoomLevelLimits(1, 1)
+  mainWindow.webContents.on('did-finish-load', () => {
+    mainWindow?.webContents.setZoomFactor(1)
   })
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -131,14 +145,16 @@ function createWindow(): void {
     mainWindow.loadFile(path.join(process.env.DIST!, 'index.html'))
   }
 
-  if (app.isPackaged) {
-    mainWindow.webContents.on('before-input-event', (event, input) => {
-      const devToolsShortcut =
-        input.key === 'F12' ||
-        (input.control && input.shift && (input.key === 'I' || input.key === 'i'))
-      if (devToolsShortcut) event.preventDefault()
-    })
-  }
+  mainWindow.webContents.on('before-input-event', (event, input) => {
+    const controlOrMeta = input.control || input.meta
+    const zoomShortcut =
+      controlOrMeta && ['+', '=', '-', '_', '0'].includes(input.key)
+    const devToolsShortcut =
+      app.isPackaged &&
+      (input.key === 'F12' ||
+        (input.control && input.shift && (input.key === 'I' || input.key === 'i')))
+    if (zoomShortcut || devToolsShortcut) event.preventDefault()
+  })
 }
 
 function registerIpc(): void {
@@ -489,10 +505,13 @@ function registerIpc(): void {
     try {
       requireAdmin()
       const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+      const defaultName = `estoque-copia-${stamp}.db`
       const result = await dialog.showSaveDialog(mainWindow!, {
-        title: 'Exportar cópia de segurança',
-        defaultPath: `estoque-copia-${stamp}.db`,
+        title: 'Escolher onde salvar a cópia de segurança',
+        defaultPath: path.join(app.getPath('documents'), defaultName),
+        buttonLabel: 'Salvar cópia',
         filters: [{ name: 'SQLite', extensions: ['db'] }],
+        properties: ['createDirectory', 'showOverwriteConfirmation'],
       })
       if (result.canceled || !result.filePath) {
         return ok({ saved: false })
