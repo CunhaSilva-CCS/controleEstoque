@@ -53,7 +53,7 @@ export function CategoriesPage() {
         push('Categoria atualizada')
       } else {
         await unwrap(api.createCategory({ name, description }))
-        push('Categoria criada')
+        push('Categoria cadastrada')
       }
       setOpen(false)
       await load()
@@ -82,16 +82,13 @@ export function CategoriesPage() {
   return (
     <div data-testid="categories-page">
       <div className="page-header">
-        <div>
-          <h2>Categorias</h2>
-          <p>Organização dos produtos por grupo</p>
-        </div>
+        <p>Organização dos produtos por grupo</p>
         <button className="btn btn-primary" data-testid="btn-new-category" onClick={openCreate}>
           Nova categoria
         </button>
       </div>
 
-      <div className="panel" style={{ padding: 0 }}>
+      <div className="panel panel-flush">
         {items.length === 0 ? (
           <div className="empty">Nenhuma categoria cadastrada</div>
         ) : (

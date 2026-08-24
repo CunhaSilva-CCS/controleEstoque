@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useOutletContext } from 'react-router-dom'
 import { StatusBadge } from '../components/StatusBadge'
+import type { AppOutletContext } from '../components/AppLayout'
 import { api, unwrap } from '../lib/api'
 import { formatCurrency, formatDateTime, formatNumber, movementLabel } from '../lib/format'
 import { useToast } from '../lib/toast'
@@ -12,6 +13,8 @@ type Props = {
 }
 
 export function DashboardPage({ needsSeed, onSeedDone }: Props) {
+  const { user } = useOutletContext<AppOutletContext>()
+  const isAdmin = user.role === 'admin'
   const { push } = useToast()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -21,7 +24,7 @@ export function DashboardPage({ needsSeed, onSeedDone }: Props) {
     try {
       setData(await unwrap(api.getDashboard()))
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Erro ao carregar dashboard', 'err')
+      push(err instanceof Error ? err.message : 'Erro ao carregar o painel', 'err')
     } finally {
       setLoading(false)
     }
@@ -38,27 +41,24 @@ export function DashboardPage({ needsSeed, onSeedDone }: Props) {
       await load()
       push(accept ? 'Dados de demonstração carregados' : 'Começando com estoque vazio')
     } catch (err) {
-      push(err instanceof Error ? err.message : 'Falha no seed', 'err')
+      push(err instanceof Error ? err.message : 'Falha ao carregar demonstração', 'err')
     }
   }
 
   return (
     <div data-testid="dashboard-page">
       <div className="page-header">
-        <div>
-          <h2>Dashboard</h2>
-          <p>Visão geral do estoque e alertas operacionais</p>
-        </div>
+        <p>Visão geral do estoque e alertas operacionais</p>
         <button className="btn btn-ghost" onClick={() => void load()}>
           Atualizar
         </button>
       </div>
 
-      {needsSeed ? (
+      {needsSeed && isAdmin ? (
         <div className="seed-banner" data-testid="seed-banner">
           <div>
             <strong>Primeiro uso</strong>
-            <p className="muted" style={{ margin: '6px 0 0' }}>
+            <p className="muted seed-banner-text">
               Deseja carregar dados de demonstração para explorar o fluxo completo?
             </p>
           </div>
@@ -67,7 +67,7 @@ export function DashboardPage({ needsSeed, onSeedDone }: Props) {
               Começar vazio
             </button>
             <button className="btn btn-primary" data-testid="btn-seed-accept" onClick={() => void handleSeed(true)}>
-              Carregar demo
+              Carregar demonstração
             </button>
           </div>
         </div>
@@ -100,12 +100,10 @@ export function DashboardPage({ needsSeed, onSeedDone }: Props) {
 
           <div className="grid-2">
             <section className="panel">
-              <div className="page-header" style={{ marginBottom: 12 }}>
+              <div className="section-header">
                 <div>
-                  <h3 style={{ margin: 0, fontFamily: 'var(--font-display)' }}>Críticos</h3>
-                  <p className="muted" style={{ margin: '4px 0 0' }}>
-                    Produtos com saldo ≤ mínimo
-                  </p>
+                  <h3>Estoque crítico</h3>
+                  <p>Produtos com saldo ≤ mínimo</p>
                 </div>
                 <Link className="btn btn-ghost" to="/produtos?low=1">
                   Ver todos
@@ -118,7 +116,7 @@ export function DashboardPage({ needsSeed, onSeedDone }: Props) {
                   <table>
                     <thead>
                       <tr>
-                        <th>SKU</th>
+                        <th>Código</th>
                         <th>Produto</th>
                         <th>Saldo</th>
                         <th>Mín.</th>
@@ -146,14 +144,10 @@ export function DashboardPage({ needsSeed, onSeedDone }: Props) {
             </section>
 
             <section className="panel">
-              <div className="page-header" style={{ marginBottom: 12 }}>
+              <div className="section-header">
                 <div>
-                  <h3 style={{ margin: 0, fontFamily: 'var(--font-display)' }}>
-                    Últimas movimentações
-                  </h3>
-                  <p className="muted" style={{ margin: '4px 0 0' }}>
-                    Histórico recente
-                  </p>
+                  <h3>Últimas movimentações</h3>
+                  <p>Histórico recente</p>
                 </div>
                 <Link className="btn btn-ghost" to="/movimentacoes">
                   Abrir
@@ -166,7 +160,7 @@ export function DashboardPage({ needsSeed, onSeedDone }: Props) {
                   <table>
                     <thead>
                       <tr>
-                        <th>Quando</th>
+                        <th>Data</th>
                         <th>Produto</th>
                         <th>Tipo</th>
                         <th>Qtd</th>

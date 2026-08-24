@@ -12,6 +12,13 @@ import type {
 
 const api: EstoqueApi = {
   init: () => ipcRenderer.invoke('app:init'),
+  authStatus: () => ipcRenderer.invoke('auth:status'),
+  login: (input) => ipcRenderer.invoke('auth:login', input),
+  logout: () => ipcRenderer.invoke('auth:logout'),
+  changePassword: (input) => ipcRenderer.invoke('auth:changePassword', input),
+  listUsers: () => ipcRenderer.invoke('users:list'),
+  createUser: (input) => ipcRenderer.invoke('users:create', input),
+  setUserActive: (id, active) => ipcRenderer.invoke('users:setActive', id, active),
   seed: (accept: boolean) => ipcRenderer.invoke('app:seed', accept),
 
   listCategories: (activeOnly?: boolean) => ipcRenderer.invoke('categories:list', activeOnly),
@@ -32,6 +39,16 @@ const api: EstoqueApi = {
   listMovements: (filters?: MovementFilters) => ipcRenderer.invoke('movements:list', filters),
   createMovement: (input: MovementInput) => ipcRenderer.invoke('movements:create', input),
 
+  listPurchaseInvoices: () => ipcRenderer.invoke('invoices:list'),
+  createPurchaseInvoice: (input) => ipcRenderer.invoke('invoices:create', input),
+
+  listRecipes: () => ipcRenderer.invoke('recipes:list'),
+  getRecipe: (productId: string) => ipcRenderer.invoke('recipes:get', productId),
+  saveRecipe: (input) => ipcRenderer.invoke('recipes:save', input),
+
+  listProductionOrders: () => ipcRenderer.invoke('production:list'),
+  createProduction: (input) => ipcRenderer.invoke('production:create', input),
+
   getDashboard: () => ipcRenderer.invoke('dashboard:get'),
 
   getReport: (type: ReportType, filters?: MovementFilters) =>
@@ -41,6 +58,9 @@ const api: EstoqueApi = {
 
   exportBackup: () => ipcRenderer.invoke('backup:export'),
   restoreBackup: () => ipcRenderer.invoke('backup:restore'),
+
+  getClientBrand: () => ipcRenderer.invoke('brand:get'),
+  saveClientBrand: (input) => ipcRenderer.invoke('brand:save', input),
 
   getAppInfo: () => ipcRenderer.invoke('app:getInfo'),
   getUpdateStatus: () => ipcRenderer.invoke('updates:getStatus'),

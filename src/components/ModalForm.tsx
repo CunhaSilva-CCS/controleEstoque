@@ -1,4 +1,5 @@
-import type { FormEvent, ReactNode } from 'react'
+import { type FormEvent, type ReactNode, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 type Props = {
   title: string
@@ -17,15 +18,24 @@ export function ModalForm({
   children,
   submitLabel = 'Salvar',
 }: Props) {
-  return (
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [])
+
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div
         className="modal"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
+        aria-labelledby="modal-title"
       >
-        <h3>{title}</h3>
+        <h3 id="modal-title">{title}</h3>
         {hint ? <p className="hint">{hint}</p> : null}
         <form
           onSubmit={(e) => {
@@ -44,6 +54,7 @@ export function ModalForm({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

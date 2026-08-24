@@ -1,5 +1,13 @@
 export type ProductStatus = 'ok' | 'low' | 'zero'
+export type ProductKind = 'insumo' | 'acabado'
 export type MovementType = 'entrada' | 'saida' | 'ajuste'
+export type MovementOrigin =
+  | 'fatura'
+  | 'fabricacao_consumo'
+  | 'fabricacao_producao'
+  | 'ajuste'
+  | 'seed'
+  | 'legacy'
 
 export interface Category {
   id: string
@@ -29,6 +37,7 @@ export interface Product {
   description: string
   categoryId: string | null
   supplierId: string | null
+  kind: ProductKind
   unit: string
   costPrice: number
   salePrice: number
@@ -52,6 +61,7 @@ export interface StockMovement {
   newStock: number
   reason: string
   reference: string
+  origin: MovementOrigin
   createdAt: string
   productName?: string
   productSku?: string
@@ -63,10 +73,12 @@ export interface ProductInput {
   description?: string
   categoryId?: string | null
   supplierId?: string | null
+  kind?: ProductKind
   unit: string
   costPrice: number
   salePrice: number
   minStock: number
+  /** Ignorado: estoque entra somente via fatura ou fabricação */
   initialStock?: number
 }
 
@@ -77,6 +89,7 @@ export interface ProductUpdateInput {
   description?: string
   categoryId?: string | null
   supplierId?: string | null
+  kind: ProductKind
   unit: string
   costPrice: number
   salePrice: number
@@ -85,7 +98,7 @@ export interface ProductUpdateInput {
 
 export interface MovementInput {
   productId: string
-  type: MovementType
+  type: 'ajuste'
   quantity: number
   reason: string
   reference?: string
@@ -93,9 +106,92 @@ export interface MovementInput {
   newStock?: number
 }
 
+export interface PurchaseInvoiceItemInput {
+  productId: string
+  quantity: number
+  unitCost: number
+}
+
+export interface PurchaseInvoiceInput {
+  number: string
+  supplierId?: string | null
+  issueDate: string
+  notes?: string
+  items: PurchaseInvoiceItemInput[]
+}
+
+export interface PurchaseInvoiceItem {
+  id: string
+  productId: string
+  productName: string
+  productSku: string
+  quantity: number
+  unitCost: number
+}
+
+export interface PurchaseInvoice {
+  id: string
+  number: string
+  supplierId: string | null
+  supplierName: string | null
+  issueDate: string
+  notes: string
+  createdAt: string
+  items: PurchaseInvoiceItem[]
+}
+
+export interface RecipeItemInput {
+  productId: string
+  quantity: number
+}
+
+export interface RecipeInput {
+  productId: string
+  notes?: string
+  items: RecipeItemInput[]
+}
+
+export interface RecipeItem {
+  id: string
+  productId: string
+  productName: string
+  productSku: string
+  quantity: number
+}
+
+export interface Recipe {
+  id: string
+  productId: string
+  productName: string
+  productSku: string
+  notes: string
+  active: boolean
+  createdAt: string
+  updatedAt: string
+  items: RecipeItem[]
+}
+
+export interface ProductionInput {
+  productId: string
+  quantity: number
+  notes?: string
+}
+
+export interface ProductionOrder {
+  id: string
+  recipeId: string
+  productId: string
+  productName: string
+  productSku: string
+  quantity: number
+  notes: string
+  createdAt: string
+}
+
 export interface ProductFilters {
   search?: string
   categoryId?: string
+  kind?: ProductKind
   active?: boolean
   lowStockOnly?: boolean
 }
@@ -134,6 +230,39 @@ export interface ApiError {
 }
 
 export type ApiResponse<T> = ApiResult<T> | ApiError
+
+export interface ClientBrand {
+  name: string
+  logoDataUrl: string
+}
+
+export type UserRole = 'admin' | 'operador'
+
+export interface User {
+  id: string
+  name: string
+  username: string
+  role: UserRole
+  active: boolean
+  mustChangePassword: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface LoginInput {
+  username: string
+  password: string
+}
+
+export interface ChangePasswordInput {
+  currentPassword: string
+  newPassword: string
+}
+
+export interface AuthSession {
+  authenticated: boolean
+  user: User | null
+}
 
 export type UpdateStatus =
   | { state: 'idle' }

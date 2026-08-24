@@ -3,44 +3,57 @@
 ## Convenções
 
 - Cada fluxo tem **pré-condições**, **passos**, **validações**, **resultado** e **alternativas**.
-- Telas: `Dashboard`, `Produtos`, `Categorias`, `Fornecedores`, `Movimentações`, `Relatórios`.
-- Persistência: SQLite local via camada IPC do Electron.
+- Telas: `Painel`, `Produtos`, `Categorias`, `Fornecedores`, `Receitas`, `Faturas de compra`, `Fabricação`, `Ajustes de inventário`, `Relatórios`, `Configurações`.
+- Persistência: SQLite local via IPC do Electron (ou API em memória no modo web).
 
 ```mermaid
 flowchart TB
-  Start([Abrir aplicativo]) --> Dash[Dashboard]
-  Dash --> Produtos
-  Dash --> Categorias
-  Dash --> Fornecedores
-  Dash --> Movimentacoes[Movimentações]
-  Dash --> Relatorios[Relatórios]
-  Produtos --> MovEntrada[Entrada / Saída / Ajuste]
-  Movimentacoes --> MovEntrada
-  MovEntrada --> Dash
+  Start([Abrir aplicativo]) --> Login[Login]
+  Login --> Senha{Trocar senha padrão?}
+  Senha -->|Sim| Troca[Trocar senha]
+  Senha -->|Não| Painel
+  Troca --> Painel
+  Painel --> Cadastro[Cadastro]
+  Painel --> Operacoes[Operações]
+  Painel --> Relatorios[Relatórios]
+  Painel --> Config[Configurações]
+  Cadastro --> Produtos
+  Cadastro --> Categorias
+  Cadastro --> Fornecedores
+  Cadastro --> Receitas
+  Operacoes --> Faturas
+  Operacoes --> Fabricacao[Fabricação]
+  Operacoes --> Ajustes
+  Faturas --> Hist[Histórico de movimentações]
+  Fabricacao --> Hist
+  Ajustes --> Hist
 ```
 
 ---
 
-## F01 — Inicialização do aplicativo
+## F01 — Inicialização e acesso
 
 **Pré-condições:** App instalado; diretório de dados acessível.
 
 | Passo | Ação | Sistema |
 |------:|------|---------|
-| 1 | Usuário abre o executável | Carrega schema SQLite; cria tabelas se não existirem |
-| 2 | — | Se banco vazio, oferece seed de demonstração |
-| 3 | Usuário aceita ou recusa seed | Popula dados exemplo (se aceito) |
-| 4 | — | Navega para `Dashboard` |
+| 1 | Usuário abre o executável | Carrega schema SQLite; cria tabelas se não existirem; garante admin padrão |
+| 2 | Informa usuário e senha | Autentica; rejeita inativos ou credenciais inválidas |
+| 3 | Se `mustChangePassword` | Exibe tela de troca de senha (bloqueia o restante do app) |
+| 4 | Senha ok | Abre `Painel` |
+| 5 | Admin no primeiro uso | Oferece dados de demonstração (aceitar / começar vazio) |
 
-**Resultado:** Tela inicial com indicadores atualizados.
+**Resultado:** Sessão autenticada; painel com indicadores.
 
-**Alternativa A1:** Falha ao abrir banco → mensagem “Não foi possível abrir o banco de dados” e encerra com log.
+**Alternativa A1:** Falha ao abrir banco → mensagem clara e log.
+
+**Credenciais iniciais:** `admin` / `admin123` (troca obrigatória).
 
 ---
 
 ## F02 — Cadastrar categoria
 
-**Pré-condições:** Estar em `Categorias`.
+**Pré-condições:** Usuário autenticado; menu Cadastro → Categorias.
 
 | Passo | Ação | Sistema |
 |------:|------|---------|
@@ -56,7 +69,7 @@ flowchart TB
 
 ## F03 — Cadastrar fornecedor
 
-**Pré-condições:** Estar em `Fornecedores`.
+**Pré-condições:** Usuário autenticado; Cadastro → Fornecedores.
 
 | Passo | Ação | Sistema |
 |------:|------|---------|
@@ -64,38 +77,34 @@ flowchart TB
 | 2 | Preenche nome (obrigatório) e contatos | Valida campos |
 | 3 | Confirma | Persiste e atualiza lista |
 
-**Resultado:** Fornecedor disponível para vínculo em produtos.
+**Resultado:** Fornecedor disponível para produtos e faturas.
 
 ---
 
 ## F04 — Cadastrar produto
 
-**Pré-condições:** Preferencialmente existir ao menos uma categoria (pode ser “Geral”).
+**Pré-condições:** Preferencialmente existir categoria.
 
 ```mermaid
 flowchart TD
-  A[Abrir formulário Novo produto] --> B{SKU único?}
-  B -->|Não| C[Erro: SKU já cadastrado]
+  A[Abrir formulário Novo produto] --> B{Código único?}
+  B -->|Não| C[Erro: código já cadastrado]
   B -->|Sim| D{Campos obrigatórios OK?}
-  D -->|Não| E[Destacar campos inválidos]
+  D -->|Não| E[Erro de validação]
   D -->|Sim| F[Salvar produto]
-  F --> G{Estoque inicial > 0?}
-  G -->|Sim| H[Criar movimentação Entrada - Estoque inicial]
-  G -->|Não| I[Saldo = 0]
-  H --> J[Atualizar lista / toast sucesso]
-  I --> J
+  F --> G[Saldo = 0]
+  G --> H[Atualizar lista / toast]
 ```
 
 | Passo | Ação | Sistema |
 |------:|------|---------|
 | 1 | Em `Produtos`, clica “Novo produto” | Abre formulário |
-| 2 | Preenche SKU, nome, unidade, preços, mínimo, categoria, fornecedor | Valida em tempo real |
-| 3 | Opcionalmente informa estoque inicial | — |
-| 4 | Confirma | Transação: insert produto (+ movimento se inicial > 0) |
+| 2 | Preenche código, nome, tipo (insumo/acabado), unidade, preços, mínimo, categoria, fornecedor | Valida |
+| 3 | Confirma | Insere produto com **saldo 0** (sem movimento) |
 
-**Campos obrigatórios:** SKU, nome, unidade, estoque mínimo (≥ 0), preço de custo (≥ 0).
+**Campos obrigatórios:** código, nome, unidade, tipo, estoque mínimo (≥ 0), preço de custo (≥ 0).
 
-**Resultado:** Produto ativo na listagem com saldo correto.
+**Resultado:** Produto ativo na listagem com saldo zero.
 
 ---
 
@@ -104,93 +113,131 @@ flowchart TD
 | Passo | Ação | Sistema |
 |------:|------|---------|
 | 1 | Seleciona produto → “Editar” | Carrega formulário |
-| 2 | Altera dados cadastrais | SKU permanece único |
+| 2 | Altera dados cadastrais | Código permanece único |
 | 3a | Salva | Atualiza cadastro; **não** altera saldo |
-| 3b | Inativa | Marca `ativo = 0`; remove de seletores de movimentação |
+| 3b | Inativa | `ativo = 0`; some dos seletores de operação |
 
-**Alternativa:** Tentativa de reativar → `ativo = 1` novamente.
+**Alternativa:** Reativar → `ativo = 1`.
 
 ---
 
-## F06 — Entrada de estoque
+## F06 — Entrada por fatura de compra
 
-**Pré-condições:** Produto ativo selecionado.
+**Pré-condições:** Ao menos um **insumo** ativo.
 
 ```mermaid
 flowchart TD
-  A[Selecionar produto] --> B[Informar quantidade e motivo]
-  B --> C{Quantidade > 0?}
-  C -->|Não| D[Erro de validação]
-  C -->|Sim| E[Iniciar transação]
-  E --> F[saldoAnterior = saldo]
-  F --> G[saldoNovo = saldo + qtd]
-  G --> H[Gravar movimento tipo ENTRADA]
-  H --> I[Atualizar saldo do produto]
-  I --> J[Commit + feedback]
+  A[Lançar fatura] --> B[Número, data, itens]
+  B --> C{Itens válidos e só insumos?}
+  C -->|Não| D[Erro]
+  C -->|Sim| E[Transação]
+  E --> F[Para cada item: entrada + atualiza custo]
+  F --> G[Grava fatura + movimentos origem fatura]
+  G --> H[Commit + feedback]
 ```
 
-**Resultado:** Saldo aumentado; histórico com saldo anterior/posterior.
+| Passo | Ação | Sistema |
+|------:|------|---------|
+| 1 | Operações → Faturas de compra → “Lançar fatura” | Abre formulário |
+| 2 | Informa número, data, fornecedor, itens (insumo, qtd, custo) | Valida |
+| 3 | Confirma | Transação: fatura + entradas de estoque |
+
+**Bloqueios:** acabado na fatura; quantidade ≤ 0; número duplicado para o mesmo fornecedor.
+
+**Resultado:** Saldo dos insumos aumentado; histórico com origem “Fatura”.
 
 ---
 
-## F07 — Saída de estoque
+## F07 — Receita e fabricação
 
-**Pré-condições:** Produto ativo com saldo > 0.
+**Pré-condições:** Produto **acabado** ativo; insumos ativos com saldo.
+
+### F07a — Cadastrar receita
 
 | Passo | Ação | Sistema |
 |------:|------|---------|
-| 1 | Seleciona produto e tipo “Saída” | Exibe saldo disponível |
-| 2 | Informa quantidade e motivo | — |
-| 3 | Confirma | Se `qtd > saldo` → **rejeita** sem alterar dados |
-| 4 | Se válido | Transação: movimento SAÍDA + atualiza saldo |
+| 1 | Cadastro → Receitas → nova/editar | Abre formulário |
+| 2 | Seleciona acabado e insumos com quantidade por unidade | Valida |
+| 3 | Salva | Uma receita por acabado |
 
-**Mensagem de bloqueio:** “Saldo insuficiente. Disponível: X.”
+### F07b — Registrar fabricação
+
+```mermaid
+flowchart TD
+  A[Registrar fabricação] --> B{Receita existe?}
+  B -->|Não| C[Erro: cadastre a receita]
+  B -->|Sim| D{Saldo de insumos suficiente?}
+  D -->|Não| E[Erro: saldo insuficiente]
+  D -->|Sim| F[Transação]
+  F --> G[Saídas de consumo]
+  G --> H[Entrada do acabado]
+  H --> I[Grava ordem de fabricação]
+```
+
+| Passo | Ação | Sistema |
+|------:|------|---------|
+| 1 | Operações → Fabricação | Lista ordens |
+| 2 | Informa acabado, quantidade, observações | — |
+| 3 | Confirma | Consome receita × qtd e credita acabado |
+
+**Mensagem típica:** “Saldo insuficiente de {insumo}. Necessário: X, disponível: Y.”
+
+**Resultado:** Insumos reduzidos; acabado aumentado; histórico com origem de fabricação.
 
 ---
 
-## F08 — Ajuste de estoque
+## F08 — Ajuste de inventário
 
-**Pré-condições:** Produto ativo; usuário tem o saldo físico contado.
+**Pré-condições:** Produto ativo; usuário conferiu o saldo físico.
 
 | Passo | Ação | Sistema |
 |------:|------|---------|
-| 1 | Seleciona produto e tipo “Ajuste” | Mostra saldo atual |
+| 1 | Operações → Ajustes de inventário → “Novo ajuste” | Mostra saldo atual |
 | 2 | Informa **novo saldo** (≥ 0) e motivo | — |
-| 3 | Confirma | `diff = novo - atual`; grava movimento AJUSTE; atualiza saldo |
+| 3 | Confirma | `diff = novo − atual`; movimento tipo ajuste |
 
 **Uso típico:** inventário físico, correção de divergência.
 
----
-
-## F09 — Consultar movimentações
-
-| Passo | Ação | Sistema |
-|------:|------|---------|
-| 1 | Abre `Movimentações` | Lista ordenada por data desc |
-| 2 | Aplica filtros (período, produto, tipo) | Recarrega lista |
-| 3 | Visualiza detalhes | Somente leitura |
+**Nota:** A mesma tela lista o histórico completo (fatura, fabricação e ajustes), com filtros.
 
 ---
 
-## F10 — Dashboard gerencial
+## F09 — Painel gerencial
 
-Ao entrar (e após qualquer mutação relevante), o sistema recalcula:
+Ao entrar (e após mutações relevantes), o sistema calcula:
 
-1. Qtd. produtos ativos  
+1. Produtos ativos  
 2. Valor total em estoque (Σ saldo × custo)  
 3. Itens com estoque baixo / zerado  
 4. Movimentações de hoje  
-5. Top 5 críticos + últimas 8 movimentações  
+5. Top 5 críticos + últimas movimentações  
+
+Somente **administrador** vê o banner de dados de demonstração no primeiro uso.
 
 ---
 
-## F11 — Relatórios e exportação CSV
+## F10 — Relatórios e exportação CSV
 
 | Passo | Ação | Sistema |
 |------:|------|---------|
-| 1 | Escolhe tipo de relatório | Monta tabela conforme RF-R01..03 |
-| 2 | Aplica filtros | Atualiza preview |
-| 3 | Clica “Exportar CSV” | Diálogo “Salvar como…” + grava arquivo UTF-8 |
+| 1 | Escolhe tipo (posição, movimentações, estoque baixo) | Monta tabela |
+| 2 | Aplica filtros de período (quando aplicável) | Atualiza preview |
+| 3 | Clica “Exportar CSV” | Salva arquivo UTF-8 |
+
+---
+
+## F11 — Configurações e administração
+
+| Passo | Ação | Quem |
+|------:|------|------|
+| 1 | Alterar senha | Qualquer usuário |
+| 2 | Tema claro/escuro | Qualquer usuário |
+| 3 | Usuários (criar / ativar / inativar) | Admin |
+| 4 | Marca da empresa (nome + logo ≤ 2 MB) | Admin |
+| 5 | Exportar / restaurar cópia de segurança | Admin |
+| 6 | Verificar atualizações | Admin |
+
+**Resultado:** Preferências e administração local sem sair do app.
 
 ---
 
@@ -198,14 +245,14 @@ Ao entrar (e após qualquer mutação relevante), o sistema recalcula:
 
 | Fluxo | Requisitos atendidos |
 |-------|----------------------|
-| F01 | RNF-02, RNF-03, RNF-07 |
+| F01 | RF-A01, RF-A02, RF-D04, RNF-02, RNF-03, RNF-07 |
 | F02 | RF-C01, RF-C02 |
 | F03 | RF-F01..03 |
-| F04 | RF-P01, RF-P05, RF-P06 |
-| F05 | RF-P02, RF-P03 |
-| F06 | RF-M01, RF-M04, RF-M05 |
-| F07 | RF-M02, RF-M04, regras de negócio 1 |
-| F08 | RF-M03, RF-M04 |
-| F09 | RF-M06 |
-| F10 | RF-D01..04 |
-| F11 | RF-R01..04 |
+| F04 | RF-P01, RF-P02, RF-P06, RF-P07 |
+| F05 | RF-P03, RF-P04 |
+| F06 | RF-I01..05, RF-M03, RF-M04 |
+| F07 | RF-RC01..03, RF-FB01..05, RNF-05 |
+| F08 | RF-M01, RF-M02, RF-M05 |
+| F09 | RF-D01..03 |
+| F10 | RF-R01..04 |
+| F11 | RF-A03..06, RF-S01..04 |

@@ -130,7 +130,7 @@ sqlite3 estoque.db ".backup backup_$(date +%Y%m%d).db"
 |---------|---------------|------|
 | Saldo diferente do esperado | Movimentação parcial (crash mid-transaction) | Verificar histórico de movimentações; executar ajuste |
 | Saldo negativo (impossível por design) | Bug ou corrupção | Restaurar backup; reportar bug |
-| Dashboard desatualizado | Cache de UI | Recarregar página (Ctrl+R) ou reiniciar app |
+| Painel desatualizado | Cache de UI | Recarregar página (Ctrl+R) ou reiniciar app |
 
 **Verificação de integridade:**
 
@@ -203,7 +203,7 @@ Eventos capturados automaticamente:
 | Nível | Quando | Onde |
 |-------|--------|------|
 | ERROR | Falha ao abrir DB, crash IPC, transação falhou | Console main + Sentry |
-| WARN | Tentativa de operação inválida (SKU dup, saldo insuf.) | Console main |
+| WARN | Tentativa de operação inválida (código dup, saldo insuf., perfil) | Console main |
 | INFO | Startup, seed, export CSV | Console main |
 | DEBUG | Queries, payloads IPC | Apenas em dev |
 
@@ -216,7 +216,7 @@ Eventos capturados automaticamente:
 | Severidade | Descrição | SLA resposta | Exemplo |
 |------------|-----------|--------------|---------|
 | **P1 — Crítico** | Perda de dados, app inutilizável | 1h | DB corrompido em massa |
-| **P2 — Alto** | Funcionalidade core indisponível | 4h | Movimentações falhando |
+| **P2 — Alto** | Funcionalidade core indisponível | 4h | Fatura/fabricação/ajuste falhando |
 | **P3 — Médio** | Funcionalidade secundária afetada | 24h | Export CSV com encoding errado |
 | **P4 — Baixo** | Cosmético, workaround existe | 72h | Label de status incorreto |
 

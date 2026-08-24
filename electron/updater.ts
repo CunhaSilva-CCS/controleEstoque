@@ -66,20 +66,36 @@ export function initAutoUpdater(win: BrowserWindow): void {
   }, 4_000)
 }
 
-export function registerUpdateIpc(): void {
+export function registerUpdateIpc(requireAdmin?: () => void): void {
   const ok = <T,>(data: T) => ({ ok: true as const, data })
   const fail = (error: unknown) => ({
     ok: false as const,
     error: error instanceof Error ? error.message : String(error),
   })
 
-  ipcMain.handle('updates:getStatus', () => ok(status))
+  function guardAdmin() {
+    requireAdmin?.()
+  }
+
+  ipcMain.handle('updates:getStatus', () => {
+    try {
+      guardAdmin()
+      return ok(status)
+    } catch (error) {
+      return fail(error)
+    }
+  })
 
   ipcMain.handle('updates:check', async () => {
+    try {
+      guardAdmin()
+    } catch (error) {
+      return fail(error)
+    }
     if (!app.isPackaged) {
       const disabled: UpdateStatus = {
         state: 'disabled',
-        reason: 'Atualizações automáticas só em builds empacotados',
+        reason: 'Atualizações automáticas só na versão instalada',
       }
       emit(disabled)
       return ok(disabled)
@@ -100,6 +116,7 @@ export function registerUpdateIpc(): void {
 
   ipcMain.handle('updates:install', () => {
     try {
+      requireAdmin?.()
       if (status.state !== 'downloaded') {
         throw new Error('Nenhuma atualização baixada para instalar')
       }

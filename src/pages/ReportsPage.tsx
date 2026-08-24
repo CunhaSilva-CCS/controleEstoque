@@ -48,7 +48,7 @@ export function ReportsPage() {
           defaultName: `relatorio-${type}-${new Date().toISOString().slice(0, 10)}.csv`,
         }),
       )
-      if (result.saved) push('CSV exportado com sucesso')
+      if (result.saved) push('Relatório exportado')
     } catch (err) {
       push(err instanceof Error ? err.message : 'Falha na exportação', 'err')
     }
@@ -57,10 +57,7 @@ export function ReportsPage() {
   return (
     <div>
       <div className="page-header">
-        <div>
-          <h2>Relatórios</h2>
-          <p>Consultas gerenciais e exportação CSV</p>
-        </div>
+        <p>Consultas gerenciais e exportação em CSV</p>
         <button className="btn btn-primary" onClick={() => void exportCsv()}>
           Exportar CSV
         </button>
@@ -100,7 +97,7 @@ export function ReportsPage() {
         ) : null}
       </div>
 
-      <div className="panel" style={{ padding: 0 }}>
+      <div className="panel panel-flush">
         {rows.length === 0 ? (
           <div className="empty">Sem dados para o relatório selecionado</div>
         ) : (

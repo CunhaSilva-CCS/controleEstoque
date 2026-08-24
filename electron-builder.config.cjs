@@ -1,7 +1,8 @@
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
-  appId: 'com.controleestoque.app',
-  productName: 'Controle de Estoque',
+  appId: 'com.cortexistech.erp.estoque',
+  productName: 'ERP Cortexis Tech - Estoque',
+  icon: 'build/icon.png',
   directories: {
     output: 'release',
   },
@@ -12,11 +13,13 @@ module.exports = {
   },
   win: {
     target: ['nsis'],
+    icon: 'build/icon.ico',
     signAndEditExecutable: true,
-    publisherName: 'Controle Estoque',
+    publisherName: 'Cortexis Tech',
   },
   mac: {
     target: ['dmg'],
+    icon: 'build/icon.icns',
     hardenedRuntime: true,
     gatekeeperAssess: false,
     entitlements: 'build/entitlements.mac.plist',
@@ -29,7 +32,7 @@ module.exports = {
   },
   deb:
     process.env.LINUX_GPG_PRIVATE_KEY || process.env.DEB_SIGN_KEY_ID
-      ? { sign: 'Controle Estoque' }
+      ? { sign: 'Cortexis Tech' }
       : undefined,
   publish: [
     {

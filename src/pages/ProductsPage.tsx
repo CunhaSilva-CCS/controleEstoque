@@ -3,9 +3,10 @@ import { useSearchParams } from 'react-router-dom'
 import { ModalForm } from '../components/ModalForm'
 import { StatusBadge } from '../components/StatusBadge'
 import { api, unwrap } from '../lib/api'
-import { formatCurrency, formatNumber } from '../lib/format'
+import { formatCurrency, formatNumber, productKindLabel } from '../lib/format'
+import { CUSTOM_UNIT_VALUE, isKnownUnit, PRODUCT_UNITS } from '../lib/units'
 import { useToast } from '../lib/toast'
-import type { Category, Product, Supplier } from '@shared/types'
+import type { Category, Product, ProductKind, Supplier } from '@shared/types'
 
 type ProductForm = {
   sku: string
@@ -13,11 +14,11 @@ type ProductForm = {
   description: string
   categoryId: string
   supplierId: string
+  kind: ProductKind
   unit: string
   costPrice: string
   salePrice: string
   minStock: string
-  initialStock: string
 }
 
 const emptyForm: ProductForm = {
@@ -26,11 +27,11 @@ const emptyForm: ProductForm = {
   description: '',
   categoryId: '',
   supplierId: '',
+  kind: 'insumo',
   unit: 'un',
   costPrice: '0',
   salePrice: '0',
   minStock: '0',
-  initialStock: '0',
 }
 
 export function ProductsPage() {
@@ -46,13 +47,6 @@ export function ProductsPage() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Product | null>(null)
   const [form, setForm] = useState<ProductForm>(emptyForm)
-  const [moveOpen, setMoveOpen] = useState(false)
-  const [moveProduct, setMoveProduct] = useState<Product | null>(null)
-  const [moveType, setMoveType] = useState<'entrada' | 'saida' | 'ajuste'>('entrada')
-  const [moveQty, setMoveQty] = useState('1')
-  const [moveNewStock, setMoveNewStock] = useState('0')
-  const [moveReason, setMoveReason] = useState('')
-  const [moveRef, setMoveRef] = useState('')
 
   const load = useCallback(async () => {
     try {
@@ -102,11 +96,11 @@ export function ProductsPage() {
       description: p.description,
       categoryId: p.categoryId ?? '',
       supplierId: p.supplierId ?? '',
+      kind: p.kind,
       unit: p.unit,
       costPrice: String(p.costPrice),
       salePrice: String(p.salePrice),
       minStock: String(p.minStock),
-      initialStock: '0',
     })
     setOpen(true)
   }
@@ -120,6 +114,7 @@ export function ProductsPage() {
         description: form.description,
         categoryId: form.categoryId || null,
         supplierId: form.supplierId || null,
+        kind: form.kind,
         unit: form.unit,
         costPrice: Number(form.costPrice),
         salePrice: Number(form.salePrice),
@@ -129,12 +124,7 @@ export function ProductsPage() {
         await unwrap(api.updateProduct({ id: editing.id, ...payload }))
         push('Produto atualizado')
       } else {
-        await unwrap(
-          api.createProduct({
-            ...payload,
-            initialStock: Number(form.initialStock) || 0,
-          }),
-        )
+        await unwrap(api.createProduct(payload))
         push('Produto cadastrado')
       }
       setOpen(false)
@@ -154,56 +144,21 @@ export function ProductsPage() {
     }
   }
 
-  function openMove(p: Product) {
-    setMoveProduct(p)
-    setMoveType('entrada')
-    setMoveQty('1')
-    setMoveNewStock(String(p.stock))
-    setMoveReason('')
-    setMoveRef('')
-    setMoveOpen(true)
-  }
-
-  async function saveMove(e: FormEvent) {
-    e.preventDefault()
-    if (!moveProduct) return
-    try {
-      await unwrap(
-        api.createMovement({
-          productId: moveProduct.id,
-          type: moveType,
-          quantity: Number(moveQty) || 0,
-          newStock: moveType === 'ajuste' ? Number(moveNewStock) : undefined,
-          reason: moveReason,
-          reference: moveRef,
-        }),
-      )
-      push('Movimentação registrada')
-      setMoveOpen(false)
-      await load()
-    } catch (err) {
-      push(err instanceof Error ? err.message : 'Falha na movimentação', 'err')
-    }
-  }
-
   return (
     <div data-testid="products-page">
       <div className="page-header">
-        <div>
-          <h2>Produtos</h2>
-          <p>Cadastro, saldos e status de estoque</p>
-        </div>
+        <p>Cadastro de insumos e produtos acabados. Estoque entra por fatura ou fabricação.</p>
         <button className="btn btn-primary" data-testid="btn-new-product" onClick={openCreate}>
           Novo produto
         </button>
       </div>
 
       <div className="toolbar">
-        <div className="field-inline" style={{ minWidth: 220, flex: 1 }}>
+        <div className="field-inline filter-grow">
           <label htmlFor="search">Buscar</label>
           <input
             id="search"
-            placeholder="Nome ou SKU"
+            placeholder="Nome ou código"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -219,31 +174,25 @@ export function ProductsPage() {
             ))}
           </select>
         </div>
-        <label className="field-inline" style={{ justifyContent: 'flex-end' }}>
-          <span>&nbsp;</span>
-          <span className="btn btn-ghost" style={{ display: 'inline-flex', gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={lowOnly}
-              onChange={(e) => setLowOnly(e.target.checked)}
-            />
-            Só estoque baixo
-          </span>
+        <label className="check-chip">
+          <input
+            type="checkbox"
+            checked={lowOnly}
+            onChange={(e) => setLowOnly(e.target.checked)}
+          />
+          Só estoque baixo
         </label>
-        <label className="field-inline" style={{ justifyContent: 'flex-end' }}>
-          <span>&nbsp;</span>
-          <span className="btn btn-ghost" style={{ display: 'inline-flex', gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={showInactive}
-              onChange={(e) => setShowInactive(e.target.checked)}
-            />
-            Incluir inativos
-          </span>
+        <label className="check-chip">
+          <input
+            type="checkbox"
+            checked={showInactive}
+            onChange={(e) => setShowInactive(e.target.checked)}
+          />
+          Incluir inativos
         </label>
       </div>
 
-      <div className="panel" style={{ padding: 0 }}>
+      <div className="panel panel-flush">
         {products.length === 0 ? (
           <div className="empty">Nenhum produto encontrado</div>
         ) : (
@@ -251,8 +200,10 @@ export function ProductsPage() {
             <table>
               <thead>
                 <tr>
-                  <th>SKU</th>
+                  <th>Código</th>
                   <th>Nome</th>
+                  <th>Tipo</th>
+                  <th>Unid.</th>
                   <th>Categoria</th>
                   <th>Saldo</th>
                   <th>Mín.</th>
@@ -269,6 +220,8 @@ export function ProductsPage() {
                       {p.name}
                       {!p.active ? <span className="muted"> · inativo</span> : null}
                     </td>
+                    <td>{productKindLabel(p.kind)}</td>
+                    <td>{p.unit}</td>
                     <td>{p.categoryName ?? '—'}</td>
                     <td>
                       {formatNumber(p.stock)} {p.unit}
@@ -283,11 +236,6 @@ export function ProductsPage() {
                         <button className="btn btn-ghost" onClick={() => openEdit(p)}>
                           Editar
                         </button>
-                        {p.active ? (
-                          <button className="btn btn-ghost" onClick={() => openMove(p)}>
-                            Movimentar
-                          </button>
-                        ) : null}
                         <button className="btn btn-danger" onClick={() => void toggleActive(p)}>
                           {p.active ? 'Inativar' : 'Reativar'}
                         </button>
@@ -306,15 +254,15 @@ export function ProductsPage() {
           title={title}
           hint={
             editing
-              ? 'A edição cadastral não altera o saldo. Use movimentação para isso.'
-              : 'SKU único. Estoque inicial gera entrada automática.'
+              ? 'A edição cadastral não altera o saldo.'
+              : 'Insumos entram no estoque por fatura. Produtos acabados entram pela fabricação.'
           }
           onClose={() => setOpen(false)}
           onSubmit={saveProduct}
         >
           <div className="form-grid">
             <div className="field">
-              <label htmlFor="sku">SKU *</label>
+              <label htmlFor="sku">Código *</label>
               <input
                 id="sku" data-testid="input-product-sku"
                 required
@@ -324,12 +272,50 @@ export function ProductsPage() {
             </div>
             <div className="field">
               <label htmlFor="unit">Unidade *</label>
-              <input
-                id="unit" data-testid="input-product-unit"
+              <select
+                id="unit"
+                data-testid="select-product-unit"
                 required
-                value={form.unit}
-                onChange={(e) => setForm({ ...form, unit: e.target.value })}
-              />
+                value={isKnownUnit(form.unit) ? form.unit : CUSTOM_UNIT_VALUE}
+                onChange={(e) => {
+                  const next = e.target.value
+                  if (next === CUSTOM_UNIT_VALUE) {
+                    setForm({ ...form, unit: isKnownUnit(form.unit) ? '' : form.unit })
+                    return
+                  }
+                  setForm({ ...form, unit: next })
+                }}
+              >
+                {PRODUCT_UNITS.map((u) => (
+                  <option key={u.value} value={u.value}>
+                    {u.label}
+                  </option>
+                ))}
+                <option value={CUSTOM_UNIT_VALUE}>Outra (informar sigla)</option>
+              </select>
+              {!isKnownUnit(form.unit) ? (
+                <input
+                  data-testid="input-product-unit"
+                  required
+                  placeholder="Ex.: ton, bd, fardo"
+                  value={form.unit}
+                  onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                  className="unit-custom-input"
+                />
+              ) : null}
+            </div>
+            <div className="field">
+              <label htmlFor="kind">Tipo *</label>
+              <select
+                id="kind"
+                data-testid="select-product-kind"
+                required
+                value={form.kind}
+                onChange={(e) => setForm({ ...form, kind: e.target.value as ProductKind })}
+              >
+                <option value="insumo">Insumo</option>
+                <option value="acabado">Produto acabado</option>
+              </select>
             </div>
             <div className="field full">
               <label htmlFor="name">Nome *</label>
@@ -411,90 +397,6 @@ export function ProductsPage() {
                 required
                 value={form.minStock}
                 onChange={(e) => setForm({ ...form, minStock: e.target.value })}
-              />
-            </div>
-            {!editing ? (
-              <div className="field">
-                <label htmlFor="ini">Estoque inicial</label>
-                <input
-                  id="ini" data-testid="input-product-initial"
-                  type="number"
-                  min="0"
-                  step="0.001"
-                  value={form.initialStock}
-                  onChange={(e) => setForm({ ...form, initialStock: e.target.value })}
-                />
-              </div>
-            ) : null}
-          </div>
-        </ModalForm>
-      ) : null}
-
-      {moveOpen && moveProduct ? (
-        <ModalForm
-          title={`Movimentar · ${moveProduct.name}`}
-          hint={`Saldo atual: ${formatNumber(moveProduct.stock)} ${moveProduct.unit}`}
-          onClose={() => setMoveOpen(false)}
-          onSubmit={saveMove}
-          submitLabel="Registrar"
-        >
-          <div className="form-grid">
-            <div className="field">
-              <label htmlFor="mtype">Tipo</label>
-              <select
-                id="mtype"
-                value={moveType}
-                onChange={(e) => setMoveType(e.target.value as typeof moveType)}
-              >
-                <option value="entrada">Entrada</option>
-                <option value="saida">Saída</option>
-                <option value="ajuste">Ajuste</option>
-              </select>
-            </div>
-            {moveType === 'ajuste' ? (
-              <div className="field">
-                <label htmlFor="mnew">Novo saldo *</label>
-                <input
-                  id="mnew"
-                  type="number"
-                  min="0"
-                  step="0.001"
-                  required
-                  value={moveNewStock}
-                  onChange={(e) => setMoveNewStock(e.target.value)}
-                />
-              </div>
-            ) : (
-              <div className="field">
-                <label htmlFor="mqty">Quantidade *</label>
-                <input
-                  id="mqty"
-                  type="number"
-                  min="0.001"
-                  step="0.001"
-                  required
-                  value={moveQty}
-                  onChange={(e) => setMoveQty(e.target.value)}
-                />
-              </div>
-            )}
-            <div className="field full">
-              <label htmlFor="mreason">Motivo *</label>
-              <input
-                id="mreason"
-                required
-                value={moveReason}
-                onChange={(e) => setMoveReason(e.target.value)}
-                placeholder="Ex.: compra NF 123, venda balcão, inventário"
-              />
-            </div>
-            <div className="field full">
-              <label htmlFor="mref">Referência</label>
-              <input
-                id="mref"
-                value={moveRef}
-                onChange={(e) => setMoveRef(e.target.value)}
-                placeholder="Documento, pedido, OS…"
               />
             </div>
           </div>

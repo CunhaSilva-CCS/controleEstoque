@@ -1,6 +1,6 @@
-# Controle de Estoque
+# ERP Cortexis Tech — Módulo Controle de Estoque
 
-Aplicativo **desktop** (Electron + React + TypeScript + SQLite) para gestão de estoque offline.
+Aplicativo **desktop** (Electron + React + TypeScript + SQLite) do ecossistema **ERP Cortexis Tech**, desenvolvido pela [Cortexis Tech](https://cortexists.com), para gestão de estoque **offline**.
 
 ## Documentação
 
@@ -17,11 +17,25 @@ Aplicativo **desktop** (Electron + React + TypeScript + SQLite) para gestão de 
 
 ## Funcionalidades
 
-- Dashboard com indicadores e alertas de estoque baixo
-- Cadastro de produtos, categorias e fornecedores
-- Movimentações: entrada, saída e ajuste (histórico imutável)
+- Login local com perfis **administrador** e **operador** (troca obrigatória da senha padrão)
+- Painel com indicadores e alertas de estoque baixo / zerado
+- Cadastro de produtos (insumo ou acabado), categorias, fornecedores e receitas
+- Entrada de insumos por **fatura de compra**
+- Saída de insumos e entrada de acabados por **fabricação** (receita / BOM)
+- **Ajuste de inventário** manual (saldo absoluto)
 - Relatórios com exportação CSV
-- Persistência local SQLite (modo Electron) ou memória (preview no navegador)
+- Marca da empresa contratante, tema claro/escuro, cópia de segurança e atualizações
+- Persistência local SQLite (Electron) ou memória (preview no navegador)
+
+## Modelo de estoque
+
+O cadastro de produto **não** gera estoque. O saldo só muda por:
+
+| Origem | Efeito |
+|--------|--------|
+| Fatura de compra | Entrada de **insumo** |
+| Fabricação | Saída de insumos da receita + entrada do **produto acabado** |
+| Ajuste de inventário | Define o novo saldo absoluto |
 
 ## Pré-requisitos
 
@@ -35,12 +49,15 @@ npm install
 npm run dev
 ```
 
-Isso sobe o Vite e abre a janela Electron.  
+Isso sobe o Vite e abre a janela Electron.
+
+Login padrão (primeiro uso): usuário `admin` / senha `admin123` — o sistema exige troca de senha antes de continuar.
+
 Para preview só no navegador (API em memória):
 
 ```bash
-npm run dev
-# abra http://127.0.0.1:5173 se a janela Electron não estiver disponível
+npm run dev:web
+# abra http://127.0.0.1:5173
 ```
 
 ## Scripts
@@ -48,18 +65,20 @@ npm run dev
 | Comando | Descrição |
 |---------|-----------|
 | `npm run dev` | Desenvolvimento (Vite + Electron) |
+| `npm run dev:web` | Preview web (API em memória) |
 | `npm run build` | Build de produção (renderer + main) |
 | `npm start` | Abre o app a partir do build |
-| `npm run test:e2e` | Testes E2E Playwright (fluxos F01–F08 em modo web) |
-| `npm test` | Testes unitários das regras de estoque |
+| `npm run test:e2e` | Testes E2E Playwright (fluxos em modo web) |
+| `npm test` | Testes unitários (estoque, auth, backup) |
 | `npm run smoke` | Smoke test automatizado (API em memória) |
 | `npm run typecheck` | Verificação TypeScript |
 | `npm run electron:build` | Empacota instalador (electron-builder) |
+| `npm run icons` | Regenera ícones a partir do logo |
 
 ## CI/CD
 
-- **CI** (`.github/workflows/ci.yml`): roda em PRs e push na `main` — typecheck, testes, smoke, build e empacotamento Linux.
-- **Release** (`.github/workflows/release.yml`): roda ao criar tag `v*` — build matrix (Linux, Windows, macOS) e publica draft no GitHub Releases.
+- **CI** (`.github/workflows/ci.yml`): PRs e push na `main` — typecheck, testes, smoke, build e empacotamento Linux.
+- **Release** (`.github/workflows/release.yml`): tag `v*` — build matrix (Linux, Windows, macOS) e draft no GitHub Releases.
 
 ```bash
 git tag v1.0.0
@@ -75,7 +94,7 @@ SENTRY_DSN=https://...@sentry.io/...
 SENTRY_ENVIRONMENT=production
 ```
 
-Sem `SENTRY_DSN`, o app funciona normalmente sem enviar eventos. Em desenvolvimento, use `SENTRY_ENABLED=true` para testar.
+Sem `SENTRY_DSN`, o app funciona sem enviar eventos. Em desenvolvimento, use `SENTRY_ENABLED=true` para testar.
 
 ## Code signing (produção)
 
@@ -92,11 +111,14 @@ Sem secrets, o CI gera instaladores **sem assinatura** (OK para QA).
 
 ## Fluxo rápido sugerido
 
-1. Abrir o app → aceitar dados demo (opcional)
-2. Cadastrar categorias e fornecedores
-3. Cadastrar produtos (com estoque inicial se houver)
-4. Registrar entradas/saídas/ajustes
-5. Acompanhar alertas no dashboard e exportar relatórios
+1. Abrir o app → entrar como `admin` → trocar a senha padrão
+2. (Admin) Aceitar ou recusar dados de demonstração no painel
+3. Cadastrar categorias e fornecedores
+4. Cadastrar insumos e produtos acabados (saldo inicia em zero)
+5. Lançar fatura de compra para entrar insumos
+6. Cadastrar receita do acabado e registrar fabricação
+7. Usar ajuste de inventário só para correção física
+8. Acompanhar o painel e exportar relatórios
 
 ## Stack
 
@@ -106,9 +128,8 @@ Sem secrets, o CI gera instaladores **sem assinatura** (OK para QA).
 - better-sqlite3
 - TypeScript 5
 
+## Cópia de segurança e atualizações
 
-## Backup, restauração e atualizações
-
-- Em **Configurações**, exporte/restaure o banco SQLite (`.db`).
+- Em **Configurações** (admin): exportar / restaurar o banco SQLite (`.db`).
 - Auto-update via GitHub Releases em builds empacotados (`electron-updater`).
-- Em desenvolvimento/web, as atualizações aparecem como desabilitadas.
+- Em desenvolvimento / modo web, as atualizações aparecem como indisponíveis.

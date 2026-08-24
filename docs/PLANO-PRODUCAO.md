@@ -33,9 +33,9 @@ Plano de ação para release de produção do aplicativo **desktop** Controle de
 - [ ] **[Alta]** Validar critérios de aceite de [REQUISITOS.md](./REQUISITOS.md) seção 8 (100% Must)
 - [ ] **[Alta]** Congelar backlog — apenas hotfixes entram na release
 - [ ] **[Alta]** Preparar release notes para usuários finais (funcionalidades, requisitos de SO)
-- [ ] **[Média]** Documentar escopo **fora da v1** (sem login, sem sync, sem multi-depósito)
+- [ ] **[Média]** Documentar escopo **fora da versão** (sem sync entre PCs, sem multi-depósito, sem NF-e)
 - [ ] **[Média]** Definir canal de feedback pós-lançamento (e-mail, formulário)
-- [ ] **[Baixa]** Planejar roadmap v1.1 (RF-E01 autenticação, backup automático)
+- [ ] **[Baixa]** Planejar roadmap (estorno de fatura/fabricação, hash com salt, filtro insumo/acabado)
 
 ---
 
@@ -44,7 +44,7 @@ Plano de ação para release de produção do aplicativo **desktop** Controle de
 ### Ações para Engenharia / Tech Lead / Arquitetura
 
 - [ ] **[Alta]** Code review final em 100% dos PRs da release (foco: `electron/db.ts`, IPC, transações)
-- [ ] **[Alta]** Validar transações atômicas em movimentações (RNF-05) — entrada/saída/ajuste + saldo
+- [ ] **[Alta]** Validar transações atômicas (RNF-05) — fatura, fabricação (consumo + produção) e ajuste + saldo
 - [ ] **[Alta]** Confirmar ausência de secrets/credenciais no repositório (`git secrets --scan`)
 - [ ] **[Alta]** Revisar hardening Electron em `electron/main.ts`:
   - `contextIsolation: true`
@@ -64,10 +64,12 @@ Plano de ação para release de produção do aplicativo **desktop** Controle de
 - [ ] **[Alta]** Executar smoke test: `npx tsx scripts/smoke.mts` → deve imprimir `SMOKE_OK`
 - [ ] **[Alta]** Testes manuais dos fluxos F01–F11 em [FLUXOS.md](./FLUXOS.md) em build empacotado (não só dev)
 - [ ] **[Alta]** Regressão nos critérios de aceite (seção 8 de REQUISITOS.md):
-  - SKU duplicado bloqueado
-  - Saída acima do saldo bloqueada
-  - Dashboard reflete saldo após movimentação
-  - Produto inativo fora do seletor
+  - Login + troca da senha padrão
+  - Código duplicado bloqueado
+  - Produto novo com saldo 0
+  - Fatura aumenta insumo; fabricação consome/produz
+  - Ajuste define saldo absoluto
+  - Operador bloqueado em backup/usuários
   - Exportação CSV válida (UTF-8 BOM)
   - App inicia offline
 - [ ] **[Alta]** Testar em **3 SOs**: Windows 10/11, Ubuntu 22.04+, macOS 13+
@@ -204,10 +206,10 @@ Plano de ação para release de produção do aplicativo **desktop** Controle de
 ### Ações para QA (Go-Live)
 
 - [ ] **[Alta]** Smoke tests pós-instalação em cada plataforma:
-  1. App abre → Dashboard carrega
-  2. Cadastrar produto → saldo correto
-  3. Entrada → saldo aumenta
-  4. Saída bloqueada se insuficiente
+  1. App abre → login → Painel carrega
+  2. Cadastrar produto → saldo 0
+  3. Fatura → saldo do insumo aumenta
+  4. Fabricação bloqueada se insumo insuficiente
   5. Exportar CSV → arquivo válido
 - [ ] **[Alta]** Validar crash reporting recebe eventos de teste
 - [ ] **[Média]** Sanidade D+1: reinstalar sobre versão existente preserva dados

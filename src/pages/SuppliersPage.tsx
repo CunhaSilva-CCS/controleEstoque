@@ -103,16 +103,13 @@ export function SuppliersPage() {
   return (
     <div data-testid="suppliers-page">
       <div className="page-header">
-        <div>
-          <h2>Fornecedores</h2>
-          <p>Cadastro de parceiros de compra</p>
-        </div>
+        <p>Cadastro de parceiros de compra</p>
         <button className="btn btn-primary" data-testid="btn-new-supplier" onClick={openCreate}>
           Novo fornecedor
         </button>
       </div>
 
-      <div className="panel" style={{ padding: 0 }}>
+      <div className="panel panel-flush">
         {items.length === 0 ? (
           <div className="empty">Nenhum fornecedor cadastrado</div>
         ) : (

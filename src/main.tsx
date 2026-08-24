@@ -3,6 +3,8 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, HashRouter } from 'react-router-dom'
 import App from './App'
 import { ToastProvider } from './lib/toast'
+import { ThemeProvider } from './lib/theme'
+import { ClientBrandProvider } from './lib/client-brand'
 import { initRendererTelemetry } from './lib/telemetry'
 import './styles.css'
 
@@ -13,10 +15,14 @@ const Router = isFileProtocol ? HashRouter : BrowserRouter
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ToastProvider>
-      <Router>
-        <App />
-      </Router>
-    </ToastProvider>
+    <ThemeProvider>
+      <ClientBrandProvider>
+        <ToastProvider>
+          <Router>
+            <App />
+          </Router>
+        </ToastProvider>
+      </ClientBrandProvider>
+    </ThemeProvider>
   </StrictMode>,
 )

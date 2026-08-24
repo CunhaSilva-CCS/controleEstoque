@@ -1,9 +1,9 @@
 {
   "name": "controle-estoque",
   "version": "1.0.0",
-  "description": "Aplicativo desktop de controle de estoque",
+  "description": "ERP Cortexis Tech — Módulo Controle de Estoque",
   "main": "dist-electron/main.js",
-  "author": "Controle Estoque",
+  "author": "Cortexis Tech (cortexists.com)",
   "license": "MIT",
   "scripts": {
     "dev": "vite",
@@ -18,7 +18,9 @@
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "icons": "python3 scripts/generate-icons.py",
+    "logo:prepare": "python3 scripts/prepare-logo.py"
   },
   "dependencies": {
     "@sentry/electron": "^6.11.0",

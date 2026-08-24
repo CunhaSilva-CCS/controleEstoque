@@ -16,14 +16,10 @@ export function formatDateTime(iso: string): string {
   })
 }
 
-export function statusLabel(status: string): string {
-  if (status === 'zero') return 'Zerado'
-  if (status === 'low') return 'Baixo'
-  return 'OK'
-}
-
-export function movementLabel(type: string): string {
-  if (type === 'entrada') return 'Entrada'
-  if (type === 'saida') return 'Saída'
-  return 'Ajuste'
-}
+export {
+  statusLabel,
+  movementLabel,
+  productKindLabel,
+  movementOriginLabel,
+  roleLabel,
+} from '@shared/labels'

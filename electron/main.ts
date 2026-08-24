@@ -12,20 +12,34 @@ import {
   buildReport,
   createCategory,
   createProduct,
+  createProduction,
+  createPurchaseInvoice,
   createSupplier,
+  createUser,
+  authenticateUser,
+  changePassword,
   getDashboard,
   getDbPath,
+  getClientBrand,
   getProduct,
+  getRecipeByProductId,
   initDatabase,
   listCategories,
   listMovements,
+  listProductionOrders,
   listProducts,
+  listPurchaseInvoices,
+  listRecipes,
   listSuppliers,
+  listUsers,
   markSeedOffered,
   registerMovement,
   restoreDatabase,
+  saveClientBrand,
+  saveRecipe,
   seedDemoData,
   setProductActive,
+  setUserActive,
   updateCategory,
   updateProduct,
   updateSupplier,
@@ -37,11 +51,18 @@ import {
   registerProcessErrorHandlers,
 } from './telemetry'
 import type {
+  ClientBrand,
   MovementFilters,
   MovementInput,
   ProductFilters,
   ProductInput,
   ProductUpdateInput,
+  ProductionInput,
+  PurchaseInvoiceInput,
+  RecipeInput,
+  AuthSession,
+  ChangePasswordInput,
+  User,
 } from '../shared/types'
 
 initMainTelemetry()
@@ -54,6 +75,7 @@ process.env.VITE_PUBLIC = app.isPackaged
 
 let mainWindow: BrowserWindow | null = null
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
+let currentUser: User | null = null
 
 function ok<T>(data: T) {
   return { ok: true as const, data }
@@ -64,14 +86,32 @@ function fail(error: unknown) {
   return { ok: false as const, error: message }
 }
 
+function requireSession(): User {
+  if (!currentUser) throw new Error('Sessão expirada. Entre novamente.')
+  return currentUser
+}
+
+function requireUser(): User {
+  const user = requireSession()
+  if (user.mustChangePassword) throw new Error('Altere a senha antes de continuar')
+  return user
+}
+
+function requireAdmin(): User {
+  const user = requireUser()
+  if (user.role !== 'admin') throw new Error('Acesso restrito ao administrador')
+  return user
+}
+
 function createWindow(): void {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
     minWidth: 1100,
     minHeight: 700,
-    title: 'Controle de Estoque',
-    backgroundColor: '#1a2e28',
+    title: 'ERP Cortexis Tech · Controle de Estoque',
+    backgroundColor: '#ffffff',
+    icon: path.join(__dirname, '../build/icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -114,6 +154,7 @@ function registerIpc(): void {
 
   ipcMain.handle('app:seed', (_e, accept: boolean) => {
     try {
+      requireAdmin()
       if (accept) seedDemoData()
       else markSeedOffered()
       return ok(true)
@@ -122,8 +163,87 @@ function registerIpc(): void {
     }
   })
 
+  ipcMain.handle('auth:status', () => {
+    const session: AuthSession = { authenticated: Boolean(currentUser), user: currentUser }
+    return ok(session)
+  })
+
+  ipcMain.handle('auth:login', (_e, input: { username: string; password: string }) => {
+    try {
+      const user = authenticateUser(input.username, input.password)
+      if (!user) throw new Error('Usuário ou senha inválidos')
+      currentUser = user
+      const session: AuthSession = { authenticated: true, user }
+      return ok(session)
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('auth:logout', () => {
+    currentUser = null
+    return ok(true)
+  })
+
+  ipcMain.handle('auth:changePassword', (_e, input: ChangePasswordInput) => {
+    try {
+      const sessionUser = requireSession()
+      const user = changePassword(sessionUser.id, input.currentPassword, input.newPassword)
+      currentUser = user
+      const session: AuthSession = { authenticated: true, user }
+      return ok(session)
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('users:list', () => {
+    try {
+      requireAdmin()
+      return ok(listUsers())
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('users:create', (_e, input: { name: string; username: string; password: string; role: 'admin' | 'operador' }) => {
+    try {
+      requireAdmin()
+      return ok(createUser(input))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('users:setActive', (_e, id: string, active: boolean) => {
+    try {
+      requireAdmin()
+      return ok(setUserActive(id, active))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('brand:get', () => {
+    try {
+      return ok(getClientBrand())
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('brand:save', (_e, input: ClientBrand) => {
+    try {
+      requireAdmin()
+      return ok(saveClientBrand(input))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
   ipcMain.handle('categories:list', (_e, activeOnly?: boolean) => {
     try {
+      requireUser()
       return ok(listCategories(Boolean(activeOnly)))
     } catch (error) {
       return fail(error)
@@ -132,6 +252,7 @@ function registerIpc(): void {
 
   ipcMain.handle('categories:create', (_e, input) => {
     try {
+      requireUser()
       return ok(createCategory(input))
     } catch (error) {
       return fail(error)
@@ -140,6 +261,7 @@ function registerIpc(): void {
 
   ipcMain.handle('categories:update', (_e, input) => {
     try {
+      requireUser()
       return ok(updateCategory(input))
     } catch (error) {
       return fail(error)
@@ -148,6 +270,7 @@ function registerIpc(): void {
 
   ipcMain.handle('suppliers:list', (_e, activeOnly?: boolean) => {
     try {
+      requireUser()
       return ok(listSuppliers(Boolean(activeOnly)))
     } catch (error) {
       return fail(error)
@@ -156,6 +279,7 @@ function registerIpc(): void {
 
   ipcMain.handle('suppliers:create', (_e, input) => {
     try {
+      requireUser()
       return ok(createSupplier(input))
     } catch (error) {
       return fail(error)
@@ -164,6 +288,7 @@ function registerIpc(): void {
 
   ipcMain.handle('suppliers:update', (_e, input) => {
     try {
+      requireUser()
       return ok(updateSupplier(input))
     } catch (error) {
       return fail(error)
@@ -172,6 +297,7 @@ function registerIpc(): void {
 
   ipcMain.handle('products:list', (_e, filters?: ProductFilters) => {
     try {
+      requireUser()
       return ok(listProducts(filters ?? {}))
     } catch (error) {
       return fail(error)
@@ -180,6 +306,7 @@ function registerIpc(): void {
 
   ipcMain.handle('products:get', (_e, id: string) => {
     try {
+      requireUser()
       return ok(getProduct(id))
     } catch (error) {
       return fail(error)
@@ -188,6 +315,7 @@ function registerIpc(): void {
 
   ipcMain.handle('products:create', (_e, input: ProductInput) => {
     try {
+      requireUser()
       return ok(createProduct(input))
     } catch (error) {
       return fail(error)
@@ -196,6 +324,7 @@ function registerIpc(): void {
 
   ipcMain.handle('products:update', (_e, input: ProductUpdateInput) => {
     try {
+      requireUser()
       return ok(updateProduct(input))
     } catch (error) {
       return fail(error)
@@ -204,6 +333,7 @@ function registerIpc(): void {
 
   ipcMain.handle('products:setActive', (_e, id: string, active: boolean) => {
     try {
+      requireUser()
       return ok(setProductActive(id, active))
     } catch (error) {
       return fail(error)
@@ -212,6 +342,7 @@ function registerIpc(): void {
 
   ipcMain.handle('movements:list', (_e, filters?: MovementFilters) => {
     try {
+      requireUser()
       return ok(listMovements(filters ?? {}))
     } catch (error) {
       return fail(error)
@@ -220,7 +351,71 @@ function registerIpc(): void {
 
   ipcMain.handle('movements:create', (_e, input: MovementInput) => {
     try {
+      requireUser()
       return ok(registerMovement(input))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('invoices:list', () => {
+    try {
+      requireUser()
+      return ok(listPurchaseInvoices())
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('invoices:create', (_e, input: PurchaseInvoiceInput) => {
+    try {
+      requireUser()
+      return ok(createPurchaseInvoice(input))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('recipes:list', () => {
+    try {
+      requireUser()
+      return ok(listRecipes())
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('recipes:get', (_e, productId: string) => {
+    try {
+      requireUser()
+      return ok(getRecipeByProductId(productId))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('recipes:save', (_e, input: RecipeInput) => {
+    try {
+      requireUser()
+      return ok(saveRecipe(input))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('production:list', () => {
+    try {
+      requireUser()
+      return ok(listProductionOrders())
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
+  ipcMain.handle('production:create', (_e, input: ProductionInput) => {
+    try {
+      requireUser()
+      return ok(createProduction(input))
     } catch (error) {
       return fail(error)
     }
@@ -228,6 +423,7 @@ function registerIpc(): void {
 
   ipcMain.handle('dashboard:get', () => {
     try {
+      requireUser()
       return ok(getDashboard())
     } catch (error) {
       return fail(error)
@@ -238,6 +434,7 @@ function registerIpc(): void {
     'reports:get',
     (_e, type: 'posicao' | 'movimentacoes' | 'baixo', filters?: MovementFilters) => {
       try {
+        requireUser()
         return ok(buildReport(type, filters ?? {}))
       } catch (error) {
         return fail(error)
@@ -256,6 +453,7 @@ function registerIpc(): void {
       },
     ) => {
       try {
+        requireUser()
         const report = buildReport(payload.type, payload.filters ?? {})
         const header = report.columns.join(';')
         const lines = report.rows.map((row) =>
@@ -289,10 +487,11 @@ function registerIpc(): void {
 
   ipcMain.handle('backup:export', async () => {
     try {
+      requireAdmin()
       const stamp = new Date().toISOString().replace(/[:.]/g, '-')
       const result = await dialog.showSaveDialog(mainWindow!, {
-        title: 'Exportar backup do estoque',
-        defaultPath: `estoque-backup-${stamp}.db`,
+        title: 'Exportar cópia de segurança',
+        defaultPath: `estoque-copia-${stamp}.db`,
         filters: [{ name: 'SQLite', extensions: ['db'] }],
       })
       if (result.canceled || !result.filePath) {
@@ -308,8 +507,9 @@ function registerIpc(): void {
 
   ipcMain.handle('backup:restore', async () => {
     try {
+      requireAdmin()
       const result = await dialog.showOpenDialog(mainWindow!, {
-        title: 'Restaurar backup do estoque',
+        title: 'Restaurar cópia de segurança',
         properties: ['openFile'],
         filters: [{ name: 'SQLite', extensions: ['db'] }],
       })
@@ -323,7 +523,7 @@ function registerIpc(): void {
         defaultId: 0,
         cancelId: 0,
         title: 'Confirmar restauração',
-        message: 'A restauração substitui todos os dados atuais pelo backup selecionado.',
+        message: 'A restauração substitui todos os dados atuais pela cópia selecionada.',
         detail: 'Esta ação não pode ser desfeita. Feche outras operações antes de continuar.',
       })
       if (confirm.response !== 1) {
@@ -342,6 +542,7 @@ function registerIpc(): void {
 
   ipcMain.handle('app:getInfo', () => {
     try {
+      requireUser()
       return ok({
         version: app.getVersion(),
         dbPath: getDbPath(),
@@ -355,7 +556,7 @@ function registerIpc(): void {
 }
 
 app.whenReady().then(() => {
-  registerUpdateIpc()
+  registerUpdateIpc(requireAdmin)
   registerIpc()
   createWindow()
   if (mainWindow) initAutoUpdater(mainWindow)

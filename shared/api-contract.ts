@@ -12,10 +12,33 @@ import type {
   StockMovement,
   Supplier,
   UpdateStatus,
+  ProductionInput,
+  ProductionOrder,
+  PurchaseInvoice,
+  PurchaseInvoiceInput,
+  Recipe,
+  RecipeInput,
+  ClientBrand,
+  User,
+  LoginInput,
+  ChangePasswordInput,
+  AuthSession,
 } from './types'
 
 export interface EstoqueApi {
   init: () => Promise<ApiResponse<{ path: string; seeded: boolean }>>
+  authStatus: () => Promise<ApiResponse<AuthSession>>
+  login: (input: LoginInput) => Promise<ApiResponse<AuthSession>>
+  logout: () => Promise<ApiResponse<boolean>>
+  changePassword: (input: ChangePasswordInput) => Promise<ApiResponse<AuthSession>>
+  listUsers: () => Promise<ApiResponse<User[]>>
+  createUser: (input: {
+    name: string
+    username: string
+    password: string
+    role: 'admin' | 'operador'
+  }) => Promise<ApiResponse<User>>
+  setUserActive: (id: string, active: boolean) => Promise<ApiResponse<User>>
   seed: (accept: boolean) => Promise<ApiResponse<boolean>>
   listCategories: (activeOnly?: boolean) => Promise<ApiResponse<Category[]>>
   createCategory: (input: {
@@ -52,6 +75,13 @@ export interface EstoqueApi {
   setProductActive: (id: string, active: boolean) => Promise<ApiResponse<Product>>
   listMovements: (filters?: MovementFilters) => Promise<ApiResponse<StockMovement[]>>
   createMovement: (input: MovementInput) => Promise<ApiResponse<StockMovement>>
+  listPurchaseInvoices: () => Promise<ApiResponse<PurchaseInvoice[]>>
+  createPurchaseInvoice: (input: PurchaseInvoiceInput) => Promise<ApiResponse<PurchaseInvoice>>
+  listRecipes: () => Promise<ApiResponse<Recipe[]>>
+  getRecipe: (productId: string) => Promise<ApiResponse<Recipe | null>>
+  saveRecipe: (input: RecipeInput) => Promise<ApiResponse<Recipe>>
+  listProductionOrders: () => Promise<ApiResponse<ProductionOrder[]>>
+  createProduction: (input: ProductionInput) => Promise<ApiResponse<ProductionOrder>>
   getDashboard: () => Promise<ApiResponse<DashboardData>>
   getReport: (
     type: ReportType,
@@ -66,6 +96,8 @@ export interface EstoqueApi {
   }) => Promise<ApiResponse<{ saved: boolean; path?: string }>>
   exportBackup: () => Promise<ApiResponse<{ saved: boolean; path?: string }>>
   restoreBackup: () => Promise<ApiResponse<{ restored: boolean; path?: string }>>
+  getClientBrand: () => Promise<ApiResponse<ClientBrand>>
+  saveClientBrand: (input: ClientBrand) => Promise<ApiResponse<ClientBrand>>
   getAppInfo: () => Promise<ApiResponse<{ version: string; dbPath: string; packaged: boolean }>>
   getUpdateStatus: () => Promise<ApiResponse<UpdateStatus>>
   checkForUpdates: () => Promise<ApiResponse<UpdateStatus>>

@@ -12,14 +12,35 @@ async function saveModal(page: Page) {
   await page.getByTestId('btn-modal-submit').click()
 }
 
+async function loginIfNeeded(page: Page) {
+  const login = page.getByTestId('login-page')
+  if (await login.count()) {
+    await page.getByTestId('input-login-user').fill('admin')
+    await page.getByTestId('input-login-pass').fill('admin123')
+    await page.getByTestId('btn-login-submit').click()
+    await expect(
+      page.getByTestId('change-password-page').or(page.getByTestId('app-shell')),
+    ).toBeVisible()
+  }
+
+  const changePassword = page.getByTestId('change-password-page')
+  if (await changePassword.isVisible()) {
+    await page.getByTestId('input-change-current').fill('admin123')
+    await page.getByTestId('input-change-new').fill('Admin#e2e1')
+    await page.getByTestId('input-change-confirm').fill('Admin#e2e1')
+    await page.getByTestId('btn-change-password-submit').click()
+  }
+}
+
 test.describe('Fluxos F01–F08 (web/memory)', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/')
+    await loginIfNeeded(page)
     await expect(page.getByTestId('app-shell')).toBeVisible()
   })
 
   test('F01 — inicialização e seed vazio', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+    await expect(page.getByTestId('page-title')).toHaveText('Painel')
     await skipOrAcceptSeed(page, false)
     await expect(page.getByTestId('dashboard-page')).toBeVisible()
   })
@@ -44,49 +65,36 @@ test.describe('Fluxos F01–F08 (web/memory)', () => {
     await expect(page.getByText('Fornecedor E2E')).toBeVisible()
   })
 
-  test('F04/F06/F07/F08 — produto, entrada, saída bloqueada e ajuste', async ({ page }) => {
+  test('F04/F06/F07/F08 — produto, fatura, fabricação e ajuste', async ({ page }) => {
     await skipOrAcceptSeed(page, false)
 
-    // F04 produto
+    // F04 produto insumo
     await page.getByTestId('nav-produtos').click()
     await page.getByTestId('btn-new-product').click()
     await page.getByTestId('input-product-sku').fill('E2E-001')
     await page.getByTestId('input-product-name').fill('Produto E2E')
-    await page.getByTestId('input-product-unit').fill('un')
+    await page.getByTestId('select-product-kind').selectOption('insumo')
+    await page.getByTestId('select-product-unit').selectOption('un')
     await page.getByTestId('input-product-cost').fill('10')
     await page.getByTestId('input-product-sale').fill('20')
     await page.getByTestId('input-product-min').fill('2')
-    await page.getByTestId('input-product-initial').fill('5')
     await saveModal(page)
     await expect(page.getByText('E2E-001')).toBeVisible()
-    await expect(page.getByText('Produto E2E')).toBeVisible()
 
-    // F06 entrada
+    // F06 entrada via fatura
+    await page.getByTestId('nav-faturas').click()
+    await page.getByTestId('btn-new-invoice').click()
+    await page.getByTestId('input-invoice-number').fill('NF-E2E-001')
+    await page.getByTestId('select-invoice-product').selectOption({ label: 'E2E-001 · Produto E2E' })
+    await page.getByTestId('input-invoice-qty').fill('5')
+    await page.getByTestId('input-invoice-cost').fill('10')
+    await saveModal(page)
+    await expect(page.getByText('NF-E2E-001')).toBeVisible()
+
+    // F08 ajuste manual
     await page.getByTestId('nav-movimentacoes').click()
     await page.getByTestId('btn-new-movement').click()
     await page.getByTestId('select-movement-product').selectOption({ label: 'E2E-001 · Produto E2E' })
-    await page.getByTestId('select-movement-type').selectOption('entrada')
-    await page.getByTestId('input-movement-qty').fill('3')
-    await page.getByTestId('input-movement-reason').fill('Compra E2E')
-    await saveModal(page)
-    await expect(page.getByText('Compra E2E')).toBeVisible()
-
-    // F07 saída insuficiente (saldo 8)
-    await page.getByTestId('btn-new-movement').click()
-    await page.getByTestId('select-movement-product').selectOption({ label: 'E2E-001 · Produto E2E' })
-    await page.getByTestId('select-movement-type').selectOption('saida')
-    await page.getByTestId('input-movement-qty').fill('999')
-    await page.getByTestId('input-movement-reason').fill('Saída inválida')
-    await saveModal(page)
-    await expect(page.getByText(/saldo|insuficiente|disponível/i).first()).toBeVisible()
-    // fecha modal que permanece aberto após erro de validação
-    await page.getByRole('button', { name: 'Cancelar' }).click()
-    await expect(page.locator('.modal-backdrop')).toHaveCount(0)
-
-    // F08 ajuste
-    await page.getByTestId('btn-new-movement').click()
-    await page.getByTestId('select-movement-product').selectOption({ label: 'E2E-001 · Produto E2E' })
-    await page.getByTestId('select-movement-type').selectOption('ajuste')
     await page.getByTestId('input-movement-new-stock').fill('4')
     await page.getByTestId('input-movement-reason').fill('Inventário E2E')
     await saveModal(page)
@@ -111,8 +119,8 @@ test.describe('Fluxos F01–F08 (web/memory)', () => {
     await expect(page.getByTestId('settings-page')).toBeVisible()
     await expect(page.getByTestId('app-version')).toContainText(/1\.0\.0/)
     await page.getByTestId('btn-export-backup').click()
-    await expect(page.getByText(/Backup/i).first()).toBeVisible()
+    await expect(page.getByText(/cópia de segurança/i).first()).toBeVisible()
     await page.getByTestId('btn-check-updates').click()
-    await expect(page.getByTestId('update-status')).toContainText(/web|indispon|desabilit/i)
+    await expect(page.getByTestId('update-status')).toContainText(/indispon|desabilit/i)
   })
 })

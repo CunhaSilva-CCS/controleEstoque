@@ -2,6 +2,10 @@ import { api, unwrap } from '../src/lib/api'
 
 async function main() {
   await unwrap(api.init())
+  await unwrap(api.login({ username: 'admin', password: 'admin123' }))
+  await unwrap(
+    api.changePassword({ currentPassword: 'admin123', newPassword: 'Admin#smoke1' }),
+  )
   await unwrap(api.seed(true))
   const dash = await unwrap(api.getDashboard())
   console.log('activeProducts', dash.activeProducts)
@@ -10,34 +14,37 @@ async function main() {
   const p = await unwrap(
     api.createProduct({
       sku: 'TEST-001',
-      name: 'Produto Teste',
+      name: 'Insumo Teste',
+      kind: 'insumo',
       unit: 'un',
       costPrice: 10,
       salePrice: 20,
       minStock: 2,
-      initialStock: 3,
     }),
   )
   console.log('created', p.sku, 'stock', p.stock)
 
-  const blocked = await api.createMovement({
-    productId: p.id,
-    type: 'saida',
-    quantity: 99,
-    reason: 'teste',
-  })
-  console.log('blocked', !blocked.ok, blocked.ok ? '' : blocked.error)
+  await unwrap(
+    api.createPurchaseInvoice({
+      number: 'NF-SMOKE-001',
+      issueDate: new Date().toISOString().slice(0, 10),
+      items: [{ productId: p.id, quantity: 5, unitCost: 10 }],
+    }),
+  )
+  const afterInvoice = await unwrap(api.getProduct(p.id))
+  console.log('after fatura stock', afterInvoice?.stock)
 
   await unwrap(
     api.createMovement({
       productId: p.id,
-      type: 'entrada',
-      quantity: 5,
-      reason: 'Compra teste',
+      type: 'ajuste',
+      quantity: 0,
+      newStock: 4,
+      reason: 'Inventário teste',
     }),
   )
-  const after = await unwrap(api.getProduct(p.id))
-  console.log('after entrada stock', after?.stock)
+  const afterAdjust = await unwrap(api.getProduct(p.id))
+  console.log('after ajuste stock', afterAdjust?.stock)
 
   const movs = await unwrap(api.listMovements({ productId: p.id }))
   console.log('movements', movs.length)
