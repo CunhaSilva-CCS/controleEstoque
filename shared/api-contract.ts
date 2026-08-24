@@ -16,6 +16,7 @@ import type {
   ProductionOrder,
   PurchaseInvoice,
   PurchaseInvoiceInput,
+  PurchaseInvoiceUpdateInput,
   Recipe,
   RecipeInput,
   ClientBrand,
@@ -27,6 +28,7 @@ import type {
 } from './types'
 
 export interface EstoqueApi {
+  closeApp: () => Promise<ApiResponse<boolean>>
   init: () => Promise<ApiResponse<{ path: string; seeded: boolean }>>
   authStatus: () => Promise<ApiResponse<AuthSession>>
   getLicenseStatus: () => Promise<ApiResponse<LicenseStatus>>
@@ -80,6 +82,7 @@ export interface EstoqueApi {
   createMovement: (input: MovementInput) => Promise<ApiResponse<StockMovement>>
   listPurchaseInvoices: () => Promise<ApiResponse<PurchaseInvoice[]>>
   createPurchaseInvoice: (input: PurchaseInvoiceInput) => Promise<ApiResponse<PurchaseInvoice>>
+  updatePurchaseInvoice: (input: PurchaseInvoiceUpdateInput) => Promise<ApiResponse<PurchaseInvoice>>
   listRecipes: () => Promise<ApiResponse<Recipe[]>>
   getRecipe: (productId: string) => Promise<ApiResponse<Recipe | null>>
   saveRecipe: (input: RecipeInput) => Promise<ApiResponse<Recipe>>

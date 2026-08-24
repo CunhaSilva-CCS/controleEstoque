@@ -8,6 +8,7 @@ type Props = {
   onSubmit: (e: FormEvent) => void
   children: ReactNode
   submitLabel?: string
+  cancelLabel?: string
 }
 
 export function ModalForm({
@@ -17,6 +18,7 @@ export function ModalForm({
   onSubmit,
   children,
   submitLabel = 'Salvar',
+  cancelLabel = 'Cancelar',
 }: Props) {
   const titleId = useId()
   const modalRef = useRef<HTMLDivElement>(null)
@@ -67,7 +69,7 @@ export function ModalForm({
           {children}
           <div className="modal-actions">
             <button type="button" className="btn btn-ghost" onClick={onClose}>
-              Cancelar
+              {cancelLabel}
             </button>
             <button type="submit" className="btn btn-primary" data-testid="btn-modal-submit">
               {submitLabel}

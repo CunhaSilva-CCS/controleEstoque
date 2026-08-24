@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { ModalForm } from '../components/ModalForm'
+import { CollectionEmpty, CollectionPageHeader } from '../components/CollectionPage'
 import { api, unwrap } from '../lib/api'
 import { useToast } from '../lib/toast'
 import type { Supplier } from '@shared/types'
@@ -101,20 +102,20 @@ export function SuppliersPage() {
   }
 
   return (
-    <div data-testid="suppliers-page">
-      <div className="page-header">
-        <p>Cadastro de parceiros de compra</p>
+    <div className="collection-page suppliers-page" data-testid="suppliers-page">
+      <CollectionPageHeader icon="◇" description="Cadastro dos parceiros responsáveis pelo fornecimento de insumos." count={items.length} singular="fornecedor cadastrado" plural="fornecedores cadastrados">
         <button className="btn btn-primary" data-testid="btn-new-supplier" onClick={openCreate}>
+          <span aria-hidden>+</span>
           Novo fornecedor
         </button>
-      </div>
+      </CollectionPageHeader>
 
       <div className="panel panel-flush">
         {items.length === 0 ? (
-          <div className="empty">Nenhum fornecedor cadastrado</div>
+          <CollectionEmpty icon="◇" title="Nenhum fornecedor cadastrado" description="Cadastre um fornecedor para relacioná-lo aos produtos e faturas." />
         ) : (
           <div className="table-wrap">
-            <table>
+            <table className="collection-table suppliers-table">
               <thead>
                 <tr>
                   <th>Nome</th>

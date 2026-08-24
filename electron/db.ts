@@ -20,6 +20,7 @@ import type {
   ProductionOrder,
   PurchaseInvoice,
   PurchaseInvoiceInput,
+  PurchaseInvoiceUpdateInput,
   Recipe,
   RecipeInput,
   RecipeItem,
@@ -29,6 +30,7 @@ import type {
   User,
   UserRole,
 } from '../shared/types'
+import { roundQuantity } from '../shared/quantity'
 import { movementLabel, statusLabel } from '../shared/labels'
 
 type Db = Database.Database
@@ -335,6 +337,8 @@ export function initDatabaseAtPath(dbPath: string, encryptionKey?: Buffer): { pa
   `)
 
   migrateSchema(db)
+  recalculateAllInvoiceAverageCosts(db)
+  recalculateAllFinishedProductCosts(db)
 
   const count = db.prepare('SELECT COUNT(*) AS c FROM products').get() as { c: number }
   const meta = db.prepare("SELECT value FROM app_meta WHERE key = 'seed_offered'").get() as
@@ -424,6 +428,59 @@ function migrateSchema(database: Db): void {
   }
 
   ensureDefaultAdmin(database)
+}
+
+function calculateInvoiceAverageCost(database: Db, productId: string): number | null {
+  const result = database.prepare(
+    `SELECT SUM(quantity * unit_cost) AS total_value, SUM(quantity) AS total_quantity
+     FROM purchase_invoice_items WHERE product_id = ?`,
+  ).get(productId) as { total_value: number | null; total_quantity: number | null }
+  if (!result.total_quantity) return null
+  return Math.round(((result.total_value ?? 0) / result.total_quantity) * 10_000) / 10_000
+}
+
+function updateInvoiceAverageCost(database: Db, productId: string, updatedAt: string, resetWhenEmpty = true): void {
+  const average = calculateInvoiceAverageCost(database, productId)
+  if (average === null && !resetWhenEmpty) return
+  database.prepare('UPDATE products SET cost_price = ?, updated_at = ? WHERE id = ? AND kind = ?')
+    .run(average ?? 0, updatedAt, productId, 'insumo')
+  updateFinishedProductCostsUsingInput(database, productId, updatedAt)
+}
+
+function recalculateAllInvoiceAverageCosts(database: Db): void {
+  const productIds = database.prepare('SELECT DISTINCT product_id FROM purchase_invoice_items').all() as { product_id: string }[]
+  const timestamp = nowIso()
+  productIds.forEach(({ product_id }) => updateInvoiceAverageCost(database, product_id, timestamp, false))
+}
+
+function calculateFinishedProductCost(database: Db, productId: string): number {
+  const result = database.prepare(
+    `SELECT COALESCE(SUM(ri.quantity * p.cost_price), 0) AS cost
+     FROM recipes r
+     JOIN recipe_items ri ON ri.recipe_id = r.id
+     JOIN products p ON p.id = ri.product_id
+     WHERE r.product_id = ? AND r.active = 1`,
+  ).get(productId) as { cost: number }
+  return Math.round(Number(result.cost) * 10_000) / 10_000
+}
+
+function updateFinishedProductCost(database: Db, productId: string, updatedAt: string): void {
+  database.prepare('UPDATE products SET cost_price = ?, updated_at = ? WHERE id = ? AND kind = ?')
+    .run(calculateFinishedProductCost(database, productId), updatedAt, productId, 'acabado')
+}
+
+function updateFinishedProductCostsUsingInput(database: Db, inputId: string, updatedAt: string): void {
+  const rows = database.prepare(
+    `SELECT DISTINCT r.product_id FROM recipes r
+     JOIN recipe_items ri ON ri.recipe_id = r.id WHERE ri.product_id = ?`,
+  ).all(inputId) as { product_id: string }[]
+  rows.forEach(({ product_id }) => updateFinishedProductCost(database, product_id, updatedAt))
+}
+
+function recalculateAllFinishedProductCosts(database: Db): void {
+  const rows = database.prepare('SELECT product_id FROM recipes WHERE active = 1').all() as { product_id: string }[]
+  const timestamp = nowIso()
+  rows.forEach(({ product_id }) => updateFinishedProductCost(database, product_id, timestamp))
 }
 
 const DEFAULT_PASSWORD = 'admin123'
@@ -1065,6 +1122,11 @@ export function createProduct(input: ProductInput): Product {
   const id = randomUUID()
   const ts = nowIso()
   const database = requireDb()
+  const normalizedSku = input.sku.trim()
+  const duplicate = database
+    .prepare('SELECT id FROM products WHERE lower(trim(sku)) = lower(?) LIMIT 1')
+    .get(normalizedSku)
+  if (duplicate) throw new Error('Já existe um produto com este código')
 
   const tx = database.transaction(() => {
     try {
@@ -1077,14 +1139,14 @@ export function createProduct(input: ProductInput): Product {
         )
         .run(
           id,
-          input.sku.trim(),
+          normalizedSku,
           input.name.trim(),
           input.description?.trim() ?? '',
           input.categoryId || null,
           input.supplierId || null,
           kind,
           input.unit.trim(),
-          input.costPrice,
+          0,
           input.salePrice,
           input.minStock,
           ts,
@@ -1103,8 +1165,17 @@ export function createProduct(input: ProductInput): Product {
 export function updateProduct(input: ProductUpdateInput): Product {
   validateProductFields(input)
   const ts = nowIso()
+  const database = requireDb()
+  const normalizedSku = input.sku.trim()
+  const duplicate = database
+    .prepare('SELECT id FROM products WHERE lower(trim(sku)) = lower(?) AND id <> ? LIMIT 1')
+    .get(normalizedSku, input.id)
+  if (duplicate) throw new Error('Já existe um produto com este código')
+  const effectiveCostPrice = input.kind === 'insumo'
+    ? (calculateInvoiceAverageCost(database, input.id) ?? 0)
+    : (getProduct(input.id)?.costPrice ?? 0)
   try {
-    const result = requireDb()
+    const result = database
       .prepare(
         `UPDATE products SET
           sku = ?, name = ?, description = ?, category_id = ?, supplier_id = ?,
@@ -1112,14 +1183,14 @@ export function updateProduct(input: ProductUpdateInput): Product {
          WHERE id = ?`,
       )
       .run(
-        input.sku.trim(),
+        normalizedSku,
         input.name.trim(),
         input.description?.trim() ?? '',
         input.categoryId || null,
         input.supplierId || null,
         input.kind,
         input.unit.trim(),
-        input.costPrice,
+        effectiveCostPrice,
         input.salePrice,
         input.minStock,
         ts,
@@ -1181,25 +1252,25 @@ function applyStockMovement(input: ApplyMovementInput): StockMovement {
   if (!product) throw new Error('Produto não encontrado')
   if (!product.active) throw new Error('Produto inativo não pode receber movimentações')
 
-  const previous = Number(product.stock)
-  let quantity = input.quantity ?? 0
+  const previous = roundQuantity(Number(product.stock))
+  let quantity = roundQuantity(input.quantity ?? 0)
   let newStock: number
 
   if (input.type === 'entrada') {
     if (!(quantity > 0)) throw new Error('Quantidade da entrada deve ser maior que zero')
-    newStock = previous + quantity
+    newStock = roundQuantity(previous + quantity)
   } else if (input.type === 'saida') {
     if (!(quantity > 0)) throw new Error('Quantidade da saída deve ser maior que zero')
     if (quantity > previous) {
       throw new Error(`Saldo insuficiente. Disponível: ${previous}`)
     }
-    newStock = previous - quantity
+    newStock = roundQuantity(previous - quantity)
   } else if (input.type === 'ajuste') {
     if (input.newStock === undefined || input.newStock < 0) {
       throw new Error('Informe o novo saldo (≥ 0) para o ajuste')
     }
-    newStock = input.newStock
-    quantity = newStock - previous
+    newStock = roundQuantity(input.newStock)
+    quantity = roundQuantity(newStock - previous)
   } else {
     throw new Error('Tipo de movimentação inválido')
   }
@@ -1331,7 +1402,7 @@ export function getDashboard(): DashboardData {
 }
 
 export function buildReport(
-  type: 'posicao' | 'movimentacoes' | 'baixo',
+  type: 'posicao' | 'movimentacoes' | 'baixo' | 'custo-venda',
   filters: MovementFilters = {},
 ): { columns: string[]; rows: Record<string, string | number | boolean | null>[] } {
   if (type === 'posicao') {
@@ -1363,6 +1434,26 @@ export function buildReport(
         Diferença: p.stock - p.minStock,
         Status: statusLabel(p.status ?? 'low'),
       })),
+    }
+  }
+
+  if (type === 'custo-venda') {
+    const products = listProducts({ active: true, kind: 'acabado' })
+    return {
+      columns: ['Código', 'Produto final', 'Saldo', 'Unidade', 'Preço de custo', 'Preço de venda', 'Diferença', 'Margem'],
+      rows: products.map((product) => {
+        const difference = product.salePrice - product.costPrice
+        return {
+          Código: product.sku,
+          'Produto final': product.name,
+          Saldo: product.stock,
+          Unidade: product.unit,
+          'Preço de custo': product.costPrice,
+          'Preço de venda': product.salePrice,
+          Diferença: difference,
+          Margem: product.salePrice > 0 ? (difference / product.salePrice) * 100 : 0,
+        }
+      }),
     }
   }
 
@@ -1411,7 +1502,7 @@ export function listPurchaseInvoices(): PurchaseInvoice[] {
     .all() as Record<string, unknown>[]
 
   const itemStmt = database.prepare(
-    `SELECT ii.*, p.name AS product_name, p.sku AS product_sku
+    `SELECT ii.*, p.name AS product_name, p.sku AS product_sku, p.unit AS product_unit
      FROM purchase_invoice_items ii
      JOIN products p ON p.id = ii.product_id
      WHERE ii.invoice_id = ?
@@ -1424,6 +1515,7 @@ export function listPurchaseInvoices(): PurchaseInvoice[] {
       productId: String(item.product_id),
       productName: String(item.product_name),
       productSku: String(item.product_sku),
+      productUnit: String(item.product_unit),
       quantity: Number(item.quantity),
       unitCost: Number(item.unit_cost),
     }))
@@ -1461,6 +1553,7 @@ export function createPurchaseInvoice(input: PurchaseInvoiceInput): PurchaseInvo
        VALUES (?, ?, ?, ?, ?)`,
     )
 
+    const affectedIds = new Set<string>()
     for (const item of input.items) {
       if (!(item.quantity > 0)) throw new Error('Quantidade do item deve ser maior que zero')
       if (item.unitCost < 0) throw new Error('Custo unitário não pode ser negativo')
@@ -1474,26 +1567,103 @@ export function createPurchaseInvoice(input: PurchaseInvoiceInput): PurchaseInvo
         throw new Error('Entrada por fatura permitida apenas para insumos')
       }
 
-      insertItem.run(randomUUID(), invoiceId, item.productId, item.quantity, item.unitCost)
+      const quantity = roundQuantity(item.quantity)
+      affectedIds.add(item.productId)
+      insertItem.run(randomUUID(), invoiceId, item.productId, quantity, item.unitCost)
 
       applyStockMovement({
         productId: item.productId,
         type: 'entrada',
-        quantity: item.quantity,
+        quantity,
         reason: `Fatura ${number}`,
         reference: invoiceId,
         origin: 'fatura',
       })
 
-      database
-        .prepare('UPDATE products SET cost_price = ?, updated_at = ? WHERE id = ?')
-        .run(item.unitCost, ts, item.productId)
     }
+    affectedIds.forEach((productId) => updateInvoiceAverageCost(database, productId, ts))
   })
 
   tx()
 
   return listPurchaseInvoices().find((i) => i.id === invoiceId)!
+}
+
+export function updatePurchaseInvoice(input: PurchaseInvoiceUpdateInput): PurchaseInvoice {
+  const number = input.number.trim()
+  if (!number) throw new Error('Número da fatura é obrigatório')
+  if (!input.issueDate) throw new Error('Data da fatura é obrigatória')
+  if (!input.items.length) throw new Error('Informe ao menos um item na fatura')
+
+  const database = requireDb()
+  const current = listPurchaseInvoices().find((invoice) => invoice.id === input.id)
+  if (!current) throw new Error('Fatura não encontrada')
+
+  const duplicate = database.prepare(
+    `SELECT id FROM purchase_invoices
+     WHERE lower(number) = lower(?) AND COALESCE(supplier_id, '') = COALESCE(?, '') AND id <> ?`,
+  ).get(number, input.supplierId || null, input.id)
+  if (duplicate) throw new Error('Já existe uma fatura com este número para o fornecedor informado')
+
+  const productIds = new Set<string>()
+  for (const item of input.items) {
+    if (productIds.has(item.productId)) throw new Error('Não repita o mesmo insumo na fatura')
+    productIds.add(item.productId)
+    if (!(item.quantity > 0)) throw new Error('Quantidade do item deve ser maior que zero')
+    if (!Number.isFinite(item.unitCost) || item.unitCost < 0) {
+      throw new Error('Custo unitário não pode ser negativo')
+    }
+    const product = database.prepare('SELECT kind, active FROM products WHERE id = ?').get(item.productId) as
+      | { kind: string; active: number }
+      | undefined
+    if (!product) throw new Error('Produto não encontrado')
+    if (!product.active) throw new Error('Produto inativo não pode entrar por fatura')
+    if (product.kind !== 'insumo') throw new Error('Entrada por fatura permitida apenas para insumos')
+  }
+
+  const oldQuantities = new Map<string, number>()
+  const newQuantities = new Map<string, number>()
+  current.items.forEach((item) => oldQuantities.set(item.productId, roundQuantity(item.quantity)))
+  input.items.forEach((item) => newQuantities.set(item.productId, roundQuantity(item.quantity)))
+  const affectedIds = new Set([...oldQuantities.keys(), ...newQuantities.keys()])
+
+  for (const productId of affectedIds) {
+    const delta = roundQuantity((newQuantities.get(productId) ?? 0) - (oldQuantities.get(productId) ?? 0))
+    if (delta >= 0) continue
+    const row = database.prepare('SELECT stock FROM products WHERE id = ?').get(productId) as { stock: number }
+    if (roundQuantity(row.stock + delta) < 0) {
+      throw new Error('Não é possível reduzir a fatura: parte deste estoque já foi consumida')
+    }
+  }
+
+  const ts = nowIso()
+  const tx = database.transaction(() => {
+    database.prepare(
+      `UPDATE purchase_invoices SET number = ?, supplier_id = ?, issue_date = ?, notes = ? WHERE id = ?`,
+    ).run(number, input.supplierId || null, input.issueDate, input.notes?.trim() ?? '', input.id)
+    database.prepare('DELETE FROM purchase_invoice_items WHERE invoice_id = ?').run(input.id)
+    const insertItem = database.prepare(
+      `INSERT INTO purchase_invoice_items (id, invoice_id, product_id, quantity, unit_cost) VALUES (?, ?, ?, ?, ?)`,
+    )
+    for (const item of input.items) {
+      insertItem.run(randomUUID(), input.id, item.productId, roundQuantity(item.quantity), item.unitCost)
+    }
+    for (const productId of affectedIds) {
+      const delta = roundQuantity((newQuantities.get(productId) ?? 0) - (oldQuantities.get(productId) ?? 0))
+      if (delta === 0) continue
+      applyStockMovement({
+        productId,
+        type: delta > 0 ? 'entrada' : 'saida',
+        quantity: Math.abs(delta),
+        reason: `Edição da fatura ${number}`,
+        reference: input.id,
+        origin: 'fatura',
+      })
+    }
+    affectedIds.forEach((productId) => updateInvoiceAverageCost(database, productId, ts))
+  })
+  tx()
+  return listPurchaseInvoices().find((invoice) => invoice.id === input.id)!
 }
 
 function mapRecipeRow(row: Record<string, unknown>, items: RecipeItem[]): Recipe {
@@ -1594,11 +1764,12 @@ export function saveRecipe(input: RecipeInput): Recipe {
       if (!insumo) throw new Error('Insumo não encontrado')
       if (insumo.kind !== 'insumo') throw new Error('Receita aceita apenas insumos como componentes')
 
-      insertItem.run(randomUUID(), recipeId, item.productId, item.quantity)
+      insertItem.run(randomUUID(), recipeId, item.productId, roundQuantity(item.quantity))
     }
   })
 
   tx()
+  updateFinishedProductCost(database, input.productId, ts)
   return getRecipeByProductId(input.productId)!
 }
 
@@ -1629,6 +1800,7 @@ export function listProductionOrders(): ProductionOrder[] {
 export function createProduction(input: ProductionInput): ProductionOrder {
   if (!(input.quantity > 0)) throw new Error('Quantidade produzida deve ser maior que zero')
 
+  const productionQuantity = roundQuantity(input.quantity)
   const database = requireDb()
   const product = database
     .prepare('SELECT id, kind, active, name, sku FROM products WHERE id = ?')
@@ -1646,7 +1818,7 @@ export function createProduction(input: ProductionInput): ProductionOrder {
   }
 
   for (const item of recipe.items) {
-    const needed = item.quantity * input.quantity
+    const needed = roundQuantity(item.quantity * productionQuantity)
     const stockRow = database
       .prepare('SELECT stock FROM products WHERE id = ?')
       .get(item.productId) as { stock: number }
@@ -1666,10 +1838,10 @@ export function createProduction(input: ProductionInput): ProductionOrder {
         `INSERT INTO production_orders (id, recipe_id, product_id, quantity, notes, created_at)
          VALUES (?, ?, ?, ?, ?, ?)`,
       )
-      .run(orderId, recipe.id, input.productId, input.quantity, input.notes?.trim() ?? '', ts)
+      .run(orderId, recipe.id, input.productId, productionQuantity, input.notes?.trim() ?? '', ts)
 
     for (const item of recipe.items) {
-      const qty = item.quantity * input.quantity
+      const qty = roundQuantity(item.quantity * productionQuantity)
       applyStockMovement({
         productId: item.productId,
         type: 'saida',
@@ -1683,7 +1855,7 @@ export function createProduction(input: ProductionInput): ProductionOrder {
     applyStockMovement({
       productId: input.productId,
       type: 'entrada',
-      quantity: input.quantity,
+      quantity: productionQuantity,
       reason: `Fabricação · ${product.name}`,
       reference: orderId,
       origin: 'fabricacao_producao',

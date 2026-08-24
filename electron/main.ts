@@ -44,6 +44,7 @@ import {
   setUserActive,
   updateCategory,
   updateProduct,
+  updatePurchaseInvoice,
   updateSupplier,
 } from './db'
 import { initAutoUpdater, registerUpdateIpc } from './updater'
@@ -62,6 +63,7 @@ import type {
   ProductUpdateInput,
   ProductionInput,
   PurchaseInvoiceInput,
+  PurchaseInvoiceUpdateInput,
   RecipeInput,
   AuthSession,
   ChangePasswordInput,
@@ -227,6 +229,11 @@ function createWindow(): void {
 }
 
 function registerIpc(): void {
+  ipcMain.handle('app:close', () => {
+    setTimeout(() => app.quit(), 50)
+    return ok(true)
+  })
+
   ipcMain.handle('app:init', () => {
     try {
       const info = initDatabase()
@@ -484,6 +491,15 @@ function registerIpc(): void {
     }
   })
 
+  ipcMain.handle('invoices:update', (_e, input: PurchaseInvoiceUpdateInput) => {
+    try {
+      requireUser()
+      return ok(updatePurchaseInvoice(input))
+    } catch (error) {
+      return fail(error)
+    }
+  })
+
   ipcMain.handle('recipes:list', () => {
     try {
       requireUser()
@@ -540,7 +556,7 @@ function registerIpc(): void {
 
   ipcMain.handle(
     'reports:get',
-    (_e, type: 'posicao' | 'movimentacoes' | 'baixo', filters?: MovementFilters) => {
+    (_e, type: 'posicao' | 'movimentacoes' | 'baixo' | 'custo-venda', filters?: MovementFilters) => {
       try {
         requireUser()
         return ok(buildReport(type, filters ?? {}))
@@ -555,7 +571,7 @@ function registerIpc(): void {
     async (
       _e,
       payload: {
-        type: 'posicao' | 'movimentacoes' | 'baixo'
+        type: 'posicao' | 'movimentacoes' | 'baixo' | 'custo-venda'
         filters?: MovementFilters
         defaultName: string
       },

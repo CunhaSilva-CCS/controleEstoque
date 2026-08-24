@@ -31,6 +31,7 @@ export default function App() {
   const [licenseKey, setLicenseKey] = useState('')
   const [licenseError, setLicenseError] = useState('')
   const [licenseBusy, setLicenseBusy] = useState(false)
+  const [licenseCopied, setLicenseCopied] = useState(false)
   const [username, setUsername] = useState('admin')
   const [password, setPassword] = useState('')
   const [currentPassword, setCurrentPassword] = useState('')
@@ -67,6 +68,20 @@ export default function App() {
         setConfirmPassword('')
       })
       .catch((err) => push(err instanceof Error ? err.message : 'Falha ao sair', 'err'))
+  }
+
+  async function copyInstallationId() {
+    const installationId = license && !license.active ? license.installationId : undefined
+    if (!installationId) return
+    try {
+      await navigator.clipboard.writeText(installationId)
+      setLicenseCopied(true)
+      push('Código da instalação copiado')
+      window.setTimeout(() => setLicenseCopied(false), 2_000)
+    } catch {
+      setLicenseError('Não foi possível copiar. Selecione o código manualmente.')
+      push('Não foi possível copiar o código', 'err')
+    }
   }
 
   if (!ready) {
@@ -126,7 +141,17 @@ export default function App() {
               ) : null}
               {license?.installationId ? (
                 <div className="license-installation-code">
-                  <span>Código da instalação</span>
+                  <div className="license-installation-heading">
+                    <span>Código da instalação</span>
+                    <button
+                      type="button"
+                      className="license-copy-button"
+                      data-testid="btn-copy-installation-id"
+                      onClick={() => void copyInstallationId()}
+                    >
+                      {licenseCopied ? 'Copiado!' : 'Copiar'}
+                    </button>
+                  </div>
                   <code>{license.installationId}</code>
                   <small>Envie este código à Cortexis Tech para gerar a licença.</small>
                 </div>
@@ -248,14 +273,25 @@ export default function App() {
                 autoComplete="current-password"
               />
             </div>
-            <button
-              className="btn btn-primary"
-              data-testid="btn-login-submit"
-              type="submit"
-              disabled={loginBusy || Boolean(startupError)}
-            >
-              {loginBusy ? 'Entrando…' : 'Entrar'}
-            </button>
+            <div className="login-actions">
+              <button
+                className="btn btn-primary"
+                data-testid="btn-login-submit"
+                type="submit"
+                disabled={loginBusy || Boolean(startupError)}
+              >
+                {loginBusy ? 'Entrando…' : 'Entrar'}
+              </button>
+              <button
+                className="btn btn-ghost login-exit"
+                data-testid="btn-login-exit"
+                type="button"
+                disabled={loginBusy}
+                onClick={() => void api.closeApp()}
+              >
+                Sair
+              </button>
+            </div>
           </form>
             <p className="login-support">Acesso protegido · Dados armazenados localmente</p>
           </section>

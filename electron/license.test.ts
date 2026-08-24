@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('electron', () => ({ app: { getPath: () => '/tmp' } }))
 
-import { verifyLicenseKey } from './license'
+import { protectLicenseForStorage, readLicenseFromStorage, verifyLicenseKey } from './license'
 
 function fixture(expiresAt: string | null) {
   const { privateKey, publicKey } = generateKeyPairSync('ed25519')
@@ -24,6 +24,27 @@ function fixture(expiresAt: string | null) {
 }
 
 describe('licenciamento offline', () => {
+  it('protege a licença armazenada sem deixar a chave legível', () => {
+    const key = 'CTX1-conteudo.assinatura'
+    const protectedValue = protectLicenseForStorage(key, (value) => Buffer.from(`cofre:${value}`))
+    expect(protectedValue).not.toContain(key)
+    expect(protectedValue).not.toContain('CTX1-')
+
+    const restored = readLicenseFromStorage(protectedValue, (value) =>
+      value.toString('utf8').replace(/^cofre:/, ''),
+    )
+    expect(restored).toEqual({ licenseKey: key, protected: true })
+  })
+
+  it('reconhece licença antiga em texto para permitir migração', () => {
+    const key = 'CTX1-conteudo.assinatura'
+    expect(readLicenseFromStorage(key, () => '')).toEqual({ licenseKey: key, protected: false })
+  })
+
+  it('rejeita conteúdo protegido corrompido', () => {
+    expect(() => readLicenseFromStorage('CTX-PROTECTED-1:***', () => '')).toThrow(/corrompida/)
+  })
+
   it('aceita uma licença assinada e dentro da validade', () => {
     const item = fixture('2027-01-01T00:00:00.000Z')
     const status = verifyLicenseKey(item.key, item.publicKey, new Date('2026-08-24T00:00:00Z'))

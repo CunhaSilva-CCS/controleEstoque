@@ -244,7 +244,7 @@ export function SettingsPage() {
   }
 
   return (
-    <div data-testid="settings-page">
+    <div className="settings-page" data-testid="settings-page">
       <div className="page-header">
         <p>
           {isAdmin

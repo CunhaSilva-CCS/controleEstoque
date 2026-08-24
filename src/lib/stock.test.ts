@@ -55,6 +55,61 @@ describe('regras de estoque (API em memória)', () => {
     expect(afterInvoice?.stock).toBe(5)
   })
 
+  it('edição de fatura recalcula apenas a diferença no estoque', async () => {
+    const product = await unwrap(api.createProduct({
+      sku: `EDIT-${crypto.randomUUID().slice(0, 8)}`,
+      name: 'Insumo editável',
+      kind: 'insumo',
+      unit: 'kg',
+      costPrice: 1,
+      salePrice: 2,
+      minStock: 0,
+    }))
+    const invoice = await unwrap(api.createPurchaseInvoice({
+      number: `NF-EDIT-${crypto.randomUUID()}`,
+      issueDate: '2026-01-01',
+      items: [{ productId: product.id, quantity: 2.5, unitCost: 3 }],
+    }))
+
+    const updated = await unwrap(api.updatePurchaseInvoice({
+      id: invoice.id,
+      number: invoice.number,
+      issueDate: '2026-01-02',
+      notes: 'Fatura corrigida',
+      items: [{ productId: product.id, quantity: 3.125, unitCost: 4 }],
+    }))
+
+    expect(updated.issueDate).toBe('2026-01-02')
+    expect(updated.items[0].quantity).toBe(3.125)
+    expect((await unwrap(api.getProduct(product.id)))?.stock).toBe(3.125)
+  })
+
+  it('calcula o custo médio ponderado de todas as faturas', async () => {
+    const product = await unwrap(api.createProduct({
+      sku: `AVG-${crypto.randomUUID().slice(0, 8)}`,
+      name: 'Insumo com custo médio',
+      kind: 'insumo',
+      unit: 'kg',
+      costPrice: 999,
+      salePrice: 20,
+      minStock: 0,
+    }))
+    expect(product.costPrice).toBe(0)
+
+    await unwrap(api.createPurchaseInvoice({
+      number: `NF-AVG-A-${crypto.randomUUID()}`,
+      issueDate: '2026-01-01',
+      items: [{ productId: product.id, quantity: 10, unitCost: 5 }],
+    }))
+    await unwrap(api.createPurchaseInvoice({
+      number: `NF-AVG-B-${crypto.randomUUID()}`,
+      issueDate: '2026-01-02',
+      items: [{ productId: product.id, quantity: 30, unitCost: 9 }],
+    }))
+
+    expect((await unwrap(api.getProduct(product.id)))?.costPrice).toBe(8)
+  })
+
   it('rejeita toda a fatura antes de movimentar quando um item é inválido', async () => {
     const product = await unwrap(
       api.createProduct({
@@ -165,6 +220,8 @@ describe('regras de estoque (API em memória)', () => {
         items: [{ productId: insumo.id, quantity: 2 }],
       }),
     )
+
+    expect((await unwrap(api.getProduct(acabado.id)))?.costPrice).toBe(2)
 
     await unwrap(api.createProduction({ productId: acabado.id, quantity: 3 }))
 

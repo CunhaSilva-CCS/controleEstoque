@@ -15,6 +15,7 @@ import type {
   ProductionOrder,
   PurchaseInvoice,
   PurchaseInvoiceInput,
+  PurchaseInvoiceUpdateInput,
   Recipe,
   RecipeInput,
   ReportType,
@@ -28,6 +29,7 @@ import type {
   AuthSession,
   LicenseStatus,
 } from '@shared/types'
+import { roundQuantity } from '@shared/quantity'
 import { movementLabel, statusLabel } from '@shared/labels'
 
 function computeStatus(stock: number, minStock: number): ProductStatus {
@@ -53,6 +55,33 @@ function createMemoryApi() {
   const recipes: Recipe[] = []
   const invoices: PurchaseInvoice[] = []
   const productionOrders: ProductionOrder[] = []
+  function updateFinishedProductCost(productId: string) {
+    const product = products.find((item) => item.id === productId)
+    const recipe = recipes.find((item) => item.productId === productId && item.active)
+    if (!product || product.kind !== 'acabado') return
+    product.costPrice = Math.round((recipe?.items.reduce((sum, item) => {
+      const input = products.find((candidate) => candidate.id === item.productId)
+      return sum + item.quantity * (input?.costPrice ?? 0)
+    }, 0) ?? 0) * 10_000) / 10_000
+    product.updatedAt = now()
+  }
+
+  function updateFinishedProductsUsingInput(inputId: string) {
+    recipes.filter((recipe) => recipe.items.some((item) => item.productId === inputId))
+      .forEach((recipe) => updateFinishedProductCost(recipe.productId))
+  }
+
+  function updateAverageCost(productId: string) {
+    const product = products.find((item) => item.id === productId)
+    if (!product || product.kind !== 'insumo') return
+    const invoiceItems = invoices.flatMap((invoice) => invoice.items).filter((item) => item.productId === productId)
+    const totalQuantity = invoiceItems.reduce((sum, item) => sum + item.quantity, 0)
+    product.costPrice = totalQuantity > 0
+      ? Math.round((invoiceItems.reduce((sum, item) => sum + item.quantity * item.unitCost, 0) / totalQuantity) * 10_000) / 10_000
+      : 0
+    product.updatedAt = now()
+    updateFinishedProductsUsingInput(productId)
+  }
   let clientBrand: ClientBrand = { name: '', logoDataUrl: '' }
   const users: User[] = []
   const passwords = new Map<string, string>()
@@ -105,23 +134,23 @@ function createMemoryApi() {
     if (!p.active) return 'Produto inativo não pode receber movimentações'
     if (!input.reason.trim()) return 'Motivo é obrigatório'
 
-    const previous = p.stock
-    let quantity = input.quantity ?? 0
+    const previous = roundQuantity(p.stock)
+    let quantity = roundQuantity(input.quantity ?? 0)
     let newStock: number
 
     if (input.type === 'entrada') {
       if (!(quantity > 0)) return 'Quantidade da entrada deve ser maior que zero'
-      newStock = previous + quantity
+      newStock = roundQuantity(previous + quantity)
     } else if (input.type === 'saida') {
       if (!(quantity > 0)) return 'Quantidade da saída deve ser maior que zero'
       if (quantity > previous) return `Saldo insuficiente. Disponível: ${previous}`
-      newStock = previous - quantity
+      newStock = roundQuantity(previous - quantity)
     } else {
       if (input.newStock === undefined || input.newStock < 0) {
         return 'Informe o novo saldo (≥ 0) para o ajuste'
       }
-      newStock = input.newStock
-      quantity = newStock - previous
+      newStock = roundQuantity(input.newStock)
+      quantity = roundQuantity(newStock - previous)
     }
 
     p.stock = newStock
@@ -163,6 +192,10 @@ function createMemoryApi() {
   }
 
   return {
+    async closeApp() {
+      window.close()
+      return ok(true)
+    },
     async init() {
       if (users.length === 0) {
         const ts = now()
@@ -562,7 +595,7 @@ function createMemoryApi() {
         supplierId: input.supplierId || null,
         kind: input.kind ?? 'insumo',
         unit: input.unit.trim(),
-        costPrice: input.costPrice,
+        costPrice: 0,
         salePrice: input.salePrice,
         minStock: input.minStock,
         stock: 0,
@@ -591,11 +624,12 @@ function createMemoryApi() {
         supplierId: input.supplierId || null,
         kind: input.kind,
         unit: input.unit.trim(),
-        costPrice: input.costPrice,
+        costPrice: p.costPrice,
         salePrice: input.salePrice,
         minStock: input.minStock,
         updatedAt: now(),
       })
+      if (input.kind === 'insumo') updateAverageCost(p.id)
       return ok(enrich(p))
     },
     async setProductActive(id: string, active: boolean) {
@@ -672,23 +706,24 @@ function createMemoryApi() {
       for (const item of input.items) {
         const p = products.find((x) => x.id === item.productId)
         if (!p) return fail('Produto não encontrado')
+        const quantity = roundQuantity(item.quantity)
         const mov = applyMemoryMovement({
           productId: p.id,
           type: 'entrada',
-          quantity: item.quantity,
+          quantity,
           reason: `Fatura ${number}`,
           reference: invoiceId,
           origin: 'fatura',
         })
         if (typeof mov === 'string') return fail(mov)
-        p.costPrice = item.unitCost
         p.updatedAt = ts
         items.push({
           id: uid(),
           productId: p.id,
           productName: p.name,
           productSku: p.sku,
-          quantity: item.quantity,
+          productUnit: p.unit,
+          quantity,
           unitCost: item.unitCost,
         })
       }
@@ -704,6 +739,68 @@ function createMemoryApi() {
         items,
       }
       invoices.unshift(invoice)
+      new Set(invoice.items.map((item) => item.productId)).forEach(updateAverageCost)
+      return ok(invoice)
+    },
+    async updatePurchaseInvoice(input: PurchaseInvoiceUpdateInput) {
+      const invoice = invoices.find((item) => item.id === input.id)
+      if (!invoice) return fail('Fatura não encontrada')
+      const number = input.number.trim()
+      if (!number) return fail('Número da fatura é obrigatório')
+      if (!input.issueDate) return fail('Data da fatura é obrigatória')
+      if (!input.items.length) return fail('Informe ao menos um item na fatura')
+      const normalizedSupplierId = input.supplierId || null
+      if (invoices.some((item) => item.id !== input.id && item.number.toLowerCase() === number.toLowerCase() && item.supplierId === normalizedSupplierId)) {
+        return fail('Já existe uma fatura com este número para o fornecedor informado')
+      }
+
+      const productIds = new Set<string>()
+      for (const item of input.items) {
+        if (productIds.has(item.productId)) return fail('Não repita o mesmo insumo na fatura')
+        productIds.add(item.productId)
+        const product = products.find((p) => p.id === item.productId)
+        if (!product) return fail('Produto não encontrado')
+        if (!product.active) return fail('Produto inativo não pode entrar por fatura')
+        if (product.kind !== 'insumo') return fail('Entrada por fatura permitida apenas para insumos')
+        if (!(item.quantity > 0)) return fail('Quantidade do item deve ser maior que zero')
+        if (!Number.isFinite(item.unitCost) || item.unitCost < 0) return fail('Custo unitário não pode ser negativo')
+      }
+
+      const oldQuantities = new Map(invoice.items.map((item) => [item.productId, roundQuantity(item.quantity)]))
+      const newQuantities = new Map(input.items.map((item) => [item.productId, roundQuantity(item.quantity)]))
+      const affectedIds = new Set([...oldQuantities.keys(), ...newQuantities.keys()])
+      for (const productId of affectedIds) {
+        const product = products.find((p) => p.id === productId)
+        const delta = roundQuantity((newQuantities.get(productId) ?? 0) - (oldQuantities.get(productId) ?? 0))
+        if (!product || roundQuantity(product.stock + delta) < 0) {
+          return fail('Não é possível reduzir a fatura: parte deste estoque já foi consumida')
+        }
+      }
+
+      for (const productId of affectedIds) {
+        const delta = roundQuantity((newQuantities.get(productId) ?? 0) - (oldQuantities.get(productId) ?? 0))
+        if (delta === 0) continue
+        const movement = applyMemoryMovement({
+          productId,
+          type: delta > 0 ? 'entrada' : 'saida',
+          quantity: Math.abs(delta),
+          reason: `Edição da fatura ${number}`,
+          reference: invoice.id,
+          origin: 'fatura',
+        })
+        if (typeof movement === 'string') return fail(movement)
+      }
+
+      invoice.number = number
+      invoice.supplierId = normalizedSupplierId
+      invoice.supplierName = suppliers.find((supplier) => supplier.id === normalizedSupplierId)?.name ?? null
+      invoice.issueDate = input.issueDate
+      invoice.notes = input.notes?.trim() ?? ''
+      invoice.items = input.items.map((item) => {
+        const product = products.find((p) => p.id === item.productId)!
+        return { id: uid(), productId: product.id, productName: product.name, productSku: product.sku, productUnit: product.unit, quantity: roundQuantity(item.quantity), unitCost: item.unitCost }
+      })
+      affectedIds.forEach(updateAverageCost)
       return ok(invoice)
     },
     async listRecipes() {
@@ -748,7 +845,7 @@ function createMemoryApi() {
             productId: insumo.id,
             productName: insumo.name,
             productSku: insumo.sku,
-            quantity: item.quantity,
+            quantity: roundQuantity(item.quantity),
           }
         }),
       }
@@ -758,6 +855,7 @@ function createMemoryApi() {
       } else {
         recipes.push(recipe)
       }
+      updateFinishedProductCost(product.id)
       return ok(recipe)
     },
     async listProductionOrders() {
@@ -765,6 +863,7 @@ function createMemoryApi() {
     },
     async createProduction(input: ProductionInput) {
       if (!(input.quantity > 0)) return fail('Quantidade produzida deve ser maior que zero')
+      const productionQuantity = roundQuantity(input.quantity)
       const product = products.find((p) => p.id === input.productId)
       if (!product) return fail('Produto não encontrado')
       if (!product.active) return fail('Produto inativo não pode ser fabricado')
@@ -778,7 +877,7 @@ function createMemoryApi() {
         const insumo = products.find((p) => p.id === item.productId)
         if (!insumo) return fail('Insumo não encontrado')
         if (!insumo.active) return fail(`Insumo inativo não pode ser consumido: ${insumo.name}`)
-        const needed = item.quantity * input.quantity
+        const needed = roundQuantity(item.quantity * productionQuantity)
         if (insumo.stock < needed) {
           return fail(
             `Saldo insuficiente de ${insumo.name}. Necessário: ${needed}, disponível: ${insumo.stock}`,
@@ -789,7 +888,7 @@ function createMemoryApi() {
       const orderId = uid()
       const ts = now()
       for (const item of recipe.items) {
-        const qty = item.quantity * input.quantity
+        const qty = roundQuantity(item.quantity * productionQuantity)
         const mov = applyMemoryMovement({
           productId: item.productId,
           type: 'saida',
@@ -804,7 +903,7 @@ function createMemoryApi() {
       const entrada = applyMemoryMovement({
         productId: product.id,
         type: 'entrada',
-        quantity: input.quantity,
+        quantity: productionQuantity,
         reason: `Fabricação · ${product.name}`,
         reference: orderId,
         origin: 'fabricacao_producao',
@@ -817,7 +916,7 @@ function createMemoryApi() {
         productId: product.id,
         productName: product.name,
         productSku: product.sku,
-        quantity: input.quantity,
+        quantity: productionQuantity,
         notes: input.notes?.trim() ?? '',
         createdAt: ts,
       }
@@ -874,6 +973,26 @@ function createMemoryApi() {
             Diferença: p.stock - p.minStock,
             Status: statusLabel(p.status ?? 'low'),
           })),
+        })
+      }
+      if (type === 'custo-venda') {
+        const res = await this.listProducts({ active: true, kind: 'acabado' })
+        const list = res.ok ? res.data : []
+        return ok({
+          columns: ['Código', 'Produto final', 'Saldo', 'Unidade', 'Preço de custo', 'Preço de venda', 'Diferença', 'Margem'],
+          rows: list.map((product) => {
+            const difference = product.salePrice - product.costPrice
+            return {
+              Código: product.sku,
+              'Produto final': product.name,
+              Saldo: product.stock,
+              Unidade: product.unit,
+              'Preço de custo': product.costPrice,
+              'Preço de venda': product.salePrice,
+              Diferença: difference,
+              Margem: product.salePrice > 0 ? (difference / product.salePrice) * 100 : 0,
+            }
+          }),
         })
       }
       const res = await this.listMovements(filters)

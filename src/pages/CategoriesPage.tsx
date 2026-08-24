@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { ModalForm } from '../components/ModalForm'
+import { CollectionEmpty, CollectionPageHeader } from '../components/CollectionPage'
 import { api, unwrap } from '../lib/api'
 import { useToast } from '../lib/toast'
 import type { Category } from '@shared/types'
@@ -80,20 +81,20 @@ export function CategoriesPage() {
   }
 
   return (
-    <div data-testid="categories-page">
-      <div className="page-header">
-        <p>Organização dos produtos por grupo</p>
+    <div className="collection-page categories-page" data-testid="categories-page">
+      <CollectionPageHeader icon="□" description="Organização dos produtos por grupo." count={items.length} singular="categoria cadastrada" plural="categorias cadastradas">
         <button className="btn btn-primary" data-testid="btn-new-category" onClick={openCreate}>
+          <span aria-hidden>+</span>
           Nova categoria
         </button>
-      </div>
+      </CollectionPageHeader>
 
       <div className="panel panel-flush">
         {items.length === 0 ? (
-          <div className="empty">Nenhuma categoria cadastrada</div>
+          <CollectionEmpty icon="□" title="Nenhuma categoria cadastrada" description="Crie categorias para organizar melhor seus produtos." />
         ) : (
           <div className="table-wrap">
-            <table>
+            <table className="collection-table categories-table">
               <thead>
                 <tr>
                   <th>Nome</th>

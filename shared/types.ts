@@ -120,11 +120,16 @@ export interface PurchaseInvoiceInput {
   items: PurchaseInvoiceItemInput[]
 }
 
+export interface PurchaseInvoiceUpdateInput extends PurchaseInvoiceInput {
+  id: string
+}
+
 export interface PurchaseInvoiceItem {
   id: string
   productId: string
   productName: string
   productSku: string
+  productUnit: string
   quantity: number
   unitCost: number
 }
@@ -217,7 +222,7 @@ export interface ReportRow {
   [key: string]: string | number | boolean | null
 }
 
-export type ReportType = 'posicao' | 'movimentacoes' | 'baixo'
+export type ReportType = 'posicao' | 'movimentacoes' | 'baixo' | 'custo-venda'
 
 export interface ApiResult<T> {
   ok: true

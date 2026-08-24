@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ModalForm } from '../components/ModalForm'
+import { CollectionEmpty, CollectionPageHeader } from '../components/CollectionPage'
 import { api, unwrap } from '../lib/api'
 import { formatNumber } from '../lib/format'
 import { useToast } from '../lib/toast'
@@ -71,25 +72,25 @@ export function RecipesPage() {
   }
 
   return (
-    <div data-testid="recipes-page">
-      <div className="page-header">
-        <p>Composição de produtos finais (insumos por unidade produzida)</p>
+    <div className="collection-page recipes-page" data-testid="recipes-page">
+      <CollectionPageHeader icon="≡" description="Composição dos produtos finais e consumo de insumos por unidade produzida." count={recipes.length} singular="receita cadastrada" plural="receitas cadastradas">
         <button
           className="btn btn-primary"
           data-testid="btn-new-recipe"
           onClick={() => openEdit()}
           disabled={finished.length === 0 || insumos.length === 0}
         >
+          <span aria-hidden>+</span>
           Nova receita
         </button>
-      </div>
+      </CollectionPageHeader>
 
       <div className="panel panel-flush">
         {recipes.length === 0 ? (
-          <div className="empty">Nenhuma receita cadastrada</div>
+          <CollectionEmpty icon="≡" title="Nenhuma receita cadastrada" description="Cadastre a composição de um produto final para iniciar a fabricação." />
         ) : (
           <div className="table-wrap">
-            <table>
+            <table className="collection-table recipes-table">
               <thead>
                 <tr>
                   <th>Produto final</th>

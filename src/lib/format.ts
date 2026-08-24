@@ -3,7 +3,10 @@ export function formatCurrency(value: number): string {
 }
 
 export function formatNumber(value: number): string {
-  return value.toLocaleString('pt-BR', { maximumFractionDigits: 3 })
+  return value.toLocaleString('pt-BR', {
+    minimumFractionDigits: 3,
+    maximumFractionDigits: 3,
+  })
 }
 
 export function formatDateTime(iso: string): string {

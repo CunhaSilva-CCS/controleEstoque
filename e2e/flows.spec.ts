@@ -37,6 +37,10 @@ test.describe('Fluxos F01–F08 (web/memory)', () => {
     await page.goto('/')
     await loginIfNeeded(page)
     await expect(page.getByTestId('app-shell')).toBeVisible()
+    await expect(page.getByTestId('nav-cadastro')).toHaveAttribute('aria-expanded', 'false')
+    await expect(page.getByTestId('nav-operacoes')).toHaveAttribute('aria-expanded', 'false')
+    await page.getByTestId('nav-cadastro').click()
+    await page.getByTestId('nav-operacoes').click()
   })
 
   test('F01 — inicialização e seed vazio', async ({ page }) => {
@@ -57,6 +61,21 @@ test.describe('Fluxos F01–F08 (web/memory)', () => {
     expect(main?.x).toBeGreaterThan(200)
   })
 
+  test('todas as páginas permanecem contidas e alinhadas em janela de notebook', async ({ page }) => {
+    await skipOrAcceptSeed(page, true)
+    await page.setViewportSize({ width: 1024, height: 768 })
+    const destinations = [
+      'nav-dashboard', 'nav-produtos', 'nav-categorias', 'nav-fornecedores', 'nav-receitas',
+      'nav-faturas', 'nav-fabricacao', 'nav-movimentacoes', 'nav-relatorios', 'nav-configuracoes',
+    ]
+    for (const destination of destinations) {
+      await page.getByTestId(destination).click()
+      await expect(page.locator('.content')).toBeVisible()
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
+      expect(overflow).toBeLessThanOrEqual(1)
+    }
+  })
+
   test('F02 — cadastrar categoria', async ({ page }) => {
     await skipOrAcceptSeed(page, false)
     await page.getByTestId('nav-categorias').click()
@@ -65,6 +84,28 @@ test.describe('Fluxos F01–F08 (web/memory)', () => {
     await page.getByTestId('input-category-name').fill('E2E Categoria')
     await saveModal(page)
     await expect(page.getByText('E2E Categoria')).toBeVisible()
+  })
+
+  test('Produto — cadastra categoria e fornecedor sem perder o formulário', async ({ page }) => {
+    await skipOrAcceptSeed(page, false)
+    await page.getByTestId('nav-produtos').click()
+    await page.getByTestId('btn-new-product').click()
+    await page.getByTestId('input-product-sku').fill('RETORNO-001')
+    await page.getByTestId('input-product-name').fill('Produto preservado')
+
+    await page.getByTestId('btn-product-new-category').click()
+    await page.getByTestId('input-product-quick-category-name').fill('Categoria retorno')
+    await saveModal(page)
+    await expect(page.getByTestId('input-product-sku')).toHaveValue('RETORNO-001')
+    await expect(page.locator('#pcat')).toHaveValue(/.+/)
+    await expect(page.locator('#pcat option:checked')).toHaveText('Categoria retorno')
+
+    await page.getByTestId('btn-product-new-supplier').click()
+    await page.getByTestId('input-product-quick-supplier-name').fill('Fornecedor retorno')
+    await saveModal(page)
+    await expect(page.getByTestId('input-product-name')).toHaveValue('Produto preservado')
+    await expect(page.locator('#psup')).toHaveValue(/.+/)
+    await expect(page.locator('#psup option:checked')).toHaveText('Fornecedor retorno')
   })
 
   test('F03 — cadastrar fornecedor', async ({ page }) => {
@@ -87,7 +128,6 @@ test.describe('Fluxos F01–F08 (web/memory)', () => {
     await page.getByTestId('input-product-name').fill('Produto E2E')
     await page.getByTestId('select-product-kind').selectOption('insumo')
     await page.getByTestId('select-product-unit').selectOption('un')
-    await page.getByTestId('input-product-cost').fill('10')
     await page.getByTestId('input-product-sale').fill('20')
     await page.getByTestId('input-product-min').fill('2')
     await saveModal(page)
@@ -97,7 +137,7 @@ test.describe('Fluxos F01–F08 (web/memory)', () => {
     await page.getByTestId('nav-faturas').click()
     await page.getByTestId('btn-new-invoice').click()
     await page.getByTestId('input-invoice-number').fill('NF-E2E-001')
-    await page.getByTestId('select-invoice-product').selectOption({ label: 'E2E-001 · Produto E2E' })
+    await page.getByTestId('select-invoice-product').selectOption({ label: 'E2E-001 · Produto E2E · Unidade: un' })
     await page.getByTestId('input-invoice-qty').fill('5')
     await page.getByTestId('input-invoice-cost').fill('10')
     await saveModal(page)
@@ -109,22 +149,16 @@ test.describe('Fluxos F01–F08 (web/memory)', () => {
     await page.getByTestId('input-product-sku').fill('E2E-FINAL-001')
     await page.getByTestId('input-product-name').fill('Produto Final E2E')
     await page.getByTestId('select-product-kind').selectOption('acabado')
+    await expect(page.getByTestId('product-recipe-editor')).toBeVisible()
+    await page.getByTestId('select-product-recipe-input').selectOption({ label: 'E2E-001 · Produto E2E' })
+    await page.getByTestId('input-product-recipe-qty').fill('2')
     await page.getByTestId('select-product-unit').selectOption('un')
-    await page.getByTestId('input-product-cost').fill('20')
     await page.getByTestId('input-product-sale').fill('40')
     await page.getByTestId('input-product-min').fill('1')
     await saveModal(page)
     await expect(page.getByText('E2E-FINAL-001')).toBeVisible()
 
-    // F07 receita e fabricação: consome 2 insumos e produz 1 produto final
-    await page.getByTestId('nav-receitas').click()
-    await page.getByTestId('btn-new-recipe').click()
-    await page.getByTestId('select-recipe-product').selectOption({ label: 'E2E-FINAL-001 · Produto Final E2E' })
-    await page.getByTestId('select-recipe-component').selectOption({ label: 'E2E-001 · Produto E2E' })
-    await page.getByTestId('input-recipe-qty').fill('2')
-    await saveModal(page)
-    await expect(page.getByText('E2E-FINAL-001')).toBeVisible()
-
+    // F07 fabricação: a composição cadastrada no produto consome 2 insumos por unidade
     await page.getByTestId('nav-fabricacao').click()
     await page.getByTestId('btn-new-production').click()
     await page.getByTestId('select-production-product').selectOption({ label: 'E2E-FINAL-001 · Produto Final E2E' })

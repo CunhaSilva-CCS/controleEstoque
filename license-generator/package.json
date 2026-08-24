@@ -7,7 +7,8 @@
   "author": "Cortexis Tech",
   "scripts": {
     "start": "electron .",
-    "build:win": "electron-builder --win --x64 --publish never"
+    "build:win": "electron-builder --win --x64 --publish never",
+    "build:mac": "electron-builder --mac --arm64 --publish never"
   },
   "devDependencies": {
     "electron": "42.10.0",
@@ -16,8 +17,17 @@
   "build": {
     "appId": "com.cortexistech.licensegenerator",
     "productName": "Gerador de Licenças Cortexis",
+    "afterPack": "scripts/after-pack.cjs",
     "directories": { "output": "release" },
     "files": ["main.cjs", "preload.cjs", "renderer.js", "index.html", "styles.css", "expected-public-key.pem", "assets/**/*"],
-    "win": { "target": ["portable"], "icon": "assets/icon.ico" }
+    "win": { "target": ["portable"], "icon": "assets/icon.ico" },
+    "mac": {
+      "target": ["dmg"],
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.business",
+      "identity": null,
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    }
   }
 }

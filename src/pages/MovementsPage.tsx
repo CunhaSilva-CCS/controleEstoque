@@ -76,17 +76,49 @@ export function MovementsPage() {
     }
   }
 
+  function clearFilters() {
+    setProductId('')
+    setType('')
+    setFrom('')
+    setTo('')
+  }
+
+  const hasFilters = Boolean(productId || type || from || to)
+
   return (
-    <div data-testid="movements-page">
-      <div className="page-header">
-        <p>Correções manuais de inventário. Entradas e saídas usam fatura ou fabricação.</p>
+    <div className="movements-page" data-testid="movements-page">
+      <div className="page-header movements-page-header">
+        <div className="movements-intro">
+          <span className="movements-intro-icon" aria-hidden>↕</span>
+          <div>
+            <p>Histórico completo das entradas, saídas e correções manuais do estoque.</p>
+            <span className="movements-count">
+              {items.length} {items.length === 1 ? 'movimentação encontrada' : 'movimentações encontradas'}
+            </span>
+          </div>
+        </div>
         <button className="btn btn-primary" data-testid="btn-new-movement" onClick={openCreate} disabled={products.length === 0}>
+          <span aria-hidden>+</span>
           Novo ajuste
         </button>
       </div>
 
-      <div className="toolbar">
-        <div className="field-inline">
+      <div className="toolbar movements-toolbar">
+        <div className="movements-filter-heading">
+          <div>
+            <strong>Filtros</strong>
+            <span>Refine o histórico por produto, tipo ou período.</span>
+          </div>
+          <button
+            type="button"
+            className="field-link"
+            onClick={clearFilters}
+            disabled={!hasFilters}
+          >
+            Limpar filtros
+          </button>
+        </div>
+        <div className="field-inline movements-product-filter">
           <label htmlFor="fprod">Produto</label>
           <select id="fprod" value={productId} onChange={(e) => setProductId(e.target.value)}>
             <option value="">Todos</option>
@@ -122,10 +154,25 @@ export function MovementsPage() {
 
       <div className="panel panel-flush">
         {items.length === 0 ? (
-          <div className="empty">Nenhuma movimentação no filtro atual</div>
+          <div className="empty movements-empty">
+            <span aria-hidden>⇄</span>
+            <strong>Nenhuma movimentação encontrada</strong>
+            <p>Altere os filtros ou registre um novo ajuste de inventário.</p>
+          </div>
         ) : (
           <div className="table-wrap">
-            <table>
+            <table className="movements-table">
+              <colgroup>
+                <col className="movement-col-date" />
+                <col className="movement-col-code" />
+                <col className="movement-col-product" />
+                <col className="movement-col-type" />
+                <col className="movement-col-origin" />
+                <col className="movement-col-number" />
+                <col className="movement-col-number" />
+                <col className="movement-col-number" />
+                <col className="movement-col-reason" />
+              </colgroup>
               <thead>
                 <tr>
                   <th>Data</th>
@@ -140,24 +187,30 @@ export function MovementsPage() {
                 </tr>
               </thead>
               <tbody>
-                {items.map((m) => (
+                {items.map((m) => {
+                  const [movementDate, movementTime = ''] = formatDateTime(m.createdAt).split(', ')
+                  return (
                   <tr key={m.id}>
-                    <td>{formatDateTime(m.createdAt)}</td>
-                    <td>{m.productSku}</td>
-                    <td>{m.productName}</td>
+                    <td className="movement-date">
+                      <strong>{movementDate}</strong>
+                      <span>{movementTime}</span>
+                    </td>
+                    <td className="movement-code">{m.productSku}</td>
+                    <td className="movement-product">{m.productName}</td>
                     <td>
                       <span className={`badge badge-${m.type}`}>{movementLabel(m.type)}</span>
                     </td>
-                    <td>{movementOriginLabel(m.origin)}</td>
-                    <td>{formatNumber(m.quantity)}</td>
-                    <td>{formatNumber(m.previousStock)}</td>
-                    <td>{formatNumber(m.newStock)}</td>
-                    <td>
-                      {m.reason}
-                      {m.reference ? <span className="muted"> · {m.reference}</span> : null}
+                    <td className="movement-origin">{movementOriginLabel(m.origin)}</td>
+                    <td className="movement-number">{formatNumber(m.quantity)}</td>
+                    <td className="movement-number movement-previous">{formatNumber(m.previousStock)}</td>
+                    <td className="movement-number movement-new">{formatNumber(m.newStock)}</td>
+                    <td className="movement-reason">
+                      <strong>{m.reason}</strong>
+                      {m.reference ? <span title={m.reference}>{m.reference}</span> : null}
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>

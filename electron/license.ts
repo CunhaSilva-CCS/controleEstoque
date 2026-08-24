@@ -6,6 +6,7 @@ import { LICENSE_PUBLIC_KEY_PEM } from '../shared/license-public-key'
 import type { LicenseDetails, LicenseStatus } from '../shared/types'
 
 const PREFIX = 'CTX1-'
+const STORAGE_PREFIX = 'CTX-PROTECTED-1:'
 
 function decodePart(value: string): Buffer {
   return Buffer.from(value, 'base64url')
@@ -57,6 +58,41 @@ function licensePath(): string {
   return path.join(app.getPath('userData'), 'license.key')
 }
 
+export function protectLicenseForStorage(
+  rawKey: string,
+  encrypt: (value: string) => Buffer = (value) => safeStorage.encryptString(value),
+): string {
+  const normalized = rawKey.trim()
+  if (!normalized.startsWith(PREFIX)) throw new Error('Formato de chave inválido')
+  return `${STORAGE_PREFIX}${encrypt(normalized).toString('base64')}`
+}
+
+export function readLicenseFromStorage(
+  storedValue: string,
+  decrypt: (value: Buffer) => string = (value) => safeStorage.decryptString(value),
+): { licenseKey: string; protected: boolean } {
+  const normalized = storedValue.trim()
+  if (!normalized.startsWith(STORAGE_PREFIX)) {
+    return { licenseKey: normalized, protected: false }
+  }
+  const encoded = normalized.slice(STORAGE_PREFIX.length)
+  if (!encoded || !/^[A-Za-z0-9+/]+={0,2}$/.test(encoded)) {
+    throw new Error('Licença protegida corrompida')
+  }
+  const licenseKey = decrypt(Buffer.from(encoded, 'base64')).trim()
+  if (!licenseKey.startsWith(PREFIX)) throw new Error('Licença protegida corrompida')
+  return { licenseKey, protected: true }
+}
+
+function saveProtectedLicense(rawKey: string): void {
+  if (!safeStorage.isEncryptionAvailable()) throw new Error('Cofre seguro indisponível')
+  const filePath = licensePath()
+  const tempPath = `${filePath}.tmp`
+  fs.mkdirSync(path.dirname(filePath), { recursive: true })
+  fs.writeFileSync(tempPath, protectLicenseForStorage(rawKey), { encoding: 'utf8', mode: 0o600 })
+  fs.renameSync(tempPath, filePath)
+}
+
 function getInstallationId(): string {
   const filePath = path.join(app.getPath('userData'), 'installation.id')
   if (fs.existsSync(filePath)) {
@@ -75,18 +111,25 @@ export function getLicenseStatus(): LicenseStatus {
   const installationId = getInstallationId()
   const filePath = licensePath()
   if (!fs.existsSync(filePath)) return { active: false, reason: 'Este sistema ainda não foi licenciado', installationId }
-  return verifyLicenseKey(fs.readFileSync(filePath, 'utf8'), LICENSE_PUBLIC_KEY_PEM, new Date(), installationId)
+  try {
+    const stored = readLicenseFromStorage(fs.readFileSync(filePath, 'utf8'))
+    const status = verifyLicenseKey(stored.licenseKey, LICENSE_PUBLIC_KEY_PEM, new Date(), installationId)
+    if (status.active && !stored.protected) saveProtectedLicense(stored.licenseKey)
+    return status
+  } catch (error) {
+    return {
+      active: false,
+      reason: error instanceof Error ? error.message : 'Falha ao ler a licença protegida',
+      installationId,
+    }
+  }
 }
 
 export function activateLicense(rawKey: string): LicenseStatus {
   const installationId = getInstallationId()
   const status = verifyLicenseKey(rawKey, LICENSE_PUBLIC_KEY_PEM, new Date(), installationId)
   if (!status.active) return status
-  const filePath = licensePath()
-  const tempPath = `${filePath}.tmp`
-  fs.mkdirSync(path.dirname(filePath), { recursive: true })
-  fs.writeFileSync(tempPath, rawKey.trim(), { encoding: 'utf8', mode: 0o600 })
-  fs.renameSync(tempPath, filePath)
+  saveProtectedLicense(rawKey)
   return status
 }
 

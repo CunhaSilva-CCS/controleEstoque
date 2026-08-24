@@ -6,6 +6,7 @@ module.exports = {
   directories: {
     output: 'release',
   },
+  afterPack: 'scripts/after-pack-macos.cjs',
   files: ['dist/**/*', 'dist-electron/**/*'],
   extraResources: [{ from: 'build/icon.png', to: 'icon.png' }],
   linux: {

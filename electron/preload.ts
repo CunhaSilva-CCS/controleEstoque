@@ -11,6 +11,7 @@ import type {
 } from '../shared/types'
 
 const api: EstoqueApi = {
+  closeApp: () => ipcRenderer.invoke('app:close'),
   init: () => ipcRenderer.invoke('app:init'),
   authStatus: () => ipcRenderer.invoke('auth:status'),
   getLicenseStatus: () => ipcRenderer.invoke('license:status'),
@@ -43,6 +44,7 @@ const api: EstoqueApi = {
 
   listPurchaseInvoices: () => ipcRenderer.invoke('invoices:list'),
   createPurchaseInvoice: (input) => ipcRenderer.invoke('invoices:create', input),
+  updatePurchaseInvoice: (input) => ipcRenderer.invoke('invoices:update', input),
 
   listRecipes: () => ipcRenderer.invoke('recipes:list'),
   getRecipe: (productId: string) => ipcRenderer.invoke('recipes:get', productId),

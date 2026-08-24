@@ -123,8 +123,8 @@ export function AppLayout({
   const { brand } = useClientBrand()
   const { pathname } = useLocation()
   const currentTitle = routeTitles[pathname] ?? BRAND.module
-  const [cadastroOpen, setCadastroOpen] = useState(true)
-  const [operacaoOpen, setOperacaoOpen] = useState(true)
+  const [cadastroOpen, setCadastroOpen] = useState(false)
+  const [operacaoOpen, setOperacaoOpen] = useState(false)
   const clientName = brand.name.trim() || 'Sua empresa'
   const currentRole = roleLabel(user.role)
 

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ModalForm } from '../components/ModalForm'
+import { CollectionEmpty, CollectionPageHeader } from '../components/CollectionPage'
 import { api, unwrap } from '../lib/api'
 import { formatDateTime, formatNumber } from '../lib/format'
 import { useToast } from '../lib/toast'
@@ -68,9 +69,8 @@ export function ProductionPage() {
   }
 
   return (
-    <div data-testid="production-page">
-      <div className="page-header">
-        <p>Selecione um produto final com receita cadastrada para consumir os insumos automaticamente.</p>
+    <div className="collection-page production-page" data-testid="production-page">
+      <CollectionPageHeader icon="⚙" description="Produção de itens finais com consumo automático dos insumos definidos na receita." count={orders.length} singular="fabricação registrada" plural="fabricações registradas">
         <button
           className="btn btn-primary"
           data-testid="btn-new-production"
@@ -78,16 +78,17 @@ export function ProductionPage() {
           disabled={finished.length === 0}
           title={finished.length === 0 ? 'Cadastre uma receita para habilitar a fabricação' : undefined}
         >
+          <span aria-hidden>+</span>
           Registrar fabricação
         </button>
-      </div>
+      </CollectionPageHeader>
 
       <div className="panel panel-flush">
         {orders.length === 0 ? (
-          <div className="empty">Nenhuma fabricação registrada</div>
+          <CollectionEmpty icon="⚙" title="Nenhuma fabricação registrada" description="Registre uma fabricação para produzir itens finais e consumir insumos." />
         ) : (
           <div className="table-wrap">
-            <table>
+            <table className="collection-table production-table">
               <thead>
                 <tr>
                   <th>Produto</th>

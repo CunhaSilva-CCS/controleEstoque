@@ -1,12 +1,23 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, unwrap } from '../lib/api'
+import { CollectionEmpty, CollectionPageHeader } from '../components/CollectionPage'
 import { useToast } from '../lib/toast'
+import { formatCurrency, formatNumber } from '../lib/format'
 import type { ReportType } from '@shared/types'
 
 const labels: Record<ReportType, string> = {
   posicao: 'Posição de estoque',
   movimentacoes: 'Movimentações',
   baixo: 'Estoque baixo / zerado',
+  'custo-venda': 'Produto - Custo x Venda',
+}
+
+function formatReportValue(type: ReportType, column: string, value: string | number | boolean | null) {
+  if (type !== 'custo-venda' || typeof value !== 'number') return String(value ?? '')
+  if (['Preço de custo', 'Preço de venda', 'Diferença'].includes(column)) return formatCurrency(value)
+  if (column === 'Margem') return `${value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
+  if (column === 'Saldo') return formatNumber(value)
+  return String(value)
 }
 
 export function ReportsPage() {
@@ -55,15 +66,14 @@ export function ReportsPage() {
   }
 
   return (
-    <div>
-      <div className="page-header">
-        <p>Consultas gerenciais e exportação em CSV</p>
+    <div className="collection-page reports-page" data-testid="reports-page">
+      <CollectionPageHeader icon="▥" description="Consultas gerenciais, conferência de dados e exportação em CSV." count={rows.length} singular="linha no relatório" plural="linhas no relatório">
         <button className="btn btn-primary" onClick={() => void exportCsv()}>
           Exportar CSV
         </button>
-      </div>
+      </CollectionPageHeader>
 
-      <div className="toolbar">
+      <div className="toolbar collection-toolbar reports-toolbar">
         <div className="field-inline">
           <label htmlFor="rtype">Tipo</label>
           <select
@@ -99,10 +109,10 @@ export function ReportsPage() {
 
       <div className="panel panel-flush">
         {rows.length === 0 ? (
-          <div className="empty">Sem dados para o relatório selecionado</div>
+          <CollectionEmpty icon="▥" title="Sem dados para este relatório" description="Selecione outro relatório ou altere o período consultado." />
         ) : (
           <div className="table-wrap">
-            <table>
+            <table className={`collection-table reports-table ${type === 'custo-venda' ? 'control-table' : ''}`}>
               <thead>
                 <tr>
                   {columns.map((c) => (
@@ -114,7 +124,7 @@ export function ReportsPage() {
                 {rows.map((row, idx) => (
                   <tr key={idx}>
                     {columns.map((c) => (
-                      <td key={c}>{String(row[c] ?? '')}</td>
+                      <td key={c}>{formatReportValue(type, c, row[c])}</td>
                     ))}
                   </tr>
                 ))}
