@@ -10,7 +10,7 @@ export function formatCurrency(value: number): string {
 }
 
 export function formatNumber(value: number): string {
-  return value.toLocaleString('pt-PT', {
+  return value.toLocaleString('pt-BR', {
     minimumFractionDigits: QUANTITY_DECIMALS,
     maximumFractionDigits: QUANTITY_DECIMALS,
   })
