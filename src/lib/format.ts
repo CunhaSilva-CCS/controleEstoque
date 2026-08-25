@@ -1,11 +1,13 @@
+import { QUANTITY_DECIMALS } from '@shared/quantity'
+
 export function formatCurrency(value: number): string {
   return value.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })
 }
 
 export function formatNumber(value: number): string {
   return value.toLocaleString('pt-PT', {
-    minimumFractionDigits: 3,
-    maximumFractionDigits: 3,
+    minimumFractionDigits: QUANTITY_DECIMALS,
+    maximumFractionDigits: QUANTITY_DECIMALS,
   })
 }
 

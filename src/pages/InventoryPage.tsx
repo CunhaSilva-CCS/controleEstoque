@@ -189,7 +189,7 @@ export function InventoryPage() {
                       <input
                         type="number"
                         min="0"
-                        step="0.001"
+                        step="0.00001"
                         value={counts[count.productId] ?? ''}
                         onChange={(e) => setCounts((current) => ({ ...current, [count.productId]: e.target.value }))}
                         disabled={active.status === 'aguarda_aprovacao'}

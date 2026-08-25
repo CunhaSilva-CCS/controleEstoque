@@ -102,6 +102,7 @@ process.env.VITE_PUBLIC = app.isPackaged
   : path.join(__dirname, '../public')
 
 let mainWindow: BrowserWindow | null = null
+let allowWindowClose = false
 const VITE_DEV_SERVER_URL = process.env.VITE_DEV_SERVER_URL
 let currentUser: User | null = null
 const loginAttempts = new Map<string, { failures: number; firstFailureAt: number; blockedUntil: number }>()
@@ -198,6 +199,28 @@ function createWindow(): void {
     },
   })
 
+  mainWindow.on('close', (event) => {
+    if (allowWindowClose) {
+      allowWindowClose = false
+      return
+    }
+
+    event.preventDefault()
+    const choice = dialog.showMessageBoxSync(mainWindow!, {
+      type: 'question',
+      buttons: ['Cancelar', 'Fechar'],
+      defaultId: 0,
+      cancelId: 0,
+      title: 'Fechar aplicação',
+      message: 'Deseja fechar a aplicação?',
+    })
+
+    if (choice === 1) {
+      allowWindowClose = true
+      mainWindow?.close()
+    }
+  })
+
   mainWindow.once('ready-to-show', () => {
     mainWindow?.maximize()
     mainWindow?.show()
@@ -253,7 +276,7 @@ function createWindow(): void {
 
 function registerIpc(): void {
   ipcMain.handle('app:close', () => {
-    setTimeout(() => app.quit(), 50)
+    mainWindow?.close()
     return ok(true)
   })
 

@@ -1,6 +1,6 @@
-export const QUANTITY_DECIMALS = 3
+export const QUANTITY_DECIMALS = 5
 
 export function roundQuantity(value: number): number {
-  return Math.round((value + Number.EPSILON) * 1_000) / 1_000
+  const factor = 10 ** QUANTITY_DECIMALS
+  return Math.round((value + Number.EPSILON) * factor) / factor
 }
-

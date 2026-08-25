@@ -11,6 +11,7 @@
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "preview": "vite preview",
     "electron:build": "npm run build && electron-builder --config electron-builder.config.cjs --dir",
+    "electron:build:win": "npm run build && electron-builder --config electron-builder.config.cjs --win nsis --x64",
     "electron:build:release": "npm run build && electron-builder --config electron-builder.config.cjs --publish onTagOrDraft",
     "start": "electron .",
     "smoke": "tsx scripts/smoke.mts",

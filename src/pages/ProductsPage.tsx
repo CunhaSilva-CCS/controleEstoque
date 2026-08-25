@@ -575,7 +575,7 @@ export function ProductsPage() {
                 id="min" data-testid="input-product-min"
                 type="number"
                 min="0"
-                step="0.001"
+                step="0.00001"
                 required
                 value={form.minStock}
                 onChange={(e) => setForm({ ...form, minStock: e.target.value })}
@@ -634,8 +634,8 @@ export function ProductsPage() {
                           id={`product-recipe-quantity-${index}`}
                           data-testid={index === 0 ? 'input-product-recipe-qty' : undefined}
                           type="number"
-                          min="0.001"
-                          step="0.001"
+                          min="0.00001"
+                          step="0.00001"
                           required
                           value={line.quantity}
                           onChange={(e) => {

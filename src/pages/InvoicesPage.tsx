@@ -263,8 +263,8 @@ export function InvoicesPage() {
                       id={`invoice-qty-${idx}`}
                       data-testid={idx === 0 ? 'input-invoice-qty' : undefined}
                       type="number"
-                      min="0.001"
-                      step="0.001"
+                      min="0.00001"
+                      step="0.00001"
                       required
                       value={item.quantity}
                       onChange={(e) => {
