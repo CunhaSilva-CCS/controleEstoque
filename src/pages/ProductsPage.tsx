@@ -162,6 +162,38 @@ export function ProductsPage() {
     }
   }
 
+  async function copyProduct(id: string) {
+    const product = products.find((item) => item.id === id)
+    if (!product) return
+    setEditing(null)
+    setForm({
+      sku: product.sku,
+      name: product.name,
+      description: product.description,
+      categoryId: product.categoryId ?? '',
+      supplierId: product.supplierId ?? '',
+      kind: product.kind,
+      unit: product.unit,
+      costPrice: String(product.costPrice),
+      salePrice: String(product.salePrice),
+      minStock: String(product.minStock),
+    })
+    setRecipeNotes('')
+    setRecipeLines([])
+    if (product.kind === 'acabado') {
+      try {
+        const recipe = await unwrap(api.getRecipe(product.id))
+        setRecipeNotes(recipe?.notes ?? '')
+        setRecipeLines(recipe?.items.map((item) => ({
+          productId: item.productId,
+          quantity: String(item.quantity),
+        })) ?? [])
+      } catch (err) {
+        push(err instanceof Error ? err.message : 'Não foi possível copiar a composição do produto', 'err')
+      }
+    }
+  }
+
   async function saveProduct(e: FormEvent) {
     e.preventDefault()
     try {
@@ -413,6 +445,8 @@ export function ProductsPage() {
           }
           onClose={() => setOpen(false)}
           onSubmit={saveProduct}
+          copyOptions={!editing ? products.map((product) => ({ value: product.id, label: `${product.sku} · ${product.name}` })) : undefined}
+          onCopy={!editing ? (id) => void copyProduct(id) : undefined}
         >
           <div className="form-grid">
             <div className="field">

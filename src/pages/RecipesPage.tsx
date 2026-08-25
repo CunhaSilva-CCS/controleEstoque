@@ -16,6 +16,7 @@ export function RecipesPage() {
   const [finished, setFinished] = useState<Product[]>([])
   const [insumos, setInsumos] = useState<Product[]>([])
   const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<Recipe | null>(null)
   const [productId, setProductId] = useState('')
   const [notes, setNotes] = useState('')
   const [lines, setLines] = useState<RecipeLine[]>([{ productId: '', quantity: '1' }])
@@ -39,6 +40,7 @@ export function RecipesPage() {
   }, [load])
 
   function openEdit(recipe?: Recipe) {
+    setEditing(recipe ?? null)
     const pid = recipe?.productId ?? finished[0]?.id ?? ''
     setProductId(pid)
     setNotes(recipe?.notes ?? '')
@@ -48,6 +50,18 @@ export function RecipesPage() {
         : [{ productId: insumos[0]?.id ?? '', quantity: '1' }],
     )
     setOpen(true)
+  }
+
+  function copyRecipe(id: string) {
+    const recipe = recipes.find((item) => item.id === id)
+    if (!recipe) return
+    setEditing(null)
+    setProductId('')
+    setNotes(recipe.notes)
+    setLines(recipe.items.map((item) => ({
+      productId: item.productId,
+      quantity: String(item.quantity),
+    })))
   }
 
   async function save(e: FormEvent) {
@@ -125,7 +139,7 @@ export function RecipesPage() {
       </div>
 
       {open ? (
-        <ModalForm title="Receita de fabricação" onClose={() => setOpen(false)} onSubmit={save}>
+        <ModalForm title={editing ? 'Editar receita de fabricação' : 'Nova receita de fabricação'} onClose={() => setOpen(false)} onSubmit={save} copyOptions={!editing ? recipes.map((recipe) => ({ value: recipe.id, label: `${recipe.productSku} · ${recipe.productName}` })) : undefined} onCopy={!editing ? copyRecipe : undefined}>
           <div className="form-grid">
             <div className="field full">
               <div className="field-label-actions">

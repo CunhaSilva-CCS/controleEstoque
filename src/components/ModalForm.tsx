@@ -9,6 +9,8 @@ type Props = {
   children: ReactNode
   submitLabel?: string
   cancelLabel?: string
+  copyOptions?: { value: string; label: string }[]
+  onCopy?: (value: string) => void
 }
 
 function formSnapshot(form: HTMLFormElement): string {
@@ -36,6 +38,8 @@ export function ModalForm({
   children,
   submitLabel = 'Guardar',
   cancelLabel = 'Cancelar',
+  copyOptions = [],
+  onCopy,
 }: Props) {
   const titleId = useId()
   const modalRef = useRef<HTMLDivElement>(null)
@@ -94,6 +98,25 @@ export function ModalForm({
             onSubmit(e)
           }}
         >
+          {copyOptions.length > 0 && onCopy ? (
+            <div className="field full">
+              <label htmlFor={`${titleId}-copy`}>Copiar cadastro existente</label>
+              <select
+                id={`${titleId}-copy`}
+                defaultValue=""
+                onChange={(event) => {
+                  if (event.target.value) onCopy(event.target.value)
+                }}
+              >
+                <option value="">Selecione um cadastro para copiar</option>
+                {copyOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
           {children}
           <div className="modal-actions">
             <button type="button" className="btn btn-ghost" onClick={requestClose}>

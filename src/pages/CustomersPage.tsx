@@ -23,6 +23,20 @@ export function CustomersPage() {
     setForm(customer ? { name: customer.name, taxNumber: customer.taxNumber, address: customer.address, phone: customer.phone, email: customer.email, notes: customer.notes } : blank)
     setOpen(true)
   }
+
+  function copyCustomer(id: string) {
+    const customer = items.find((item) => item.id === id)
+    if (!customer) return
+    setEditing(null)
+    setForm({
+      name: customer.name,
+      taxNumber: customer.taxNumber,
+      address: customer.address,
+      phone: customer.phone,
+      email: customer.email,
+      notes: customer.notes,
+    })
+  }
   async function save(event: FormEvent) {
     event.preventDefault()
     try {
@@ -41,6 +55,6 @@ export function CustomersPage() {
       <button className="btn btn-primary" onClick={() => openForm()}>Novo cliente</button>
     </CollectionPageHeader>
     <div className="panel table-wrap">{items.length === 0 ? <CollectionEmpty icon="◎" title="Ainda não existem clientes registados" description="Registe o primeiro cliente para iniciar a faturação de saída." /> : <table className="collection-table"><thead><tr><th>Cliente</th><th>NIF</th><th>Contacto</th><th>Estado</th><th>Ações</th></tr></thead><tbody>{items.map((customer) => <tr key={customer.id}><td><strong>{customer.name}</strong><small>{customer.address}</small></td><td>{customer.taxNumber || '—'}</td><td>{customer.phone || customer.email || '—'}</td><td><StatusBadge status={customer.active ? 'active' : 'inactive'} /></td><td><div className="row-actions"><button className="btn btn-small btn-ghost" onClick={() => openForm(customer)}>Editar</button><button className="btn btn-small btn-ghost" onClick={() => void toggle(customer)}>{customer.active ? 'Desativar' : 'Ativar'}</button></div></td></tr>)}</tbody></table>}</div>
-    {open ? <ModalForm title={editing ? 'Editar cliente' : 'Novo cliente'} onClose={() => setOpen(false)} onSubmit={save} submitLabel="Guardar cliente"><div className="form-grid"><div className="field full"><label>Nome *</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div><div className="field"><label>NIF</label><input value={form.taxNumber} onChange={(e) => setForm({ ...form, taxNumber: e.target.value })} /></div><div className="field"><label>Telefone</label><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div><div className="field full"><label>Morada</label><input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div><div className="field full"><label>E-mail</label><input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div><div className="field full"><label>Observações</label><textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div></div></ModalForm> : null}
+    {open ? <ModalForm title={editing ? 'Editar cliente' : 'Novo cliente'} onClose={() => setOpen(false)} onSubmit={save} submitLabel="Guardar cliente" copyOptions={!editing ? items.map((item) => ({ value: item.id, label: item.name })) : undefined} onCopy={!editing ? copyCustomer : undefined}><div className="form-grid"><div className="field full"><label>Nome *</label><input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div><div className="field"><label>NIF</label><input value={form.taxNumber} onChange={(e) => setForm({ ...form, taxNumber: e.target.value })} /></div><div className="field"><label>Telefone</label><input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div><div className="field full"><label>Morada</label><input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} /></div><div className="field full"><label>E-mail</label><input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></div><div className="field full"><label>Observações</label><textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></div></div></ModalForm> : null}
   </div>
 }

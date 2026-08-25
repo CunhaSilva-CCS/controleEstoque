@@ -58,6 +58,19 @@ export function SuppliersPage() {
     setOpen(true)
   }
 
+  function copySupplier(id: string) {
+    const supplier = items.find((item) => item.id === id)
+    if (!supplier) return
+    setEditing(null)
+    setForm({
+      name: supplier.name,
+      document: supplier.document,
+      phone: supplier.phone,
+      email: supplier.email,
+      notes: supplier.notes,
+    })
+  }
+
   async function save(e: FormEvent) {
     e.preventDefault()
     try {
@@ -161,6 +174,8 @@ export function SuppliersPage() {
           title={editing ? 'Editar fornecedor' : 'Novo fornecedor'}
           onClose={() => setOpen(false)}
           onSubmit={save}
+          copyOptions={!editing ? items.map((item) => ({ value: item.id, label: item.name })) : undefined}
+          onCopy={!editing ? copySupplier : undefined}
         >
           <div className="form-grid">
             <div className="field full">

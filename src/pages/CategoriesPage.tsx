@@ -39,6 +39,14 @@ export function CategoriesPage() {
     setOpen(true)
   }
 
+  function copyCategory(id: string) {
+    const category = items.find((item) => item.id === id)
+    if (!category) return
+    setEditing(null)
+    setName(category.name)
+    setDescription(category.description)
+  }
+
   async function save(e: FormEvent) {
     e.preventDefault()
     try {
@@ -136,6 +144,8 @@ export function CategoriesPage() {
           title={editing ? 'Editar categoria' : 'Nova categoria'}
           onClose={() => setOpen(false)}
           onSubmit={save}
+          copyOptions={!editing ? items.map((item) => ({ value: item.id, label: item.name })) : undefined}
+          onCopy={!editing ? copyCategory : undefined}
         >
           <div className="form-grid">
             <div className="field full">
