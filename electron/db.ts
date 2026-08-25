@@ -1040,7 +1040,10 @@ export function createPurchaseInvoice(input: PurchaseInvoiceInput): PurchaseInvo
     )
 
     const affectedIds = new Set<string>()
+    const seenProductIds = new Set<string>()
     for (const item of input.items) {
+      if (seenProductIds.has(item.productId)) throw new Error('Não repita o mesmo insumo na fatura')
+      seenProductIds.add(item.productId)
       if (!(item.quantity > 0)) throw new Error('Quantidade do item deve ser maior que zero')
       if (item.unitCost < 0) throw new Error('Custo unitário não pode ser negativo')
 

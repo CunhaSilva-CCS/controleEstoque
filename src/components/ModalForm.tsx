@@ -56,7 +56,10 @@ export function ModalForm({
     if (formRef.current) initialSnapshot.current = formSnapshot(formRef.current)
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') requestClose()
+      if (event.key !== 'Escape') return
+      const tag = (event.target as HTMLElement | null)?.tagName
+      if (tag === 'SELECT' || tag === 'INPUT' || tag === 'TEXTAREA') return
+      requestClose()
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => {

@@ -189,6 +189,53 @@ test.describe('Fluxos operacionais (web/memory)', () => {
     }
   })
 
+  test('Fatura — Esc num campo de item não fecha o modal e itens são preservados', async ({ page }) => {
+    await skipOrAcceptSeed(page, true)
+    await page.getByTestId('nav-faturacao-entrada').click()
+    await expect(page.getByTestId('invoices-page')).toBeVisible()
+    await page.getByTestId('btn-new-invoice').click()
+
+    await page.getByTestId('input-invoice-number').fill('NF-E2E-ESC')
+
+    // Item 1
+    await page.locator('#invoice-product-0').selectOption({ index: 1 })
+    await page.getByTestId('input-invoice-qty').fill('1')
+    await page.getByTestId('input-invoice-cost').fill('10')
+
+    // Item 2
+    await page.getByRole('button', { name: 'Adicionar item' }).click()
+    await page.locator('#invoice-product-1').selectOption({ index: 2 })
+    await page.locator('#invoice-qty-1').fill('2')
+    await page.locator('#invoice-cost-1').fill('20')
+
+    // Item 3 — foca o select de matéria-prima e pressiona Esc, como quem fecha
+    // o dropdown sem escolher, um gesto natural ao lançar o terceiro item.
+    // Simula o usuário aceitando o confirm() nativo, caso ele apareça —
+    // é o caminho que realmente perde os dados no bug original.
+    let dialogAppeared = false
+    page.once('dialog', (dialog) => {
+      dialogAppeared = true
+      void dialog.accept()
+    })
+    await page.getByRole('button', { name: 'Adicionar item' }).click()
+    await page.locator('#invoice-product-2').selectOption({ index: 3 })
+    await page.locator('#invoice-product-2').focus()
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(300)
+
+    // Com a correção, o Esc num campo de formulário não deve nem chegar a
+    // pedir confirmação — e o modal deve permanecer aberto com os 3 itens.
+    expect(dialogAppeared).toBe(false)
+    await expect(page.getByTestId('input-invoice-number')).toBeVisible()
+    await expect(page.getByTestId('input-invoice-number')).toHaveValue('NF-E2E-ESC')
+    await expect(page.locator('.line-item-card')).toHaveCount(3)
+
+    await page.locator('#invoice-qty-2').fill('3')
+    await page.locator('#invoice-cost-2').fill('30')
+    await saveModal(page)
+    await expect(page.getByText('NF-E2E-ESC')).toBeVisible()
+  })
+
   test('Configurações — backup e updates (web stubs)', async ({ page }) => {
     await skipOrAcceptSeed(page, false)
     await page.getByTestId('nav-configuracoes').click()

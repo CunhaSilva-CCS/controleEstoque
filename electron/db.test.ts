@@ -84,6 +84,33 @@ describe('integração SQLite de estoque', () => {
     expect(listMovements({ productId: input.id })).toHaveLength(0)
   })
 
+  it('rejeita insumo repetido na mesma fatura de compra', (context) => {
+    if (!ensureDatabase(context)) return
+    const input = createProduct({
+      sku: 'SQL-INS-DUP',
+      name: 'Insumo duplicado SQLite',
+      kind: 'insumo',
+      unit: 'un',
+      costPrice: 1,
+      salePrice: 2,
+      minStock: 0,
+    })
+
+    expect(() =>
+      createPurchaseInvoice({
+        number: 'NF-SQL-DUP',
+        issueDate: '2026-08-24',
+        items: [
+          { productId: input.id, quantity: 5, unitCost: 1 },
+          { productId: input.id, quantity: 3, unitCost: 1 },
+        ],
+      }),
+    ).toThrow(/Não repita o mesmo insumo na fatura/)
+
+    expect(getProduct(input.id)?.stock).toBe(0)
+    expect(listMovements({ productId: input.id })).toHaveLength(0)
+  })
+
   it('consome insumo e produz produto final na mesma operação', (context) => {
     if (!ensureDatabase(context)) return
     const input = createProduct({
