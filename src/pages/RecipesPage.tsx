@@ -212,8 +212,8 @@ export function RecipesPage() {
                     id={`recipe-qty-${idx}`}
                     data-testid={idx === 0 ? 'input-recipe-qty' : undefined}
                     type="number"
-                    min="0.00001"
-                    step="0.00001"
+                    min="0.000001"
+                    step="0.000001"
                     required
                     value={line.quantity}
                     onChange={(e) => {

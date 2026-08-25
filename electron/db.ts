@@ -1054,7 +1054,7 @@ export function createPurchaseInvoice(input: PurchaseInvoiceInput): PurchaseInvo
       }
 
       const quantity = convertToStockUnit(database, item.productId, item.quantity, product.purchase_unit ?? undefined)
-      const stockUnitCost = Math.round((item.unitCost / (quantity / item.quantity)) * 10_000) / 10_000
+      const stockUnitCost = roundQuantity(item.unitCost / (quantity / item.quantity))
       affectedIds.add(item.productId)
       insertItem.run(randomUUID(), invoiceId, item.productId, quantity, stockUnitCost,
         item.lotNumber?.trim() ?? '', item.manufacturedAt || null, item.expiresAt || null)
@@ -1310,7 +1310,7 @@ export function createProduction(input: ProductionInput): ProductionOrder {
   const orderId = randomUUID()
   const ts = nowIso()
   const unitCostSnapshot = calculateFinishedProductCost(database, input.productId)
-  const totalCostSnapshot = Math.round(unitCostSnapshot * productionQuantity * 10_000) / 10_000
+  const totalCostSnapshot = roundQuantity(unitCostSnapshot * productionQuantity)
 
   const tx = database.transaction(() => {
     database

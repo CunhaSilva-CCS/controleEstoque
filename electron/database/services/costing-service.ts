@@ -1,4 +1,5 @@
 import type { Db } from '../types'
+import { roundQuantity } from '../../../shared/quantity'
 
 export function calculateInvoiceAverageCost(database: Db, productId: string): number | null {
   const result = database.prepare(
@@ -7,7 +8,7 @@ export function calculateInvoiceAverageCost(database: Db, productId: string): nu
      WHERE ii.product_id = ? AND COALESCE(i.status, 'confirmado') NOT IN ('cancelado', 'estornado')`,
   ).get(productId) as { total_value: number | null; total_quantity: number | null }
   if (!result.total_quantity) return null
-  return Math.round(((result.total_value ?? 0) / result.total_quantity) * 10_000) / 10_000
+  return roundQuantity((result.total_value ?? 0) / result.total_quantity)
 }
 
 export function updateInvoiceAverageCost(
@@ -37,7 +38,7 @@ export function calculateFinishedProductCost(database: Db, productId: string): n
      JOIN products p ON p.id = ri.product_id
      WHERE r.product_id = ? AND r.active = 1`,
   ).get(productId) as { cost: number }
-  return Math.round(Number(result.cost) * 10_000) / 10_000
+  return roundQuantity(Number(result.cost))
 }
 
 export function updateFinishedProductCost(database: Db, productId: string, updatedAt: string): void {

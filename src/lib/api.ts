@@ -69,10 +69,10 @@ function createMemoryApi() {
     const product = products.find((item) => item.id === productId)
     const recipe = recipes.find((item) => item.productId === productId && item.active)
     if (!product || product.kind !== 'acabado') return
-    product.costPrice = Math.round((recipe?.items.reduce((sum, item) => {
+    product.costPrice = roundQuantity(recipe?.items.reduce((sum, item) => {
       const input = products.find((candidate) => candidate.id === item.productId)
       return sum + item.quantity * (input?.costPrice ?? 0)
-    }, 0) ?? 0) * 10_000) / 10_000
+    }, 0) ?? 0)
     product.updatedAt = now()
   }
 
@@ -87,7 +87,7 @@ function createMemoryApi() {
     const invoiceItems = invoices.flatMap((invoice) => invoice.items).filter((item) => item.productId === productId)
     const totalQuantity = invoiceItems.reduce((sum, item) => sum + item.quantity, 0)
     product.costPrice = totalQuantity > 0
-      ? Math.round((invoiceItems.reduce((sum, item) => sum + item.quantity * item.unitCost, 0) / totalQuantity) * 10_000) / 10_000
+      ? roundQuantity(invoiceItems.reduce((sum, item) => sum + item.quantity * item.unitCost, 0) / totalQuantity)
       : 0
     product.updatedAt = now()
     updateFinishedProductsUsingInput(productId)
@@ -1035,7 +1035,7 @@ function createMemoryApi() {
         productSku: product.sku,
         quantity: productionQuantity,
         unitCostSnapshot: product.costPrice,
-        totalCostSnapshot: Math.round(product.costPrice * productionQuantity * 10_000) / 10_000,
+        totalCostSnapshot: roundQuantity(product.costPrice * productionQuantity),
         notes: input.notes?.trim() ?? '',
         createdAt: ts,
         status: 'confirmado',

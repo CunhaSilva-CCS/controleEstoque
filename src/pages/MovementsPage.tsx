@@ -268,7 +268,7 @@ export function MovementsPage({
                 data-testid="input-movement-new-stock"
                 type="number"
                 min="0"
-                step="0.00001"
+                step="0.000001"
                 required
                 value={newStock}
                 onChange={(e) => setNewStock(e.target.value)}

@@ -263,8 +263,8 @@ export function InvoicesPage() {
                       id={`invoice-qty-${idx}`}
                       data-testid={idx === 0 ? 'input-invoice-qty' : undefined}
                       type="number"
-                      min="0.00001"
-                      step="0.00001"
+                      min="0.000001"
+                      step="0.000001"
                       required
                       value={item.quantity}
                       onChange={(e) => {
@@ -283,7 +283,7 @@ export function InvoicesPage() {
                     data-testid={idx === 0 ? 'input-invoice-cost' : undefined}
                     type="number"
                     min="0"
-                    step="0.01"
+                    step="0.000001"
                     required
                     value={item.unitCost}
                     onChange={(e) => {

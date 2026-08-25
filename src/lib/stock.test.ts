@@ -3,7 +3,7 @@ import { api, unwrap } from './api'
 import { formatCurrency, formatNumber, movementLabel, statusLabel } from './format'
 
 describe('regras de estoque (API em memória)', () => {
-  it('mantém e apresenta quantidades com cinco casas decimais', async () => {
+  it('mantém e apresenta quantidades com seis casas decimais', async () => {
     const product = await unwrap(api.createProduct({
       sku: `PREC-${crypto.randomUUID().slice(0, 8)}`,
       name: 'Produto de precisão',
@@ -17,11 +17,11 @@ describe('regras de estoque (API em memória)', () => {
     await unwrap(api.createPurchaseInvoice({
       number: `NF-PREC-${crypto.randomUUID()}`,
       issueDate: '2026-01-01',
-      items: [{ productId: product.id, quantity: 1.12345, unitCost: 1 }],
+      items: [{ productId: product.id, quantity: 1.123456, unitCost: 1 }],
     }))
 
-    expect((await unwrap(api.getProduct(product.id)))?.stock).toBe(1.12345)
-    expect(formatNumber(1.12345)).toBe('1,12345')
+    expect((await unwrap(api.getProduct(product.id)))?.stock).toBe(1.123456)
+    expect(formatNumber(1.123456)).toBe('1,123456')
   })
 
   it('bloqueia código duplicado', async () => {

@@ -8,6 +8,7 @@ import { formatCurrency, formatNumber, productKindLabel } from '../lib/format'
 import { CUSTOM_UNIT_VALUE, isKnownUnit, PRODUCT_UNITS } from '../lib/units'
 import { useToast } from '../lib/toast'
 import type { Category, Product, ProductKind, Supplier } from '@shared/types'
+import { roundQuantity } from '@shared/quantity'
 
 type ProductForm = {
   sku: string
@@ -118,7 +119,7 @@ export function ProductsPage() {
       const input = recipeInputs.find((product) => product.id === line.productId)
       return sum + (Number(line.quantity) || 0) * (input?.costPrice ?? 0)
     }, 0)
-    return Math.round(total * 10_000) / 10_000
+    return roundQuantity(total)
   }, [recipeInputs, recipeLines])
 
   function openCreate() {
@@ -584,7 +585,7 @@ export function ProductsPage() {
                 id="cost" data-testid="input-product-cost"
                 type="number"
                 min="0"
-                step="0.01"
+                step="0.000001"
                 required
                 disabled
                 value={form.kind === 'acabado' ? calculatedRecipeCost : form.costPrice}
@@ -598,7 +599,7 @@ export function ProductsPage() {
                 id="sale" data-testid="input-product-sale"
                 type="number"
                 min="0"
-                step="0.01"
+                step="0.000001"
                 value={form.salePrice}
                 onChange={(e) => setForm({ ...form, salePrice: e.target.value })}
               />
@@ -609,7 +610,7 @@ export function ProductsPage() {
                 id="min" data-testid="input-product-min"
                 type="number"
                 min="0"
-                step="0.00001"
+                step="0.000001"
                 required
                 value={form.minStock}
                 onChange={(e) => setForm({ ...form, minStock: e.target.value })}
@@ -668,8 +669,8 @@ export function ProductsPage() {
                           id={`product-recipe-quantity-${index}`}
                           data-testid={index === 0 ? 'input-product-recipe-qty' : undefined}
                           type="number"
-                          min="0.00001"
-                          step="0.00001"
+                          min="0.000001"
+                          step="0.000001"
                           required
                           value={line.quantity}
                           onChange={(e) => {

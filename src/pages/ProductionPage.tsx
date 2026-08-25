@@ -185,8 +185,8 @@ export function ProductionPage() {
                 id="prod-qty"
                 data-testid="input-production-qty"
                 type="number"
-                min="0.00001"
-                step="0.00001"
+                min="0.000001"
+                step="0.000001"
                 required
                 value={quantity}
                 onChange={(e) => setQuantity(e.target.value)}
