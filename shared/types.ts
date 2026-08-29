@@ -362,6 +362,75 @@ export interface MovementFilters {
   to?: string
 }
 
+export interface DashboardFinancialSummary {
+  salesRevenue: number
+  salesInvoices: number
+  purchaseSpend: number
+  purchaseInvoices: number
+  productionUnits: number
+  productionCost: number
+  grossMargin: number
+  grossMarginPercent: number
+  movementsCount: number
+}
+
+export interface DashboardStockHealth {
+  ok: number
+  low: number
+  zero: number
+}
+
+export interface DashboardStockByCategory {
+  categoryName: string
+  productCount: number
+  stockValue: number
+}
+
+export interface DashboardTopProduct {
+  id: string
+  sku: string
+  name: string
+  unit: string
+  stock: number
+  stockValue: number
+  kind: ProductKind
+}
+
+export interface DashboardNamedMetric {
+  name: string
+  value: number
+  secondary?: string
+}
+
+export interface DashboardDailyPoint {
+  date: string
+  value: number
+}
+
+export interface DashboardMovementTrendPoint {
+  date: string
+  entrada: number
+  saida: number
+  ajuste: number
+}
+
+export interface DashboardActivityItem {
+  id: string
+  type: 'compra' | 'venda' | 'producao' | 'inventario' | 'movimento'
+  title: string
+  subtitle: string
+  amount: number | null
+  createdAt: string
+}
+
+export interface DashboardAlert {
+  id: string
+  severity: 'warn' | 'info' | 'danger'
+  title: string
+  message: string
+  link: string | null
+}
+
 export interface DashboardData {
   activeProducts: number
   totalStockValue: number
@@ -370,6 +439,29 @@ export interface DashboardData {
   movementsToday: number
   criticalProducts: Product[]
   recentMovements: StockMovement[]
+  stockHealth: DashboardStockHealth
+  insumoCount: number
+  acabadoCount: number
+  categoriesCount: number
+  suppliersCount: number
+  customersCount: number
+  recipesCount: number
+  pendingInventoryCount: number
+  financials: {
+    today: DashboardFinancialSummary
+    week: DashboardFinancialSummary
+    month: DashboardFinancialSummary
+  }
+  stockByCategory: DashboardStockByCategory[]
+  stockByKind: { kind: ProductKind; productCount: number; stockValue: number }[]
+  topProductsByValue: DashboardTopProduct[]
+  topCustomers: DashboardNamedMetric[]
+  topSuppliers: DashboardNamedMetric[]
+  salesTrend: DashboardDailyPoint[]
+  purchaseTrend: DashboardDailyPoint[]
+  movementTrend: DashboardMovementTrendPoint[]
+  recentActivity: DashboardActivityItem[]
+  alerts: DashboardAlert[]
 }
 
 export interface ReportRow {
