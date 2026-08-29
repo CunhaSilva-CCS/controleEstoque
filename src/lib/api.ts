@@ -1087,17 +1087,236 @@ function createMemoryApi() {
       const active = products.filter((p) => p.active).map(enrich)
       const start = new Date()
       start.setHours(0, 0, 0, 0)
+      const startIso = start.toISOString()
+      const weekStart = new Date(start)
+      weekStart.setDate(weekStart.getDate() - 6)
+      const monthStart = new Date(start)
+      monthStart.setDate(monthStart.getDate() - 29)
+
+      function inRange(date: string, from: Date, to?: Date): boolean {
+        const value = date.slice(0, 10)
+        if (value < from.toISOString().slice(0, 10)) return false
+        if (to && value > to.toISOString().slice(0, 10)) return false
+        return true
+      }
+
+      function buildFinancials(from: Date): import('@shared/types').DashboardFinancialSummary {
+        const confirmedSales = salesInvoices.filter(
+          (invoice) => invoice.status === 'confirmado' && inRange(invoice.issueDate, from),
+        )
+        const confirmedPurchases = invoices.filter(
+          (invoice) => invoice.status === 'confirmado' && inRange(invoice.issueDate, from),
+        )
+        const confirmedProduction = productionOrders.filter(
+          (order) => order.status === 'confirmado' && order.createdAt >= from.toISOString(),
+        )
+        const periodMovements = movements.filter((movement) => movement.createdAt >= from.toISOString())
+        const revenue = confirmedSales.flatMap((invoice) => invoice.items)
+          .reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
+        const cost = confirmedSales.flatMap((invoice) => invoice.items)
+          .reduce((sum, item) => {
+            const product = products.find((candidate) => candidate.id === item.productId)
+            return sum + item.quantity * (product?.costPrice ?? 0)
+          }, 0)
+        const purchaseSpend = confirmedPurchases.flatMap((invoice) => invoice.items)
+          .reduce((sum, item) => sum + item.quantity * item.unitCost, 0)
+        const productionUnits = confirmedProduction.reduce((sum, order) => sum + order.quantity, 0)
+        const productionCost = confirmedProduction.reduce((sum, order) => sum + order.totalCostSnapshot, 0)
+        const grossMargin = revenue - cost
+        return {
+          salesRevenue: revenue,
+          salesInvoices: confirmedSales.length,
+          purchaseSpend,
+          purchaseInvoices: confirmedPurchases.length,
+          productionUnits,
+          productionCost,
+          grossMargin,
+          grossMarginPercent: revenue > 0 ? (grossMargin / revenue) * 100 : 0,
+          movementsCount: periodMovements.length,
+        }
+      }
+
+      const categoryMap = new Map<string, { productCount: number; stockValue: number }>()
+      for (const product of active) {
+        const key = product.categoryName ?? 'Sem categoria'
+        const current = categoryMap.get(key) ?? { productCount: 0, stockValue: 0 }
+        current.productCount += 1
+        current.stockValue += product.stockValue ?? 0
+        categoryMap.set(key, current)
+      }
+
+      const kindMap = new Map<'insumo' | 'acabado', { productCount: number; stockValue: number }>()
+      for (const product of active) {
+        const current = kindMap.get(product.kind) ?? { productCount: 0, stockValue: 0 }
+        current.productCount += 1
+        current.stockValue += product.stockValue ?? 0
+        kindMap.set(product.kind, current)
+      }
+
+      const dateKey = (iso: string) => iso.slice(0, 10)
+      const salesTrendMap = new Map<string, number>()
+      const purchaseTrendMap = new Map<string, number>()
+      const movementTrendMap = new Map<string, { entrada: number; saida: number; ajuste: number }>()
+
+      for (const invoice of salesInvoices.filter((item) => item.status === 'confirmado')) {
+        const key = dateKey(invoice.issueDate)
+        const total = invoice.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
+        salesTrendMap.set(key, (salesTrendMap.get(key) ?? 0) + total)
+      }
+      for (const invoice of invoices.filter((item) => item.status === 'confirmado')) {
+        const key = dateKey(invoice.issueDate)
+        const total = invoice.items.reduce((sum, item) => sum + item.quantity * item.unitCost, 0)
+        purchaseTrendMap.set(key, (purchaseTrendMap.get(key) ?? 0) + total)
+      }
+      for (const movement of movements) {
+        const key = dateKey(movement.createdAt)
+        const current = movementTrendMap.get(key) ?? { entrada: 0, saida: 0, ajuste: 0 }
+        if (movement.type === 'entrada') current.entrada += 1
+        else if (movement.type === 'saida') current.saida += 1
+        else current.ajuste += 1
+        movementTrendMap.set(key, current)
+      }
+
+      const salesTrend: import('@shared/types').DashboardDailyPoint[] = []
+      const purchaseTrend: import('@shared/types').DashboardDailyPoint[] = []
+      const movementTrend: import('@shared/types').DashboardMovementTrendPoint[] = []
+      for (let i = 13; i >= 0; i -= 1) {
+        const d = new Date()
+        d.setDate(d.getDate() - i)
+        const key = dateKey(d.toISOString())
+        salesTrend.push({ date: key, value: salesTrendMap.get(key) ?? 0 })
+        purchaseTrend.push({ date: key, value: purchaseTrendMap.get(key) ?? 0 })
+        const trend = movementTrendMap.get(key) ?? { entrada: 0, saida: 0, ajuste: 0 }
+        movementTrend.push({ date: key, ...trend })
+      }
+
+      const recentActivity: import('@shared/types').DashboardActivityItem[] = [
+        ...invoices.filter((invoice) => invoice.status === 'confirmado').slice(0, 5).map((invoice) => ({
+          id: `purchase-${invoice.id}`,
+          type: 'compra' as const,
+          title: `Fatura ${invoice.number}`,
+          subtitle: invoice.supplierName ?? 'Sem fornecedor',
+          amount: invoice.items.reduce((sum, item) => sum + item.quantity * item.unitCost, 0),
+          createdAt: invoice.issueDate,
+        })),
+        ...salesInvoices.filter((invoice) => invoice.status === 'confirmado').slice(0, 5).map((invoice) => ({
+          id: `sale-${invoice.id}`,
+          type: 'venda' as const,
+          title: `Fatura ${invoice.number}`,
+          subtitle: invoice.customerName,
+          amount: invoice.items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0),
+          createdAt: invoice.issueDate,
+        })),
+        ...productionOrders.filter((order) => order.status === 'confirmado').slice(0, 5).map((order) => ({
+          id: `production-${order.id}`,
+          type: 'producao' as const,
+          title: order.productName,
+          subtitle: `${order.quantity} un. produzidas`,
+          amount: order.totalCostSnapshot,
+          createdAt: order.createdAt,
+        })),
+      ].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 12)
+
+      const lowStockCount = active.filter((p) => p.stock > 0 && p.stock <= p.minStock).length
+      const zeroStockCount = active.filter((p) => p.stock <= 0).length
+      const okStockCount = active.filter((p) => p.stock > p.minStock).length
+      const pendingInventoryCount = inventorySessions.filter((session) => session.status === 'aguarda_aprovacao').length
+
+      const alerts: import('@shared/types').DashboardAlert[] = []
+      if (zeroStockCount > 0) {
+        alerts.push({
+          id: 'zero-stock',
+          severity: 'danger',
+          title: 'Produtos esgotados',
+          message: `${zeroStockCount} produto(s) com stock zero.`,
+          link: '/produtos?low=1',
+        })
+      }
+      if (lowStockCount > 0) {
+        alerts.push({
+          id: 'low-stock',
+          severity: 'warn',
+          title: 'Stock abaixo do mínimo',
+          message: `${lowStockCount} produto(s) precisam de reposição.`,
+          link: '/produtos?low=1',
+        })
+      }
+      if (pendingInventoryCount > 0) {
+        alerts.push({
+          id: 'pending-inventory',
+          severity: 'info',
+          title: 'Inventário pendente',
+          message: `${pendingInventoryCount} sessão(ões) aguardam aprovação.`,
+          link: '/inventario-fisico',
+        })
+      }
+
       return ok({
         activeProducts: active.length,
         totalStockValue: active.reduce((s, p) => s + (p.stockValue ?? 0), 0),
-        lowStockCount: active.filter((p) => p.stock > 0 && p.stock <= p.minStock).length,
-        zeroStockCount: active.filter((p) => p.stock <= 0).length,
-        movementsToday: movements.filter((m) => m.createdAt >= start.toISOString()).length,
+        lowStockCount,
+        zeroStockCount,
+        movementsToday: movements.filter((m) => m.createdAt >= startIso).length,
         criticalProducts: active
           .filter((p) => p.stock <= p.minStock)
           .sort((a, b) => a.stock - b.stock)
+          .slice(0, 8),
+        recentMovements: movements.slice(0, 10),
+        stockHealth: { ok: okStockCount, low: lowStockCount, zero: zeroStockCount },
+        insumoCount: active.filter((p) => p.kind === 'insumo').length,
+        acabadoCount: active.filter((p) => p.kind === 'acabado').length,
+        categoriesCount: categories.filter((c) => c.active).length,
+        suppliersCount: suppliers.filter((s) => s.active).length,
+        customersCount: customers.filter((c) => c.active).length,
+        recipesCount: recipes.filter((r) => r.active).length,
+        pendingInventoryCount,
+        financials: {
+          today: buildFinancials(start),
+          week: buildFinancials(weekStart),
+          month: buildFinancials(monthStart),
+        },
+        stockByCategory: [...categoryMap.entries()]
+          .map(([categoryName, stats]) => ({ categoryName, ...stats }))
+          .sort((a, b) => b.stockValue - a.stockValue)
+          .slice(0, 8),
+        stockByKind: [...kindMap.entries()].map(([kind, stats]) => ({ kind, ...stats })),
+        topProductsByValue: active
+          .filter((p) => p.stock > 0)
+          .sort((a, b) => (b.stockValue ?? 0) - (a.stockValue ?? 0))
+          .slice(0, 8)
+          .map((p) => ({
+            id: p.id,
+            sku: p.sku,
+            name: p.name,
+            unit: p.unit,
+            stock: p.stock,
+            stockValue: p.stockValue ?? 0,
+            kind: p.kind,
+          })),
+        topCustomers: customers
+          .filter((c) => c.active)
+          .map((customer) => {
+            const related = salesInvoices.filter((invoice) => invoice.customerId === customer.id && invoice.status === 'confirmado')
+            const billed = related.flatMap((invoice) => invoice.items)
+              .reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
+            return { name: customer.name, value: billed }
+          })
+          .sort((a, b) => b.value - a.value)
           .slice(0, 5),
-        recentMovements: movements.slice(0, 8),
+        topSuppliers: suppliers
+          .map((supplier) => {
+            const related = invoices.filter((invoice) => invoice.supplierId === supplier.id && invoice.status === 'confirmado')
+            const purchased = related.flatMap((invoice) => invoice.items)
+              .reduce((sum, item) => sum + item.quantity * item.unitCost, 0)
+            return { name: supplier.name, value: purchased }
+          })
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 5),
+        salesTrend,
+        purchaseTrend,
+        movementTrend,
+        recentActivity,
+        alerts,
       })
     },
     async getReport(type: ReportType, filters?: MovementFilters): Promise<
