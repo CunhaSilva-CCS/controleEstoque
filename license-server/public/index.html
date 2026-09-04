@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cortexis — Gestão de Licenças</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        max-width: 960px;
+        margin: 2rem auto;
+        padding: 0 1rem 3rem;
+        background: #0f172a;
+        color: #e2e8f0;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      h1 {
+        font-size: 1.4rem;
+        margin-bottom: 0.25rem;
+      }
+      p.subtitle {
+        color: #94a3b8;
+        margin-top: 0;
+      }
+      #authBadge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.6rem;
+        border-radius: 999px;
+        font-weight: 600;
+        display: none;
+      }
+      #authBadge.ok {
+        display: inline-block;
+        background: #14532d;
+        color: #4ade80;
+      }
+      #authBadge.error {
+        display: inline-block;
+        background: #450a0a;
+        color: #f87171;
+      }
+      section {
+        background: #1e293b;
+        border-radius: 10px;
+        padding: 1.25rem;
+        margin-bottom: 1.25rem;
+        border: 1px solid #334155;
+      }
+      section h2 {
+        margin-top: 0;
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .grid-2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0 1rem;
+      }
+      @media (max-width: 640px) {
+        .grid-2 {
+          grid-template-columns: 1fr;
+        }
+      }
+      label {
+        display: block;
+        font-size: 0.85rem;
+        margin-bottom: 0.25rem;
+        color: #cbd5e1;
+      }
+      input,
+      textarea {
+        width: 100%;
+        padding: 0.5rem 0.6rem;
+        border-radius: 6px;
+        border: 1px solid #475569;
+        background: #0f172a;
+        color: #e2e8f0;
+        margin-bottom: 0.75rem;
+        font-size: 0.9rem;
+        font-family: inherit;
+      }
+      input:focus,
+      textarea:focus {
+        outline: 2px solid #60a5fa;
+        outline-offset: 1px;
+      }
+      button {
+        cursor: pointer;
+        border: none;
+        border-radius: 6px;
+        padding: 0.5rem 0.9rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        transition: opacity 0.15s ease;
+      }
+      button.primary {
+        background: #ef4444;
+        color: white;
+      }
+      button.secondary {
+        background: #334155;
+        color: #e2e8f0;
+      }
+      button.ghost {
+        background: transparent;
+        color: #94a3b8;
+        border: 1px solid #334155;
+      }
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      button:not(:disabled):hover {
+        opacity: 0.85;
+      }
+      .toolbar {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        align-items: center;
+        margin-bottom: 0.75rem;
+      }
+      .toolbar input {
+        margin-bottom: 0;
+        flex: 1;
+        min-width: 200px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 0.5rem 0.4rem;
+        border-bottom: 1px solid #334155;
+        vertical-align: top;
+      }
+      th {
+        color: #94a3b8;
+        font-weight: 600;
+      }
+      td.mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.78rem;
+        word-break: break-all;
+      }
+      #status {
+        font-size: 0.85rem;
+        min-height: 1.2em;
+        margin-top: 0.25rem;
+      }
+      #status.error {
+        color: #f87171;
+      }
+      #status.ok {
+        color: #4ade80;
+      }
+      #checkResult {
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+        min-height: 1.2em;
+      }
+      .row-actions {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      .empty {
+        color: #64748b;
+        font-style: italic;
+      }
+      .badge {
+        font-size: 0.72rem;
+        padding: 0.15rem 0.5rem;
+        border-radius: 999px;
+        font-weight: 600;
+      }
+      .badge.revoked {
+        background: #450a0a;
+        color: #f87171;
+      }
+      .badge.active {
+        background: #14532d;
+        color: #4ade80;
+      }
+      .count-pill {
+        font-size: 0.75rem;
+        color: #94a3b8;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>Cortexis — Gestão de Licenças</h1>
+        <p class="subtitle">
+          Revogação remota de licenças do ERP Cortexis Tech
+        </p>
+      </div>
+      <span id="authBadge"></span>
+    </header>
+
+    <section>
+      <h2>Acesso administrativo</h2>
+      <label for="token">Token administrativo (ADMIN_TOKEN)</label>
+      <input
+        id="token"
+        type="password"
+        placeholder="Cole o token aqui"
+        autocomplete="off"
+      />
+      <div class="toolbar" style="margin-bottom: 0">
+        <button class="secondary" id="saveToken">Guardar e validar</button>
+        <button class="ghost" id="clearToken">Sair / limpar</button>
+      </div>
+      <div id="status"></div>
+    </section>
+
+    <section>
+      <h2>Verificar uma licença</h2>
+      <div class="toolbar">
+        <input
+          id="checkLicenseId"
+          type="text"
+          placeholder="licenseId a verificar"
+        />
+        <button class="secondary" id="checkBtn">Verificar status</button>
+      </div>
+      <div id="checkResult"></div>
+    </section>
+
+    <section>
+      <h2>
+        Licenças emitidas (registro)
+        <span class="count-pill" id="issuedCountPill"></span>
+      </h2>
+      <p class="subtitle" style="margin: 0 0 0.75rem">
+        Histórico apenas informativo. A chave é sempre gerada offline (<code
+          >npm run license:generate</code
+        >); aqui fica só o registo de quem emitiu o quê — nunca a chave nem a
+        chave privada.
+      </p>
+      <div class="grid-2">
+        <div>
+          <label for="issuedLicenseId">licenseId</label>
+          <input
+            id="issuedLicenseId"
+            type="text"
+            placeholder="cole o licenseId gerado"
+          />
+        </div>
+        <div>
+          <label for="issuedInstallationId">installationId</label>
+          <input
+            id="issuedInstallationId"
+            type="text"
+            placeholder="código da instalação do cliente"
+          />
+        </div>
+      </div>
+      <div class="grid-2">
+        <div>
+          <label for="issuedCustomer">Cliente</label>
+          <input
+            id="issuedCustomer"
+            type="text"
+            placeholder="ex: Empresa Cliente Ltda"
+          />
+        </div>
+        <div>
+          <label for="issuedEdition">Edição</label>
+          <input
+            id="issuedEdition"
+            type="text"
+            placeholder="standard ou professional"
+          />
+        </div>
+      </div>
+      <div class="grid-2">
+        <div>
+          <label for="issuedExpiresAt"
+            >Validade (deixe vazio se perpétua)</label
+          >
+          <input id="issuedExpiresAt" type="date" />
+        </div>
+      </div>
+      <button class="secondary" id="registerIssuedBtn">
+        Registrar licença emitida
+      </button>
+      <div class="toolbar" style="margin-top: 0.75rem">
+        <input
+          id="issuedFilterInput"
+          type="text"
+          placeholder="Filtrar por licenseId ou cliente..."
+        />
+        <button class="secondary" id="refreshIssuedBtn">Atualizar lista</button>
+      </div>
+      <table id="issuedTable">
+        <thead>
+          <tr>
+            <th>License ID</th>
+            <th>Cliente</th>
+            <th>Edição</th>
+            <th>Validade</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="issuedTbody">
+          <tr>
+            <td colspan="5" class="empty">
+              Informe o token para carregar os dados.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>Revogar licença</h2>
+      <div class="grid-2">
+        <div>
+          <label for="licenseId">Identificação da licença (licenseId)</label>
+          <input id="licenseId" type="text" placeholder="ex: 8f1c...-...." />
+        </div>
+        <div>
+          <label for="customer">Cliente (opcional)</label>
+          <input
+            id="customer"
+            type="text"
+            placeholder="ex: Empresa Cliente Ltda"
+          />
+        </div>
+      </div>
+      <label for="reason">Motivo (opcional)</label>
+      <textarea
+        id="reason"
+        rows="2"
+        placeholder="ex: Cliente cancelou o contrato"
+      ></textarea>
+      <button class="primary" id="revokeBtn">Revogar</button>
+    </section>
+
+    <section>
+      <h2>
+        Licenças revogadas
+        <span class="count-pill" id="countPill"></span>
+      </h2>
+      <div class="toolbar">
+        <input
+          id="filterInput"
+          type="text"
+          placeholder="Filtrar por licenseId, cliente ou motivo..."
+        />
+        <button class="secondary" id="refreshBtn">Atualizar lista</button>
+      </div>
+      <table id="table">
+        <thead>
+          <tr>
+            <th>License ID</th>
+            <th>Cliente</th>
+            <th>Revogada em</th>
+            <th>Motivo</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody">
+          <tr>
+            <td colspan="5" class="empty">
+              Informe o token para carregar os dados.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <script src="app.js"></script>
+  </body>
+</html>

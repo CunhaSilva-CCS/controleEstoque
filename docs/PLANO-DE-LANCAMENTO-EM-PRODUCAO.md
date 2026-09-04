@@ -35,7 +35,7 @@ Plano de ação para release de produção do aplicativo **desktop** Controle de
 - [ ] **[Alta]** Preparar release notes para usuários finais (funcionalidades, requisitos de SO)
 - [ ] **[Média]** Documentar escopo **fora da versão** (sem sync entre PCs, sem multi-depósito, sem NF-e)
 - [ ] **[Média]** Definir canal de feedback pós-lançamento (e-mail, formulário)
-- [ ] **[Baixa]** Planejar roadmap de licenciamento centralizado, sincronização entre PCs e requisitos fiscais, mantendo fora do escopo da versão atual.
+- [ ] **[Baixa]** Planejar roadmap de limite centralizado de ativações e transferência assistida de licença entre PCs; a revogação remota já está disponível (ver [Guia de Licenciamento por Chave](./GUIA-DE-LICENCIAMENTO-POR-CHAVE.md)).
 
 ---
 

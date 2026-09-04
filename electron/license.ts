@@ -4,9 +4,71 @@ import path from 'node:path'
 import { randomUUID, verify } from 'node:crypto'
 import { LICENSE_PUBLIC_KEY_PEM } from '../shared/license-public-key'
 import type { LicenseDetails, LicenseStatus } from '../shared/types'
+import { captureMessage } from './telemetry'
+
+const LICENSE_EXPIRY_WARNING_DAYS = 14
+const REVOCATION_CHECK_TIMEOUT_MS = 4_000
+const REVOCATION_CHECK_URL =
+  process.env.CORTEXIS_LICENSE_REVOCATION_URL ?? 'https://cortexis-license-api-production.up.railway.app'
 
 const PREFIX = 'CTX1-'
 const STORAGE_PREFIX = 'CTX-PROTECTED-1:'
+
+// Cache local do estado de revogação remota; permite bloquear licenças perpétuas sem exigir conexão contínua.
+let revokedLicenseIds: Set<string> | null = null
+
+function revocationCachePath(): string {
+  return path.join(app.getPath('userData'), 'revoked-licenses.json')
+}
+
+function ensureRevocationCacheLoaded(): Set<string> {
+  if (revokedLicenseIds) return revokedLicenseIds
+  try {
+    const raw = fs.readFileSync(revocationCachePath(), 'utf8')
+    const parsed = JSON.parse(raw)
+    revokedLicenseIds = new Set(Array.isArray(parsed) ? parsed.filter((v) => typeof v === 'string') : [])
+  } catch {
+    revokedLicenseIds = new Set()
+  }
+  return revokedLicenseIds
+}
+
+function saveRevocationCache(cache: Set<string>): void {
+  const filePath = revocationCachePath()
+  const tempPath = `${filePath}.tmp`
+  fs.mkdirSync(path.dirname(filePath), { recursive: true })
+  fs.writeFileSync(tempPath, JSON.stringify([...cache]), 'utf8')
+  fs.renameSync(tempPath, filePath)
+}
+
+/**
+ * Consulta o serviço remoto de revogação para uma licença e atualiza o cache local.
+ * Falha silenciosamente (mantém o último estado conhecido) quando não há rede ou o serviço está indisponível.
+ */
+export async function refreshRevocationStatus(licenseId: string): Promise<void> {
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), REVOCATION_CHECK_TIMEOUT_MS)
+  try {
+    const response = await fetch(`${REVOCATION_CHECK_URL}/licenses/${encodeURIComponent(licenseId)}/status`, {
+      signal: controller.signal,
+    })
+    if (!response.ok) return
+    const data = (await response.json()) as { revoked?: boolean }
+    const cache = ensureRevocationCacheLoaded()
+    const wasRevoked = cache.has(licenseId)
+    if (data.revoked && !wasRevoked) {
+      cache.add(licenseId)
+      saveRevocationCache(cache)
+    } else if (!data.revoked && wasRevoked) {
+      cache.delete(licenseId)
+      saveRevocationCache(cache)
+    }
+  } catch {
+    // Sem conexão ou serviço indisponível: mantém a última verificação conhecida.
+  } finally {
+    clearTimeout(timeout)
+  }
+}
 
 function decodePart(value: string): Buffer {
   return Buffer.from(value, 'base64url')
@@ -107,6 +169,16 @@ function getInstallationId(): string {
   return id
 }
 
+function warnIfLicenseNearingExpiry(details: LicenseDetails): void {
+  if (!details.expiresAt) return
+  const daysLeft = Math.ceil((Date.parse(details.expiresAt) - Date.now()) / (24 * 60 * 60 * 1000))
+  if (daysLeft > LICENSE_EXPIRY_WARNING_DAYS) return
+  captureMessage(
+    `Licença de "${details.customer}" expira em ${new Date(details.expiresAt).toLocaleDateString('pt-PT')} (${daysLeft} dia(s) restante(s))`,
+    'warning',
+  )
+}
+
 export function getLicenseStatus(): LicenseStatus {
   const installationId = getInstallationId()
   const filePath = licensePath()
@@ -115,6 +187,10 @@ export function getLicenseStatus(): LicenseStatus {
     const stored = readLicenseFromStorage(fs.readFileSync(filePath, 'utf8'))
     const status = verifyLicenseKey(stored.licenseKey, LICENSE_PUBLIC_KEY_PEM, new Date(), installationId)
     if (status.active && !stored.protected) saveProtectedLicense(stored.licenseKey)
+    if (status.active && ensureRevocationCacheLoaded().has(status.details.licenseId)) {
+      return { active: false, reason: 'Esta licença foi revogada', installationId }
+    }
+    if (status.active) warnIfLicenseNearingExpiry(status.details)
     return status
   } catch (error) {
     return {

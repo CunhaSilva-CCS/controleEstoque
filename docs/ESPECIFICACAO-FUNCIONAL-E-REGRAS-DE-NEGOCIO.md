@@ -191,7 +191,7 @@ O aplicativo exige login. O usuário padrão `admin` / `admin123` deve trocar a 
 - Integração fiscal (NF-e / XML)
 - Sincronização em nuvem / estoque compartilhado entre PCs
 - Aprovação de documentos por segundo perfil
-- Portal de licenças, revogação online, limite centralizado de ativações e transferência de licença
+- Limite centralizado de ativações por licença e transferência assistida de licença entre computadores (a revogação remota já existe — ver [Guia de Licenciamento por Chave](./GUIA-DE-LICENCIAMENTO-POR-CHAVE.md))
 - Requisitos fiscais portugueses (SAF-T, ATCUD, QR Code, comunicação à AT e certificação): o documento de venda atual é operacional interno e não deve ser apresentado como faturação fiscal certificada.
 
 ---

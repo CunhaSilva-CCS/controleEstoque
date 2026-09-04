@@ -149,6 +149,12 @@ O produto incorpora somente `shared/license-public-key.ts`. A chave privada Ed25
 
 Para CLI, defina `CORTEXIS_LICENSE_PRIVATE_KEY` com esse caminho. O `license-generator/` solicita o PEM manualmente e confirma que a chave deriva a pública esperada antes de assinar. Licenças são vinculadas à identificação local da instalação e protegidas com `safeStorage`.
 
+Existe um serviço complementar de revogação remota (`license-server/`, publicado no
+Railway) que permite bloquear uma licença já ativada sem nova build. A chave privada de
+assinatura nunca sai da máquina/cofre local — o serviço remoto só guarda metadados
+(`licenseId`, cliente, edição, validade e status de revogação). Detalhes completos em
+[Guia de Licenciamento por Chave](./GUIA-DE-LICENCIAMENTO-POR-CHAVE.md).
+
 ## 9. Build, pacote e release
 
 - `npm run build`: TypeScript e bundles em `dist/` e `dist-electron/`.

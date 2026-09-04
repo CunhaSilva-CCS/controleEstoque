@@ -28,6 +28,7 @@
     "logo:prepare": "python3 scripts/prepare-logo.py",
     "manual": "node scripts/generate-user-manual.mjs",
     "manual:developer": "node scripts/generate-developer-guide.mjs",
+    "manual:licenciamento": "node scripts/generate-license-manual.mjs",
     "license:keypair": "node scripts/license-keypair.mjs",
     "license:generate": "node scripts/license-generate.mjs"
   },

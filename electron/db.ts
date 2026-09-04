@@ -38,6 +38,7 @@ import { roundQuantity } from '../shared/quantity'
 import { movementLabel, statusLabel } from '../shared/labels'
 import type { Db } from './database/types'
 import { MigrationFailure, runMigrations } from './database/migrations'
+import { captureMessage } from './telemetry'
 import {
   assertDatabaseIntegrity,
   configureCipher,
@@ -182,6 +183,10 @@ export function initDatabaseAtPath(dbPath: string, encryptionKey?: Buffer): { pa
       fs.rmSync(error.backupPath, { force: true })
       database = connect(dbPath, encryptionKey)
       assertDatabaseIntegrity(database)
+      captureMessage(
+        `Migração da base de dados falhou e foi revertida para o backup pré-migração: ${error.message}`,
+        'warning',
+      )
     }
     throw error
   }

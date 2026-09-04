@@ -13,6 +13,12 @@ export default defineConfig({
           main: {
             entry: 'electron/main.ts',
             vite: {
+              // O processo empacotado não herda as variáveis de ambiente do build (CI),
+              // então SENTRY_DSN/SENTRY_ENVIRONMENT precisam ser gravados no bundle aqui.
+              define: {
+                'process.env.SENTRY_DSN': JSON.stringify(process.env.SENTRY_DSN ?? ''),
+                'process.env.SENTRY_ENVIRONMENT': JSON.stringify(process.env.SENTRY_ENVIRONMENT ?? ''),
+              },
               build: {
                 outDir: 'dist-electron',
                 rollupOptions: {

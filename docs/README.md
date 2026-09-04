@@ -17,7 +17,8 @@ por público e finalidade para evitar duplicação de instruções.
 - [Especificação Funcional e Regras de Negócio](./ESPECIFICACAO-FUNCIONAL-E-REGRAS-DE-NEGOCIO.md) — escopo, atores, requisitos e critérios de aceitação.
 - [Arquitetura de Criptografia da Base de Dados](./ARQUITETURA-DE-CRIPTOGRAFIA-DA-BASE-DE-DADOS.md) — proteção da base, chave e recuperação.
 - [Arquitetura e Migrations da Base de Dados](./ARQUITETURA-E-MIGRATIONS-DA-BASE-DE-DADOS.md) — módulos, versões do esquema, backup e rollback automático.
-- [Guia de Licenciamento por Chave](./GUIA-DE-LICENCIAMENTO-POR-CHAVE.md) — emissão, ativação e limitações das licenças.
+- [Guia de Licenciamento por Chave](./GUIA-DE-LICENCIAMENTO-POR-CHAVE.md) — manual completo: par de chaves, emissão, ativação, expiração, revogação remota e painel de gestão.
+- [Manual de Licenciamento (PDF)](./Manual-de-Licenciamento-ERP-Cortexis-Tech.pdf) — versão em PDF do guia acima, gerada com `npm run manual:licenciamento`.
 - [Política de Qualidade e Testes](./POLITICA-DE-QUALIDADE-E-TESTES.md) — níveis de teste, metas e evidências.
 
 ## Lançamento e operação

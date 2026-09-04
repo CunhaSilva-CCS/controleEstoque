@@ -66,7 +66,7 @@ import {
 } from './db'
 import { initAutoUpdater, registerUpdateIpc } from './updater'
 import { setAuditContext } from './database/audit'
-import { activateLicense, getLicenseStatus, requireValidLicense } from './license'
+import { activateLicense, getLicenseStatus, refreshRevocationStatus, requireValidLicense } from './license'
 import {
   captureError,
   initMainTelemetry,
@@ -316,6 +316,7 @@ function registerIpc(): void {
       }
       const status = activateLicense(licenseKey)
       if (!status.active) throw new Error(status.reason)
+      void refreshRevocationStatus(status.details.licenseId)
       return ok(status)
     } catch (error) {
       return fail(error)
@@ -805,6 +806,13 @@ function registerIpc(): void {
 
 }
 
+const REVOCATION_REFRESH_INTERVAL_MS = 6 * 60 * 60 * 1000
+
+function checkLicenseRevocation(): void {
+  const status = getLicenseStatus()
+  if (status.active) void refreshRevocationStatus(status.details.licenseId)
+}
+
 app.whenReady().then(() => {
   session.defaultSession.setPermissionCheckHandler(() => false)
   session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
@@ -814,6 +822,8 @@ app.whenReady().then(() => {
   registerIpc()
   createWindow()
   if (mainWindow) initAutoUpdater(mainWindow)
+  checkLicenseRevocation()
+  setInterval(checkLicenseRevocation, REVOCATION_REFRESH_INTERVAL_MS)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

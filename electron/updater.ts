@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { autoUpdater } from 'electron-updater'
+import { captureMessage } from './telemetry'
 
 export type UpdateStatus =
   | { state: 'idle' }
@@ -55,13 +56,17 @@ export function initAutoUpdater(win: BrowserWindow): void {
   })
 
   autoUpdater.on('error', (error) => {
-    emit({ state: 'error', message: error instanceof Error ? error.message : String(error) })
+    const message = error instanceof Error ? error.message : String(error)
+    emit({ state: 'error', message })
+    captureMessage(`Falha não fatal no autoUpdater: ${message}`, 'warning')
   })
 
   // Check shortly after launch
   setTimeout(() => {
     void autoUpdater.checkForUpdates().catch((error) => {
-      emit({ state: 'error', message: error instanceof Error ? error.message : String(error) })
+      const message = error instanceof Error ? error.message : String(error)
+      emit({ state: 'error', message })
+      captureMessage(`Verificação automática de atualização falhou na inicialização: ${message}`, 'warning')
     })
   }, 4_000)
 }
@@ -110,6 +115,7 @@ export function registerUpdateIpc(requireAdmin?: () => void): void {
         message: error instanceof Error ? error.message : String(error),
       }
       emit(next)
+      captureMessage(`Verificação manual de atualização falhou: ${next.message}`, 'warning')
       return ok(next)
     }
   })
