@@ -3,6 +3,7 @@ import { getAuditContext, recordAudit } from '../audit'
 import type { Db } from '../types'
 import { updateInvoiceAverageCost } from './costing-service'
 import { applyStockMovement } from './stock-service'
+import { getCurrentCompanyId } from '../company-context'
 
 function reason(value: string): string {
   const normalized = value.trim()
@@ -11,12 +12,13 @@ function reason(value: string): string {
 }
 
 export function reversePurchase(database: Db, id: string, cancellationReason: string, timestamp: string): void {
-  const document = database.prepare('SELECT number, status FROM purchase_invoices WHERE id = ?').get(id) as { number: string; status: string } | undefined
+  const companyId = getCurrentCompanyId()
+  const document = database.prepare('SELECT number, status FROM purchase_invoices WHERE id = ? AND company_id = ?').get(id, companyId) as { number: string; status: string } | undefined
   if (!document) throw new Error('Fatura de entrada não encontrada')
   if (document.status !== 'confirmado') throw new Error('Apenas faturas confirmadas podem ser estornadas')
   const items = database.prepare('SELECT product_id, quantity FROM purchase_invoice_items WHERE invoice_id = ?').all(id) as { product_id: string; quantity: number }[]
   for (const item of items) {
-    const product = database.prepare('SELECT name, stock FROM products WHERE id = ?').get(item.product_id) as { name: string; stock: number }
+    const product = database.prepare('SELECT name, stock FROM products WHERE id = ? AND company_id = ?').get(item.product_id, companyId) as { name: string; stock: number }
     if (product.stock < item.quantity) throw new Error(`Não é possível estornar: o stock de ${product.name} já foi consumido`)
   }
   const reversalId = randomUUID(); const normalized = reason(cancellationReason)
@@ -31,7 +33,8 @@ export function reversePurchase(database: Db, id: string, cancellationReason: st
 }
 
 export function reverseSale(database: Db, id: string, cancellationReason: string, timestamp: string): void {
-  const document = database.prepare('SELECT number, status FROM sales_invoices WHERE id = ?').get(id) as { number: string; status: string } | undefined
+  const companyId = getCurrentCompanyId()
+  const document = database.prepare('SELECT number, status FROM sales_invoices WHERE id = ? AND company_id = ?').get(id, companyId) as { number: string; status: string } | undefined
   if (!document) throw new Error('Fatura de saída não encontrada')
   if (document.status !== 'confirmado') throw new Error('Apenas faturas confirmadas podem ser estornadas')
   const items = database.prepare('SELECT product_id, quantity FROM sales_invoice_items WHERE invoice_id = ?').all(id) as { product_id: string; quantity: number }[]
@@ -46,10 +49,11 @@ export function reverseSale(database: Db, id: string, cancellationReason: string
 }
 
 export function reverseProduction(database: Db, id: string, cancellationReason: string, timestamp: string): void {
-  const order = database.prepare('SELECT product_id, quantity, status FROM production_orders WHERE id = ?').get(id) as { product_id: string; quantity: number; status: string } | undefined
+  const companyId = getCurrentCompanyId()
+  const order = database.prepare('SELECT product_id, quantity, status FROM production_orders WHERE id = ? AND company_id = ?').get(id, companyId) as { product_id: string; quantity: number; status: string } | undefined
   if (!order) throw new Error('Ordem de fabrico não encontrada')
   if (order.status !== 'confirmado') throw new Error('Apenas ordens confirmadas podem ser estornadas')
-  const finished = database.prepare('SELECT name, stock FROM products WHERE id = ?').get(order.product_id) as { name: string; stock: number }
+  const finished = database.prepare('SELECT name, stock FROM products WHERE id = ? AND company_id = ?').get(order.product_id, companyId) as { name: string; stock: number }
   if (finished.stock < order.quantity) throw new Error(`Não é possível estornar: ${finished.name} já foi vendido ou consumido`)
   const consumed = database.prepare('SELECT product_id, quantity FROM production_order_items WHERE order_id = ?').all(id) as { product_id: string; quantity: number }[]
   if (!consumed.length) throw new Error('Esta ordem antiga não possui fotografia de consumo para estorno seguro')

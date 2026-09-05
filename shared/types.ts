@@ -314,6 +314,28 @@ export interface InventorySession {
 export type FinanceEntryType = 'pagar' | 'receber'
 export type FinanceEntryStatus = 'pendente' | 'pago'
 
+export const DEFAULT_COMPANY_ID = '00000000-0000-4000-8000-000000000001'
+
+export interface Company {
+  id: string
+  name: string
+  taxNumber: string
+  address: string
+  phone: string
+  email: string
+  active: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CompanyInput {
+  name: string
+  taxNumber?: string
+  address?: string
+  phone?: string
+  email?: string
+}
+
 export interface FinanceEntry {
   id: string
   type: FinanceEntryType

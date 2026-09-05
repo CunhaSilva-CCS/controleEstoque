@@ -3,6 +3,7 @@ import type { MovementOrigin, MovementType, StockMovement } from '../../../share
 import { roundQuantity } from '../../../shared/quantity'
 import type { Db } from '../types'
 import { getAuditContext } from '../audit'
+import { getCurrentCompanyId } from '../company-context'
 
 export interface ApplyMovementInput {
   productId: string
@@ -18,7 +19,7 @@ export interface ApplyMovementInput {
 export function applyStockMovement(database: Db, input: ApplyMovementInput, timestamp: string): StockMovement {
   const reason = input.reason.trim()
   if (!reason) throw new Error('Motivo é obrigatório')
-  const product = database.prepare('SELECT * FROM products WHERE id = ?').get(input.productId) as Record<string, unknown> | undefined
+  const product = database.prepare('SELECT * FROM products WHERE id = ? AND company_id = ?').get(input.productId, getCurrentCompanyId()) as Record<string, unknown> | undefined
   if (!product) throw new Error('Produto não encontrado')
   if (!product.active) throw new Error('Produto inativo não pode receber movimentações')
 
@@ -42,13 +43,13 @@ export function applyStockMovement(database: Db, input: ApplyMovementInput, time
   database.transaction(() => {
     database.prepare(
       `INSERT INTO stock_movements (
-        id, product_id, type, quantity, previous_stock, new_stock, reason, reference, origin, created_at,
+        id, product_id, type, quantity, previous_stock, new_stock, reason, reference, origin, company_id, created_at,
         created_by, reversal_of
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(id, input.productId, input.type, quantity, previous, newStock, reason, input.reference.trim(), input.origin,
-      timestamp, getAuditContext().userId, input.reversalOf ?? null)
-    database.prepare('UPDATE products SET stock = ?, updated_at = ? WHERE id = ?')
-      .run(newStock, timestamp, input.productId)
+      getCurrentCompanyId(), timestamp, getAuditContext().userId, input.reversalOf ?? null)
+    database.prepare('UPDATE products SET stock = ?, updated_at = ? WHERE id = ? AND company_id = ?')
+      .run(newStock, timestamp, input.productId, getCurrentCompanyId())
   })()
 
   return {

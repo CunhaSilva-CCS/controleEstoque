@@ -13,18 +13,28 @@ import {
   authenticateUser,
   changePassword,
   backupDatabase,
+  createCategory,
+  createCompany,
   createProduct,
   createProduction,
   createPurchaseInvoice,
   createCustomer,
   createSalesInvoice,
   createUser,
+  getCurrentCompany,
   getProduct,
+  buildReport,
   initDatabaseAtPath,
+  listCategories,
+  listCompanies,
   listMovements,
+  listProducts,
   restoreDatabase,
   resetUserPassword,
   saveRecipe,
+  seedDemoData,
+  setCurrentCompany,
+  updateCompany,
 } from './db'
 
 const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'controle-estoque-db-'))
@@ -273,5 +283,65 @@ describe('integração SQLite de estoque', () => {
 
     initDatabaseAtPath(encryptedBackup, key)
     expect(getProduct(product.id)?.name).toBe('Produto criptografado')
+  })
+
+  it('isola cadastros por empresa ativa', (context) => {
+    if (!ensureDatabase(context)) return
+    const original = getCurrentCompany()
+    try {
+      createCategory({ name: 'Categoria Isolamento', description: '' })
+      expect(listCategories().some((c) => c.name === 'Categoria Isolamento')).toBe(true)
+
+      const secondCompany = createCompany({ name: 'Segunda Empresa' })
+      expect(listCompanies().map((c) => c.name)).toEqual(
+        expect.arrayContaining([original.name, 'Segunda Empresa']),
+      )
+
+      setCurrentCompany(secondCompany.id)
+      expect(getCurrentCompany().id).toBe(secondCompany.id)
+      expect(listCategories().some((c) => c.name === 'Categoria Isolamento')).toBe(false)
+
+      createCategory({ name: 'Categoria Isolamento', description: '' })
+      expect(listCategories()).toHaveLength(1)
+
+      expect(() => updateCompany({ id: secondCompany.id, name: secondCompany.name, active: false })).not.toThrow()
+      expect(() => setCurrentCompany(secondCompany.id)).toThrow(/inativa/)
+    } finally {
+      setCurrentCompany(original.id)
+    }
+
+    expect(listCategories().filter((c) => c.name === 'Categoria Isolamento')).toHaveLength(1)
+  })
+
+  it('carrega dados de demonstração sem violar a coluna company_id', (context) => {
+    if (!ensureDatabase(context)) return
+    const original = getCurrentCompany()
+    try {
+      const company = createCompany({ name: 'Empresa Demonstração' })
+      setCurrentCompany(company.id)
+      expect(() => seedDemoData()).not.toThrow()
+      expect(listProducts().length).toBeGreaterThan(0)
+      expect(listCategories().some((c) => c.name === 'Geral')).toBe(true)
+    } finally {
+      setCurrentCompany(original.id)
+    }
+  })
+
+  it('não vaza registos de auditoria entre empresas', (context) => {
+    if (!ensureDatabase(context)) return
+    const original = getCurrentCompany()
+    try {
+      createCustomer({ name: 'Cliente Empresa Original', taxNumber: '111' })
+      const company = createCompany({ name: 'Empresa Auditoria' })
+      setCurrentCompany(company.id)
+      createCustomer({ name: 'Cliente Empresa Nova', taxNumber: '222' })
+
+      const report = buildReport('auditoria', {})
+      const serializedRows = report.rows.map((row) => JSON.stringify(row))
+      expect(serializedRows.some((row) => row.includes('Cliente Empresa Nova'))).toBe(true)
+      expect(serializedRows.some((row) => row.includes('Cliente Empresa Original'))).toBe(false)
+    } finally {
+      setCurrentCompany(original.id)
+    }
   })
 })

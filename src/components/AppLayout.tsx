@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { BRAND } from '../lib/branding'
 import { useClientBrand } from '../lib/client-brand'
+import { useCompany } from '../lib/company'
 import { roleLabel } from '../lib/format'
 import { useToast } from '../lib/toast'
 import type { User } from '@shared/types'
@@ -160,6 +161,8 @@ export function AppLayout({
 }) {
   const { toasts, dismiss } = useToast()
   const { brand } = useClientBrand()
+  const { companies, current, switchCompany } = useCompany()
+  const activeCompanies = useMemo(() => companies.filter((c) => c.active), [companies])
   const { pathname } = useLocation()
   const currentTitle = routeTitles[pathname] ?? BRAND.module
   const [cadastroOpen, setCadastroOpen] = useState(false)
@@ -247,6 +250,21 @@ export function AppLayout({
               </h1>
             </div>
             <div className="row-actions">
+              {activeCompanies.length > 1 ? (
+                <select
+                  className="company-switcher"
+                  data-testid="select-company"
+                  value={current?.id ?? ''}
+                  onChange={(event) => void switchCompany(event.target.value)}
+                  aria-label="Empresa ativa"
+                >
+                  {activeCompanies.map((company) => (
+                    <option key={company.id} value={company.id}>
+                      {company.name}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
               <div className="topbar-badge">
                 {user.name} · {currentRole}
               </div>

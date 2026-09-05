@@ -1,5 +1,6 @@
 import type { MovementFilters, StockMovement } from '../../../shared/types'
 import type { Db } from '../types'
+import { getCurrentCompanyId } from '../company-context'
 
 /** Consultas de histórico separadas da fachada de operações da base. */
 export function queryMovements(
@@ -7,8 +8,8 @@ export function queryMovements(
   filters: MovementFilters,
   map: (row: Record<string, unknown>) => StockMovement,
 ): StockMovement[] {
-  const clauses: string[] = []
-  const params: unknown[] = []
+  const clauses: string[] = ['m.company_id = ?']
+  const params: unknown[] = [getCurrentCompanyId()]
   if (filters.productId) { clauses.push('m.product_id = ?'); params.push(filters.productId) }
   if (filters.type) { clauses.push('m.type = ?'); params.push(filters.type) }
   if (filters.from) { clauses.push('m.created_at >= ?'); params.push(filters.from) }

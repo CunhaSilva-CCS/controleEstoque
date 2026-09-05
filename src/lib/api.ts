@@ -38,7 +38,10 @@ import type {
   FinanceEntry,
   FinanceEntryInput,
   FinanceEntryFilters,
+  Company,
+  CompanyInput,
 } from '@shared/types'
+import { DEFAULT_COMPANY_ID } from '@shared/types'
 import { roundQuantity } from '@shared/quantity'
 import { movementLabel, statusLabel } from '@shared/labels'
 
@@ -69,6 +72,18 @@ function createMemoryApi() {
   const salesInvoices: SalesInvoice[] = []
   const productionOrders: ProductionOrder[] = []
   const financeEntries: FinanceEntry[] = []
+  const companies: Company[] = [{
+    id: DEFAULT_COMPANY_ID,
+    name: 'Empresa Principal',
+    taxNumber: '',
+    address: '',
+    phone: '',
+    email: '',
+    active: true,
+    createdAt: now(),
+    updatedAt: now(),
+  }]
+  let currentCompanyId = DEFAULT_COMPANY_ID
   function updateFinishedProductCost(productId: string) {
     const product = products.find((item) => item.id === productId)
     const recipe = recipes.find((item) => item.productId === productId && item.active)
@@ -563,6 +578,61 @@ function createMemoryApi() {
       cat.active = input.active
       cat.updatedAt = now()
       return ok(cat)
+    },
+    async listCompanies() {
+      return ok([...companies])
+    },
+    async createCompany(input: CompanyInput) {
+      if (!input.name.trim()) return fail('Nome da empresa é obrigatório')
+      const ts = now()
+      const company: Company = {
+        id: uid(),
+        name: input.name.trim(),
+        taxNumber: input.taxNumber?.trim() ?? '',
+        address: input.address?.trim() ?? '',
+        phone: input.phone?.trim() ?? '',
+        email: input.email?.trim() ?? '',
+        active: true,
+        createdAt: ts,
+        updatedAt: ts,
+      }
+      companies.push(company)
+      return ok(company)
+    },
+    async updateCompany(input: {
+      id: string
+      name: string
+      taxNumber?: string
+      address?: string
+      phone?: string
+      email?: string
+      active: boolean
+    }) {
+      const company = companies.find((c) => c.id === input.id)
+      if (!company) return fail('Empresa não encontrada')
+      if (!input.active && companies.filter((c) => c.active && c.id !== input.id).length === 0) {
+        return fail('É necessário manter pelo menos uma empresa ativa')
+      }
+      company.name = input.name.trim()
+      company.taxNumber = input.taxNumber?.trim() ?? ''
+      company.address = input.address?.trim() ?? ''
+      company.phone = input.phone?.trim() ?? ''
+      company.email = input.email?.trim() ?? ''
+      company.active = input.active
+      company.updatedAt = now()
+      return ok(company)
+    },
+    async getCurrentCompany() {
+      const company = companies.find((c) => c.id === currentCompanyId)
+      if (!company) return fail('Empresa ativa não encontrada')
+      return ok(company)
+    },
+    async setCurrentCompany(id: string) {
+      const company = companies.find((c) => c.id === id)
+      if (!company) return fail('Empresa não encontrada')
+      if (!company.active) return fail('Não é possível ativar uma empresa inativa')
+      currentCompanyId = company.id
+      return ok(company)
     },
     async listSuppliers(activeOnly?: boolean) {
       return ok(activeOnly ? suppliers.filter((s) => s.active) : [...suppliers])

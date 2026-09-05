@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Category } from '../../../shared/types'
 import type { Db } from '../types'
+import { getCurrentCompanyId } from '../company-context'
 
 function map(row: Record<string, unknown>): Category {
   return {
@@ -15,9 +16,9 @@ function map(row: Record<string, unknown>): Category {
 
 export function listCategories(database: Db, activeOnly = false): Category[] {
   const sql = activeOnly
-    ? 'SELECT * FROM categories WHERE active = 1 ORDER BY name'
-    : 'SELECT * FROM categories ORDER BY name'
-  return (database.prepare(sql).all() as Record<string, unknown>[]).map(map)
+    ? 'SELECT * FROM categories WHERE company_id = ? AND active = 1 ORDER BY name'
+    : 'SELECT * FROM categories WHERE company_id = ? ORDER BY name'
+  return (database.prepare(sql).all(getCurrentCompanyId()) as Record<string, unknown>[]).map(map)
 }
 
 export function createCategory(database: Db, input: { name: string; description?: string }, timestamp: string): Category {
@@ -28,10 +29,10 @@ export function createCategory(database: Db, input: { name: string; description?
   try {
     database
       .prepare(
-        `INSERT INTO categories (id, name, description, active, created_at, updated_at)
-         VALUES (?, ?, ?, 1, ?, ?)`,
+        `INSERT INTO categories (id, name, description, active, company_id, created_at, updated_at)
+         VALUES (?, ?, ?, 1, ?, ?, ?)`,
       )
-      .run(id, name, input.description?.trim() ?? '', timestamp, timestamp)
+      .run(id, name, input.description?.trim() ?? '', getCurrentCompanyId(), timestamp, timestamp)
   } catch (err) {
     if (String(err).includes('UNIQUE')) throw new Error('Já existe uma categoria com este nome')
     throw err
@@ -58,8 +59,10 @@ export function updateCategory(
 
   try {
     const result = database
-      .prepare(`UPDATE categories SET name = ?, description = ?, active = ?, updated_at = ? WHERE id = ?`)
-      .run(name, input.description?.trim() ?? '', input.active ? 1 : 0, timestamp, input.id)
+      .prepare(
+        `UPDATE categories SET name = ?, description = ?, active = ?, updated_at = ? WHERE id = ? AND company_id = ?`,
+      )
+      .run(name, input.description?.trim() ?? '', input.active ? 1 : 0, timestamp, input.id, getCurrentCompanyId())
     if (result.changes === 0) throw new Error('Categoria não encontrada')
   } catch (err) {
     if (String(err).includes('UNIQUE')) throw new Error('Já existe uma categoria com este nome')

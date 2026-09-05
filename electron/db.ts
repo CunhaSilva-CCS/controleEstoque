@@ -3,6 +3,8 @@ import fs from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import type {
   Category,
+  Company,
+  CompanyInput,
   DashboardData,
   MovementFilters,
   MovementInput,
@@ -37,6 +39,7 @@ import type {
   FinanceEntryFilters,
   FinanceEntryInput,
 } from '../shared/types'
+import { DEFAULT_COMPANY_ID } from '../shared/types'
 import { roundQuantity } from '../shared/quantity'
 import { movementLabel, statusLabel } from '../shared/labels'
 import type { Db } from './database/types'
@@ -132,6 +135,13 @@ import {
   markFinanceEntryPaid as markFinanceEntryPaidRepository,
   deleteFinanceEntry as deleteFinanceEntryRepository,
 } from './database/repositories/finance'
+import {
+  listCompanies as listCompaniesRepository,
+  getCompany as getCompanyRepository,
+  createCompany as createCompanyRepository,
+  updateCompany as updateCompanyRepository,
+} from './database/repositories/companies'
+import { getCurrentCompanyId, setCurrentCompanyId } from './database/company-context'
 
 
 function nowIso(): string {
@@ -189,15 +199,21 @@ export function initDatabaseAtPath(dbPath: string, encryptionKey?: Buffer): { pa
     throw error
   }
   ensureDefaultAdminRepository(database, nowIso())
+  setCurrentCompanyId(getMeta('active_company_id') || DEFAULT_COMPANY_ID)
   recalculateAllInvoiceAverageCosts(database, nowIso())
   recalculateAllFinishedProductCosts(database, nowIso())
 
-  const count = database.prepare('SELECT COUNT(*) AS c FROM products').get() as { c: number }
-  const meta = database.prepare("SELECT value FROM app_meta WHERE key = 'seed_offered'").get() as
+  const companyId = getCurrentCompanyId()
+  const count = database.prepare('SELECT COUNT(*) AS c FROM products WHERE company_id = ?').get(companyId) as { c: number }
+  const meta = database.prepare('SELECT value FROM app_meta WHERE key = ?').get(seedOfferedKey(companyId)) as
     | { value: string }
     | undefined
 
   return { path: dbPath, seeded: count.c > 0 || Boolean(meta) }
+}
+
+function seedOfferedKey(companyId: string): string {
+  return `seed_offered:${companyId}`
 }
 
 function recordAudit(action: string, entityType: string, entityId: string, details: Record<string, unknown> = {}): void {
@@ -267,20 +283,20 @@ export function restoreDatabase(sourcePath: string): { path: string; seeded: boo
 export function markSeedOffered(): void {
   requireDb()
     .prepare(
-      `INSERT INTO app_meta (key, value) VALUES ('seed_offered', '1')
+      `INSERT INTO app_meta (key, value) VALUES (?, '1')
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
     )
-    .run()
+    .run(seedOfferedKey(getCurrentCompanyId()))
 }
 
-function getMeta(key: string): string {
+export function getMeta(key: string): string {
   const row = requireDb()
     .prepare('SELECT value FROM app_meta WHERE key = ?')
     .get(key) as { value: string } | undefined
   return row?.value ?? ''
 }
 
-function setMeta(key: string, value: string): void {
+export function setMeta(key: string, value: string): void {
   requireDb()
     .prepare(
       `INSERT INTO app_meta (key, value) VALUES (?, ?)
@@ -352,6 +368,7 @@ export function resetUserPassword(userId: string, temporaryPassword: string): Us
 export function seedDemoData(): void {
   const database = requireDb()
   const ts = nowIso()
+  const companyId = getCurrentCompanyId()
 
   const run = database.transaction(() => {
     const catGeral = randomUUID()
@@ -359,21 +376,21 @@ export function seedDemoData(): void {
     const catEscritorio = randomUUID()
 
     const insertCat = database.prepare(
-      `INSERT INTO categories (id, name, description, active, created_at, updated_at)
-       VALUES (?, ?, ?, 1, ?, ?)`,
+      `INSERT INTO categories (id, name, description, active, company_id, created_at, updated_at)
+       VALUES (?, ?, ?, 1, ?, ?, ?)`,
     )
-    insertCat.run(catGeral, 'Geral', 'Categoria padrão', ts, ts)
-    insertCat.run(catEletronicos, 'Eletrônicos', 'Equipamentos e acessórios', ts, ts)
-    insertCat.run(catEscritorio, 'Escritório', 'Material de escritório', ts, ts)
+    insertCat.run(catGeral, 'Geral', 'Categoria padrão', companyId, ts, ts)
+    insertCat.run(catEletronicos, 'Eletrônicos', 'Equipamentos e acessórios', companyId, ts, ts)
+    insertCat.run(catEscritorio, 'Escritório', 'Material de escritório', companyId, ts, ts)
 
     const sup1 = randomUUID()
     const sup2 = randomUUID()
     const insertSup = database.prepare(
-      `INSERT INTO suppliers (id, name, document, phone, email, notes, active, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+      `INSERT INTO suppliers (id, name, document, phone, email, notes, active, company_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
     )
-    insertSup.run(sup1, 'Distribuidora Norte', '12.345.678/0001-90', '(11) 3000-1000', 'contato@norte.com', '', ts, ts)
-    insertSup.run(sup2, 'Papelaria Central', '98.765.432/0001-10', '(11) 4000-2000', 'vendas@papelaria.com', '', ts, ts)
+    insertSup.run(sup1, 'Distribuidora Norte', '12.345.678/0001-90', '(11) 3000-1000', 'contato@norte.com', '', companyId, ts, ts)
+    insertSup.run(sup2, 'Papelaria Central', '98.765.432/0001-10', '(11) 4000-2000', 'vendas@papelaria.com', '', companyId, ts, ts)
 
     const products = [
       {
@@ -441,13 +458,13 @@ export function seedDemoData(): void {
     const insertProd = database.prepare(
       `INSERT INTO products (
         id, sku, name, description, category_id, supplier_id, kind, unit,
-        cost_price, sale_price, min_stock, stock, active, created_at, updated_at
-      ) VALUES (?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+        cost_price, sale_price, min_stock, stock, active, company_id, created_at, updated_at
+      ) VALUES (?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
     )
     const insertMov = database.prepare(
       `INSERT INTO stock_movements (
-        id, product_id, type, quantity, previous_stock, new_stock, reason, reference, origin, created_at
-      ) VALUES (?, ?, 'entrada', ?, 0, ?, 'Demonstração', 'Demonstração', 'seed', ?)`,
+        id, product_id, type, quantity, previous_stock, new_stock, reason, reference, origin, company_id, created_at
+      ) VALUES (?, ?, 'entrada', ?, 0, ?, 'Demonstração', 'Demonstração', 'seed', ?, ?)`,
     )
 
     const insumoIds: Record<string, string> = {}
@@ -465,25 +482,26 @@ export function seedDemoData(): void {
         p.sale,
         p.min,
         p.stock,
+        companyId,
         ts,
         ts,
       )
       if (p.kind === 'insumo') insumoIds[p.sku] = id
       if (p.stock > 0) {
-        insertMov.run(randomUUID(), id, p.stock, p.stock, ts)
+        insertMov.run(randomUUID(), id, p.stock, p.stock, companyId, ts)
       }
     }
 
     const finishedId = database
-      .prepare(`SELECT id FROM products WHERE sku = 'KIT-OFFICE'`)
-      .get() as { id: string }
+      .prepare(`SELECT id FROM products WHERE sku = 'KIT-OFFICE' AND company_id = ?`)
+      .get(companyId) as { id: string }
     const recipeId = randomUUID()
     database
       .prepare(
-        `INSERT INTO recipes (id, product_id, notes, active, created_at, updated_at)
-         VALUES (?, ?, 'Kit de demonstração', 1, ?, ?)`,
+        `INSERT INTO recipes (id, product_id, notes, active, company_id, created_at, updated_at)
+         VALUES (?, ?, 'Kit de demonstração', 1, ?, ?, ?)`,
       )
-      .run(recipeId, finishedId.id, ts, ts)
+      .run(recipeId, finishedId.id, companyId, ts, ts)
 
     const insertRecipeItem = database.prepare(
       `INSERT INTO recipe_items (id, recipe_id, product_id, quantity) VALUES (?, ?, ?, ?)`,
@@ -706,4 +724,39 @@ export function markFinanceEntryPaid(id: string, paid: boolean): FinanceEntry {
 
 export function deleteFinanceEntry(id: string): void {
   deleteFinanceEntryRepository(requireDb(), id)
+}
+
+export function listCompanies(activeOnly = false): Company[] {
+  return listCompaniesRepository(requireDb(), activeOnly)
+}
+
+export function createCompany(input: CompanyInput): Company {
+  return createCompanyRepository(requireDb(), input, nowIso())
+}
+
+export function updateCompany(input: {
+  id: string
+  name: string
+  taxNumber?: string
+  address?: string
+  phone?: string
+  email?: string
+  active: boolean
+}): Company {
+  return updateCompanyRepository(requireDb(), input, nowIso())
+}
+
+export function getCurrentCompany(): Company {
+  const company = getCompanyRepository(requireDb(), getCurrentCompanyId())
+  if (!company) throw new Error('Empresa ativa não encontrada')
+  return company
+}
+
+export function setCurrentCompany(id: string): Company {
+  const company = getCompanyRepository(requireDb(), id)
+  if (!company) throw new Error('Empresa não encontrada')
+  if (!company.active) throw new Error('Não é possível ativar uma empresa inativa')
+  setCurrentCompanyId(company.id)
+  setMeta('active_company_id', company.id)
+  return company
 }

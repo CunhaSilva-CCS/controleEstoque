@@ -79,6 +79,12 @@ const api: EstoqueApi = {
   markFinanceEntryPaid: (id: string, paid: boolean) => ipcRenderer.invoke('finance:mark-paid', id, paid),
   deleteFinanceEntry: (id: string) => ipcRenderer.invoke('finance:delete', id),
 
+  listCompanies: () => ipcRenderer.invoke('companies:list'),
+  createCompany: (input) => ipcRenderer.invoke('companies:create', input),
+  updateCompany: (input) => ipcRenderer.invoke('companies:update', input),
+  getCurrentCompany: () => ipcRenderer.invoke('companies:getCurrent'),
+  setCurrentCompany: (id: string) => ipcRenderer.invoke('companies:setCurrent', id),
+
   getDashboard: () => ipcRenderer.invoke('dashboard:get'),
 
   getReport: (type: ReportType, filters?: MovementFilters) =>

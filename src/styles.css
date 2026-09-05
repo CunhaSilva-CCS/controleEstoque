@@ -640,6 +640,15 @@ code {
   color: var(--text);
 }
 
+.company-switcher {
+  width: auto;
+  min-height: 34px;
+  flex: 0 0 auto;
+  max-width: 220px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+}
+
 .topbar-badge {
   font-size: 0.72rem;
   font-weight: 700;

@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import type { Supplier } from '../../../shared/types'
 import type { Db } from '../types'
+import { getCurrentCompanyId } from '../company-context'
 
 function map(row: Record<string, unknown>): Supplier {
   return {
@@ -18,9 +19,9 @@ function map(row: Record<string, unknown>): Supplier {
 
 export function listSuppliers(database: Db, activeOnly = false): Supplier[] {
   const sql = activeOnly
-    ? 'SELECT * FROM suppliers WHERE active = 1 ORDER BY name'
-    : 'SELECT * FROM suppliers ORDER BY name'
-  return (database.prepare(sql).all() as Record<string, unknown>[]).map(map)
+    ? 'SELECT * FROM suppliers WHERE company_id = ? AND active = 1 ORDER BY name'
+    : 'SELECT * FROM suppliers WHERE company_id = ? ORDER BY name'
+  return (database.prepare(sql).all(getCurrentCompanyId()) as Record<string, unknown>[]).map(map)
 }
 
 export function createSupplier(
@@ -33,8 +34,8 @@ export function createSupplier(
   const id = randomUUID()
   database
     .prepare(
-      `INSERT INTO suppliers (id, name, document, phone, email, notes, active, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)`,
+      `INSERT INTO suppliers (id, name, document, phone, email, notes, active, company_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?)`,
     )
     .run(
       id,
@@ -43,6 +44,7 @@ export function createSupplier(
       input.phone?.trim() ?? '',
       input.email?.trim() ?? '',
       input.notes?.trim() ?? '',
+      getCurrentCompanyId(),
       timestamp,
       timestamp,
     )
@@ -60,7 +62,7 @@ export function updateSupplier(
     .prepare(
       `UPDATE suppliers
        SET name = ?, document = ?, phone = ?, email = ?, notes = ?, active = ?, updated_at = ?
-       WHERE id = ?`,
+       WHERE id = ? AND company_id = ?`,
     )
     .run(
       name,
@@ -71,6 +73,7 @@ export function updateSupplier(
       input.active ? 1 : 0,
       timestamp,
       input.id,
+      getCurrentCompanyId(),
     )
   if (result.changes === 0) throw new Error('Fornecedor não encontrado')
   return listSuppliers(database).find((s) => s.id === input.id)!

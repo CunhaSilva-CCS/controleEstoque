@@ -4,6 +4,7 @@ import { AppLayout } from './components/AppLayout'
 import { BootScreen } from './components/BootScreen'
 import { BRAND } from './lib/branding'
 import { api, unwrap } from './lib/api'
+import { CompanyProvider } from './lib/company'
 import { useToast } from './lib/toast'
 import { CategoriesPage } from './modules/cadastros/pages/CategoriesPage'
 import { DashboardPage } from './modules/relatorios/pages/DashboardPage'
@@ -429,29 +430,31 @@ export default function App() {
   }
 
   return (
-    <Routes>
-      <Route element={<AppLayout user={auth.user} onLogout={handleLogout} />}>
-        <Route
-          index
-          element={
-            <DashboardPage needsSeed={needsSeed} onSeedDone={() => setNeedsSeed(false)} />
-          }
-        />
-        <Route path="produtos" element={<ProductsPage />} />
-        <Route path="categorias" element={<CategoriesPage />} />
-        <Route path="fornecedores" element={<SuppliersPage />} />
-        <Route path="clientes" element={<CustomersPage />} />
-        <Route path="receitas" element={<RecipesPage />} />
-        <Route path="faturas" element={<InvoicesPage />} />
-        <Route path="faturacao/saida" element={<SalesInvoicesPage />} />
-        <Route path="fabricacao" element={<ProductionPage />} />
-        <Route path="movimentacoes" element={<MovementsPage />} />
-        <Route path="inventario-fisico" element={<InventoryPage />} />
-        <Route path="financeiro" element={<FinancePage />} />
-        <Route path="relatorios" element={<ReportsPage />} />
-        <Route path="configuracoes" element={<SettingsPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Route>
-    </Routes>
+    <CompanyProvider>
+      <Routes>
+        <Route element={<AppLayout user={auth.user} onLogout={handleLogout} />}>
+          <Route
+            index
+            element={
+              <DashboardPage needsSeed={needsSeed} onSeedDone={() => setNeedsSeed(false)} />
+            }
+          />
+          <Route path="produtos" element={<ProductsPage />} />
+          <Route path="categorias" element={<CategoriesPage />} />
+          <Route path="fornecedores" element={<SuppliersPage />} />
+          <Route path="clientes" element={<CustomersPage />} />
+          <Route path="receitas" element={<RecipesPage />} />
+          <Route path="faturas" element={<InvoicesPage />} />
+          <Route path="faturacao/saida" element={<SalesInvoicesPage />} />
+          <Route path="fabricacao" element={<ProductionPage />} />
+          <Route path="movimentacoes" element={<MovementsPage />} />
+          <Route path="inventario-fisico" element={<InventoryPage />} />
+          <Route path="financeiro" element={<FinancePage />} />
+          <Route path="relatorios" element={<ReportsPage />} />
+          <Route path="configuracoes" element={<SettingsPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Route>
+      </Routes>
+    </CompanyProvider>
   )
 }

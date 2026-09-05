@@ -7,10 +7,12 @@ import { applyStockMovement } from '../services/stock-service'
 import { receiveLot } from '../services/lot-service'
 import { updateInvoiceAverageCost } from '../services/costing-service'
 import { convertToStockUnit } from '../services/unit-service'
+import { getCurrentCompanyId } from '../company-context'
 
 export function listPurchaseInvoices(database: Db): PurchaseInvoice[] {
   const rows = database.prepare(`SELECT i.*, s.name AS supplier_name FROM purchase_invoices i
-    LEFT JOIN suppliers s ON s.id = i.supplier_id ORDER BY i.created_at DESC LIMIT 200`).all() as Record<string, unknown>[]
+    LEFT JOIN suppliers s ON s.id = i.supplier_id WHERE i.company_id = ?
+    ORDER BY i.created_at DESC LIMIT 200`).all(getCurrentCompanyId()) as Record<string, unknown>[]
   const items = database.prepare(`SELECT ii.*, p.name AS product_name, p.sku AS product_sku,
     p.unit AS product_unit FROM purchase_invoice_items ii JOIN products p ON p.id = ii.product_id
     WHERE ii.invoice_id = ? ORDER BY p.name`)
@@ -36,12 +38,13 @@ export function createPurchaseInvoice(database: Db, input: PurchaseInvoiceInput,
   if (!input.items.length) throw new Error('Informe ao menos um item na fatura')
 
   const invoiceId = randomUUID()
+  const companyId = getCurrentCompanyId()
 
   const tx = database.transaction(() => {
     database
       .prepare(
-        `INSERT INTO purchase_invoices (id, number, supplier_id, issue_date, notes, created_at, status, created_by)
-         VALUES (?, ?, ?, ?, ?, ?, 'confirmado', ?)`,
+        `INSERT INTO purchase_invoices (id, number, supplier_id, issue_date, notes, company_id, created_at, status, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'confirmado', ?)`,
       )
       .run(
         invoiceId,
@@ -49,6 +52,7 @@ export function createPurchaseInvoice(database: Db, input: PurchaseInvoiceInput,
         input.supplierId || null,
         input.issueDate,
         input.notes?.trim() ?? '',
+        companyId,
         timestamp,
         getAuditContext().userId,
       )
@@ -67,8 +71,8 @@ export function createPurchaseInvoice(database: Db, input: PurchaseInvoiceInput,
       if (item.unitCost < 0) throw new Error('Custo unitário não pode ser negativo')
 
       const product = database
-        .prepare('SELECT id, kind, active, purchase_unit FROM products WHERE id = ?')
-        .get(item.productId) as { id: string; kind: string; active: number; purchase_unit: string | null } | undefined
+        .prepare('SELECT id, kind, active, purchase_unit FROM products WHERE id = ? AND company_id = ?')
+        .get(item.productId, companyId) as { id: string; kind: string; active: number; purchase_unit: string | null } | undefined
       if (!product) throw new Error('Produto não encontrado')
       if (!product.active) throw new Error('Produto inativo não pode entrar por fatura')
       if (product.kind !== 'insumo') {
@@ -115,10 +119,11 @@ export function updatePurchaseInvoice(database: Db, input: PurchaseInvoiceUpdate
     throw new Error('Uma fatura confirmada não pode ser alterada. Utilize o estorno para preservar o histórico.')
   }
 
+  const companyId = getCurrentCompanyId()
   const duplicate = database.prepare(
     `SELECT id FROM purchase_invoices
-     WHERE lower(number) = lower(?) AND COALESCE(supplier_id, '') = COALESCE(?, '') AND id <> ?`,
-  ).get(number, input.supplierId || null, input.id)
+     WHERE lower(number) = lower(?) AND COALESCE(supplier_id, '') = COALESCE(?, '') AND id <> ? AND company_id = ?`,
+  ).get(number, input.supplierId || null, input.id, companyId)
   if (duplicate) throw new Error('Já existe uma fatura com este número para o fornecedor informado')
 
   const productIds = new Set<string>()
@@ -129,7 +134,7 @@ export function updatePurchaseInvoice(database: Db, input: PurchaseInvoiceUpdate
     if (!Number.isFinite(item.unitCost) || item.unitCost < 0) {
       throw new Error('Custo unitário não pode ser negativo')
     }
-    const product = database.prepare('SELECT kind, active FROM products WHERE id = ?').get(item.productId) as
+    const product = database.prepare('SELECT kind, active FROM products WHERE id = ? AND company_id = ?').get(item.productId, companyId) as
       | { kind: string; active: number }
       | undefined
     if (!product) throw new Error('Produto não encontrado')
@@ -154,8 +159,8 @@ export function updatePurchaseInvoice(database: Db, input: PurchaseInvoiceUpdate
 
   const tx = database.transaction(() => {
     database.prepare(
-      `UPDATE purchase_invoices SET number = ?, supplier_id = ?, issue_date = ?, notes = ? WHERE id = ?`,
-    ).run(number, input.supplierId || null, input.issueDate, input.notes?.trim() ?? '', input.id)
+      `UPDATE purchase_invoices SET number = ?, supplier_id = ?, issue_date = ?, notes = ? WHERE id = ? AND company_id = ?`,
+    ).run(number, input.supplierId || null, input.issueDate, input.notes?.trim() ?? '', input.id, companyId)
     database.prepare('DELETE FROM purchase_invoice_items WHERE invoice_id = ?').run(input.id)
     const insertItem = database.prepare(
       `INSERT INTO purchase_invoice_items (id, invoice_id, product_id, quantity, unit_cost) VALUES (?, ?, ?, ?, ?)`,

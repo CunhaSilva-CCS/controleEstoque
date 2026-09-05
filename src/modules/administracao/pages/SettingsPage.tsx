@@ -1,14 +1,25 @@
-import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import type { AppOutletContext } from '../../../components/AppLayout'
 import { ModalForm } from '../../../components/ModalForm'
 import { api, unwrap } from '../../../lib/api'
 import { BRAND } from '../../../lib/branding'
 import { useClientBrand } from '../../../lib/client-brand'
+import { useCompany } from '../../../lib/company'
 import { roleLabel } from '../../../lib/format'
 import { useTheme } from '../../../lib/theme'
 import { useToast } from '../../../lib/toast'
-import type { ClientBrand, LicenseStatus, LocalDiagnostics, UpdateStatus, User } from '@shared/types'
+import type { ClientBrand, Company, LicenseStatus, LocalDiagnostics, UpdateStatus, User } from '@shared/types'
+
+type CompanyFormState = {
+  name: string
+  taxNumber: string
+  address: string
+  phone: string
+  email: string
+}
+
+const emptyCompanyForm: CompanyFormState = { name: '', taxNumber: '', address: '', phone: '', email: '' }
 
 function formatUpdateStatus(status: UpdateStatus): string {
   switch (status.state) {
@@ -39,6 +50,10 @@ export function SettingsPage() {
   const { push } = useToast()
   const { theme, setTheme } = useTheme()
   const { brand, saveBrand } = useClientBrand()
+  const { companies, refresh: refreshCompanies } = useCompany()
+  const [companyFormOpen, setCompanyFormOpen] = useState(false)
+  const [editingCompany, setEditingCompany] = useState<Company | null>(null)
+  const [companyForm, setCompanyForm] = useState<CompanyFormState>(emptyCompanyForm)
   const fileRef = useRef<HTMLInputElement>(null)
   const [dbPath, setDbPath] = useState('')
   const [lastBackupPath, setLastBackupPath] = useState('')
@@ -282,6 +297,57 @@ export function SettingsPage() {
     }
   }
 
+  function openCreateCompany() {
+    setEditingCompany(null)
+    setCompanyForm(emptyCompanyForm)
+    setCompanyFormOpen(true)
+  }
+
+  function openEditCompany(company: Company) {
+    setEditingCompany(company)
+    setCompanyForm({
+      name: company.name,
+      taxNumber: company.taxNumber,
+      address: company.address,
+      phone: company.phone,
+      email: company.email,
+    })
+    setCompanyFormOpen(true)
+  }
+
+  async function saveCompany(event: FormEvent) {
+    event.preventDefault()
+    setBusy(true)
+    try {
+      if (editingCompany) {
+        await unwrap(api.updateCompany({ id: editingCompany.id, ...companyForm, active: editingCompany.active }))
+        push('Empresa atualizada')
+      } else {
+        await unwrap(api.createCompany(companyForm))
+        push('Empresa registada')
+      }
+      setCompanyFormOpen(false)
+      await refreshCompanies()
+    } catch (err) {
+      push(err instanceof Error ? err.message : 'Não foi possível guardar a empresa', 'err')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function toggleCompany(company: Company) {
+    setBusy(true)
+    try {
+      await unwrap(api.updateCompany({ ...company, active: !company.active }))
+      push(company.active ? 'Empresa inativada' : 'Empresa reativada')
+      await refreshCompanies()
+    } catch (err) {
+      push(err instanceof Error ? err.message : 'Não foi possível alterar a situação da empresa', 'err')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <div className="settings-page" data-testid="settings-page">
       <div className="page-header">
@@ -413,6 +479,87 @@ export function SettingsPage() {
             </table>
           </div>
         </div>
+        ) : null}
+
+        {isAdmin ? (
+        <div className="panel" data-testid="settings-companies">
+          <div className="settings-section-header">
+            <div>
+              <h3>Empresas</h3>
+              <p className="muted">Gerencie as empresas geridas nesta instalação e a empresa ativa no seletor do topo.</p>
+            </div>
+            <div className="row-actions">
+              <button className="btn btn-primary" data-testid="btn-new-company" disabled={busy} onClick={openCreateCompany}>
+                <span aria-hidden>+</span> Nova empresa
+              </button>
+            </div>
+          </div>
+          <div className="table-wrap settings-table">
+            <table className="collection-table settings-companies-table">
+              <thead>
+                <tr>
+                  <th>Nome</th>
+                  <th>NIF</th>
+                  <th>Telefone</th>
+                  <th>E-mail</th>
+                  <th>Estado</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {companies.map((company) => (
+                  <tr key={company.id}>
+                    <td>{company.name}</td>
+                    <td>{company.taxNumber || '—'}</td>
+                    <td>{company.phone || '—'}</td>
+                    <td>{company.email || '—'}</td>
+                    <td><span className={`badge badge-${company.active ? 'entrada' : 'saida'}`}>{company.active ? 'Ativa' : 'Inativa'}</span></td>
+                    <td>
+                      <div className="row-actions">
+                        <button className="btn btn-ghost" onClick={() => openEditCompany(company)}>Editar</button>
+                        <button className="btn btn-ghost" disabled={busy} onClick={() => void toggleCompany(company)}>
+                          {company.active ? 'Inativar' : 'Ativar'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        ) : null}
+
+        {isAdmin && companyFormOpen ? (
+          <ModalForm
+            title={editingCompany ? 'Editar empresa' : 'Nova empresa'}
+            onClose={() => setCompanyFormOpen(false)}
+            onSubmit={saveCompany}
+            submitLabel={editingCompany ? 'Guardar empresa' : 'Registar empresa'}
+          >
+            <div className="form-grid">
+              <div className="field full">
+                <label htmlFor="company-name">Nome *</label>
+                <input id="company-name" data-testid="input-company-name" required value={companyForm.name} onChange={(e) => setCompanyForm({ ...companyForm, name: e.target.value })} />
+              </div>
+              <div className="field">
+                <label htmlFor="company-tax">NIF</label>
+                <input id="company-tax" value={companyForm.taxNumber} onChange={(e) => setCompanyForm({ ...companyForm, taxNumber: e.target.value })} />
+              </div>
+              <div className="field">
+                <label htmlFor="company-phone">Telefone</label>
+                <input id="company-phone" value={companyForm.phone} onChange={(e) => setCompanyForm({ ...companyForm, phone: e.target.value })} />
+              </div>
+              <div className="field full">
+                <label htmlFor="company-address">Morada</label>
+                <input id="company-address" value={companyForm.address} onChange={(e) => setCompanyForm({ ...companyForm, address: e.target.value })} />
+              </div>
+              <div className="field full">
+                <label htmlFor="company-email">E-mail</label>
+                <input id="company-email" type="email" value={companyForm.email} onChange={(e) => setCompanyForm({ ...companyForm, email: e.target.value })} />
+              </div>
+            </div>
+          </ModalForm>
         ) : null}
 
         {isAdmin && userFormOpen ? (

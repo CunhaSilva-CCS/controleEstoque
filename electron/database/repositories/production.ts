@@ -5,10 +5,11 @@ import type { Db } from '../types'
 import { getAuditContext, recordAudit } from '../audit'
 import { calculateFinishedProductCost, updateFinishedProductCost } from '../services/costing-service'
 import { applyStockMovement } from '../services/stock-service'
+import { getCurrentCompanyId } from '../company-context'
 
 export function listRecipes(database: Db): Recipe[] {
   const rows = database.prepare(`SELECT r.*, p.name AS product_name, p.sku AS product_sku FROM recipes r
-    JOIN products p ON p.id = r.product_id ORDER BY p.name`).all() as Record<string, unknown>[]
+    JOIN products p ON p.id = r.product_id WHERE r.company_id = ? ORDER BY p.name`).all(getCurrentCompanyId()) as Record<string, unknown>[]
   const items = database.prepare(`SELECT ri.*, p.name AS product_name, p.sku AS product_sku
     FROM recipe_items ri JOIN products p ON p.id = ri.product_id WHERE ri.recipe_id = ? ORDER BY p.name`)
   return rows.map((row) => ({
@@ -29,7 +30,7 @@ export function getRecipeByProductId(database: Db, productId: string): Recipe | 
 export function listProductionOrders(database: Db): ProductionOrder[] {
   const rows = database.prepare(`SELECT po.*, p.name AS product_name, p.sku AS product_sku
     FROM production_orders po JOIN products p ON p.id = po.product_id
-    ORDER BY po.created_at DESC LIMIT 200`).all() as Record<string, unknown>[]
+    WHERE po.company_id = ? ORDER BY po.created_at DESC LIMIT 200`).all(getCurrentCompanyId()) as Record<string, unknown>[]
   return rows.map((row) => ({
     id: String(row.id), recipeId: String(row.recipe_id), productId: String(row.product_id),
     productName: String(row.product_name), productSku: String(row.product_sku), quantity: Number(row.quantity),
@@ -43,17 +44,18 @@ export function listProductionOrders(database: Db): ProductionOrder[] {
 export function saveRecipe(database: Db, input: RecipeInput, timestamp: string): Recipe {
   if (!input.items.length) throw new Error('Informe ao menos um insumo na receita')
 
+  const companyId = getCurrentCompanyId()
   const product = database
-    .prepare('SELECT id, kind, active FROM products WHERE id = ?')
-    .get(input.productId) as { id: string; kind: string; active: number } | undefined
+    .prepare('SELECT id, kind, active FROM products WHERE id = ? AND company_id = ?')
+    .get(input.productId, companyId) as { id: string; kind: string; active: number } | undefined
 
   if (!product) throw new Error('Produto final não encontrado')
   if (!product.active) throw new Error('Produto inativo não pode receber receita')
   if (product.kind !== 'acabado') throw new Error('Receita disponível apenas para produto final')
 
   const existing = database
-    .prepare('SELECT id FROM recipes WHERE product_id = ?')
-    .get(input.productId) as { id: string } | undefined
+    .prepare('SELECT id FROM recipes WHERE product_id = ? AND company_id = ?')
+    .get(input.productId, companyId) as { id: string } | undefined
   const recipeId = existing?.id ?? randomUUID()
 
   const tx = database.transaction(() => {
@@ -65,10 +67,10 @@ export function saveRecipe(database: Db, input: RecipeInput, timestamp: string):
     } else {
       database
         .prepare(
-          `INSERT INTO recipes (id, product_id, notes, active, created_at, updated_at)
-           VALUES (?, ?, ?, 1, ?, ?)`,
+          `INSERT INTO recipes (id, product_id, notes, active, company_id, created_at, updated_at)
+           VALUES (?, ?, ?, 1, ?, ?, ?)`,
         )
-        .run(recipeId, input.productId, input.notes?.trim() ?? '', timestamp, timestamp)
+        .run(recipeId, input.productId, input.notes?.trim() ?? '', companyId, timestamp, timestamp)
     }
 
     const insertItem = database.prepare(
@@ -82,8 +84,8 @@ export function saveRecipe(database: Db, input: RecipeInput, timestamp: string):
       }
 
       const insumo = database
-        .prepare('SELECT kind FROM products WHERE id = ?')
-        .get(item.productId) as { kind: string } | undefined
+        .prepare('SELECT kind FROM products WHERE id = ? AND company_id = ?')
+        .get(item.productId, companyId) as { kind: string } | undefined
       if (!insumo) throw new Error('Insumo não encontrado')
       if (insumo.kind !== 'insumo') throw new Error('Receita aceita apenas insumos como componentes')
 
@@ -101,9 +103,10 @@ export function createProduction(database: Db, input: ProductionInput, timestamp
   if (!(input.quantity > 0)) throw new Error('Quantidade produzida deve ser maior que zero')
 
   const productionQuantity = roundQuantity(input.quantity)
+  const companyId = getCurrentCompanyId()
   const product = database
-    .prepare('SELECT id, kind, active, name, sku FROM products WHERE id = ?')
-    .get(input.productId) as
+    .prepare('SELECT id, kind, active, name, sku FROM products WHERE id = ? AND company_id = ?')
+    .get(input.productId, companyId) as
     | { id: string; kind: string; active: number; name: string; sku: string }
     | undefined
 
@@ -119,8 +122,8 @@ export function createProduction(database: Db, input: ProductionInput, timestamp
   for (const item of recipe.items) {
     const needed = roundQuantity(item.quantity * productionQuantity)
     const stockRow = database
-      .prepare('SELECT stock FROM products WHERE id = ?')
-      .get(item.productId) as { stock: number }
+      .prepare('SELECT stock FROM products WHERE id = ? AND company_id = ?')
+      .get(item.productId, companyId) as { stock: number }
     if (stockRow.stock < needed) {
       throw new Error(
         `Saldo insuficiente de ${item.productName}. Necessário: ${needed}, disponível: ${stockRow.stock}`,
@@ -135,17 +138,17 @@ export function createProduction(database: Db, input: ProductionInput, timestamp
   const tx = database.transaction(() => {
     database
       .prepare(
-        `INSERT INTO production_orders (id, recipe_id, product_id, quantity, notes, created_at, unit_cost_snapshot, total_cost_snapshot, status, created_by)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'confirmado', ?)`,
+        `INSERT INTO production_orders (id, recipe_id, product_id, quantity, notes, company_id, created_at, unit_cost_snapshot, total_cost_snapshot, status, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'confirmado', ?)`,
       )
-      .run(orderId, recipe.id, input.productId, productionQuantity, input.notes?.trim() ?? '', timestamp, unitCostSnapshot, totalCostSnapshot, getAuditContext().userId)
+      .run(orderId, recipe.id, input.productId, productionQuantity, input.notes?.trim() ?? '', companyId, timestamp, unitCostSnapshot, totalCostSnapshot, getAuditContext().userId)
 
     const insertSnapshot = database.prepare(`INSERT INTO production_order_items
       (id, order_id, product_id, quantity, unit_cost_snapshot) VALUES (?, ?, ?, ?, ?)`)
 
     for (const item of recipe.items) {
       const qty = roundQuantity(item.quantity * productionQuantity)
-      const component = database.prepare('SELECT cost_price FROM products WHERE id = ?').get(item.productId) as { cost_price: number }
+      const component = database.prepare('SELECT cost_price FROM products WHERE id = ? AND company_id = ?').get(item.productId, companyId) as { cost_price: number }
       insertSnapshot.run(randomUUID(), orderId, item.productId, qty, component.cost_price)
       applyStockMovement(database, {
         productId: item.productId,

@@ -9,6 +9,8 @@ import { operationGovernanceMigration } from './006-operation-governance'
 import { physicalInventoryMigration } from './007-physical-inventory'
 import { unitsAndLotsMigration } from './008-units-and-lots'
 import { financialEntriesMigration } from './009-financial-entries'
+import { multiCompanyMigration } from './010-multi-company'
+import { companyScopedUniquenessMigration } from './011-company-scoped-uniqueness'
 
 export const migrations: Migration[] = [
   initialSchemaMigration,
@@ -20,6 +22,8 @@ export const migrations: Migration[] = [
   physicalInventoryMigration,
   unitsAndLotsMigration,
   financialEntriesMigration,
+  multiCompanyMigration,
+  companyScopedUniquenessMigration,
 ]
 
 export class MigrationFailure extends Error {
@@ -48,6 +52,9 @@ export function runMigrations(
   const backupPath = `${databasePath}.pre-migration`
   fs.copyFileSync(databasePath, backupPath)
   const completed: number[] = []
+  // Desligado fora de qualquer transação: algumas migrações reconstroem tabelas
+  // (recriar + copiar + apagar + renomear) e isso exige FKs desativadas.
+  database.pragma('foreign_keys = OFF')
   try {
     for (const migration of pending) {
       database.transaction(() => {
@@ -58,11 +65,17 @@ export function runMigrations(
       })()
       completed.push(migration.version)
     }
+    const orphans = database.pragma('foreign_key_check')
+    if (Array.isArray(orphans) && orphans.length > 0) {
+      throw new Error(`foreign_key_check: ${JSON.stringify(orphans)}`)
+    }
     const integrity = database.pragma('integrity_check', { simple: true })
     if (integrity !== 'ok') throw new Error(`integrity_check: ${String(integrity)}`)
     fs.rmSync(backupPath, { force: true })
     return completed
   } catch (error) {
     throw new MigrationFailure('Não foi possível atualizar a estrutura da base de dados', backupPath, { cause: error })
+  } finally {
+    database.pragma('foreign_keys = ON')
   }
 }

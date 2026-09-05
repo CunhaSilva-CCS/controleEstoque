@@ -36,6 +36,8 @@ import type {
   FinanceEntry,
   FinanceEntryFilters,
   FinanceEntryInput,
+  Company,
+  CompanyInput,
 } from './types'
 
 export interface EstoqueApi {
@@ -118,6 +120,19 @@ export interface EstoqueApi {
   createFinanceEntry: (input: FinanceEntryInput) => Promise<ApiResponse<FinanceEntry>>
   markFinanceEntryPaid: (id: string, paid: boolean) => Promise<ApiResponse<FinanceEntry>>
   deleteFinanceEntry: (id: string) => Promise<ApiResponse<boolean>>
+  listCompanies: () => Promise<ApiResponse<Company[]>>
+  createCompany: (input: CompanyInput) => Promise<ApiResponse<Company>>
+  updateCompany: (input: {
+    id: string
+    name: string
+    taxNumber?: string
+    address?: string
+    phone?: string
+    email?: string
+    active: boolean
+  }) => Promise<ApiResponse<Company>>
+  getCurrentCompany: () => Promise<ApiResponse<Company>>
+  setCurrentCompany: (id: string) => Promise<ApiResponse<Company>>
   getDashboard: () => Promise<ApiResponse<DashboardData>>
   getReport: (
     type: ReportType,

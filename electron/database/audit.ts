@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import os from 'node:os'
 import type { Db } from './types'
+import { getCurrentCompanyId } from './company-context'
 
 type AuditContext = { userId: string | null; username: string; origin: string; computerName: string }
 let context: AuditContext = { userId: null, username: 'sistema', origin: 'desktop', computerName: os.hostname() }
@@ -24,9 +25,9 @@ export function recordAudit(
 ): void {
   database.prepare(
     `INSERT INTO audit_logs (id, action, entity_type, entity_id, details, created_at,
-      user_id, username, origin, computer_name, previous_values, new_values)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      user_id, username, origin, computer_name, previous_values, new_values, company_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(randomUUID(), action, entityType, entityId, JSON.stringify(details), timestamp,
     context.userId, context.username, context.origin, context.computerName,
-    JSON.stringify(previousValues), JSON.stringify(details))
+    JSON.stringify(previousValues), JSON.stringify(details), getCurrentCompanyId())
 }

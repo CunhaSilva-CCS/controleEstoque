@@ -67,6 +67,11 @@ import {
   createFinanceEntry,
   markFinanceEntryPaid,
   deleteFinanceEntry,
+  listCompanies,
+  createCompany,
+  updateCompany,
+  getCurrentCompany,
+  setCurrentCompany,
 } from './db'
 import { initAutoUpdater, registerUpdateIpc } from './updater'
 import { setAuditContext } from './database/audit'
@@ -97,6 +102,7 @@ import type {
   CancelOperationInput,
   FinanceEntryFilters,
   FinanceEntryInput,
+  CompanyInput,
 } from '../shared/types'
 
 initMainTelemetry()
@@ -675,6 +681,26 @@ function registerIpc(): void {
 
   ipcMain.handle('finance:delete', (_e, id: string) => {
     try { requireUser(); deleteFinanceEntry(id); return ok(true) } catch (error) { return fail(error) }
+  })
+
+  ipcMain.handle('companies:list', () => {
+    try { requireUser(); return ok(listCompanies()) } catch (error) { return fail(error) }
+  })
+
+  ipcMain.handle('companies:create', (_e, input: CompanyInput) => {
+    try { requireAdmin(); return ok(createCompany(input)) } catch (error) { return fail(error) }
+  })
+
+  ipcMain.handle('companies:update', (_e, input) => {
+    try { requireAdmin(); return ok(updateCompany(input)) } catch (error) { return fail(error) }
+  })
+
+  ipcMain.handle('companies:getCurrent', () => {
+    try { requireUser(); return ok(getCurrentCompany()) } catch (error) { return fail(error) }
+  })
+
+  ipcMain.handle('companies:setCurrent', (_e, id: string) => {
+    try { requireUser(); return ok(setCurrentCompany(id)) } catch (error) { return fail(error) }
   })
 
   ipcMain.handle('dashboard:get', () => {

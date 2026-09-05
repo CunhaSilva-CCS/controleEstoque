@@ -3,6 +3,7 @@ import type { Product, ProductFilters, ProductInput, ProductKind, ProductStatus,
 import type { Db } from '../types'
 import { recordAudit } from '../audit'
 import { calculateInvoiceAverageCost } from '../services/costing-service'
+import { getCurrentCompanyId } from '../company-context'
 
 function status(stock: number, minimum: number): ProductStatus {
   if (stock <= 0) return 'zero'
@@ -32,8 +33,8 @@ function map(row: Record<string, unknown>): Product {
 }
 
 export function listProducts(database: Db, filters: ProductFilters = {}): Product[] {
-  const clauses: string[] = []
-  const params: unknown[] = []
+  const clauses: string[] = ['p.company_id = ?']
+  const params: unknown[] = [getCurrentCompanyId()]
   if (filters.search?.trim()) {
     clauses.push('(p.name LIKE ? OR p.sku LIKE ?)')
     const query = `%${filters.search.trim()}%`
@@ -53,7 +54,7 @@ export function listProducts(database: Db, filters: ProductFilters = {}): Produc
 export function getProduct(database: Db, id: string): Product | null {
   const row = database.prepare(`SELECT p.*, c.name AS category_name, s.name AS supplier_name
     FROM products p LEFT JOIN categories c ON c.id = p.category_id
-    LEFT JOIN suppliers s ON s.id = p.supplier_id WHERE p.id = ?`).get(id)
+    LEFT JOIN suppliers s ON s.id = p.supplier_id WHERE p.id = ? AND p.company_id = ?`).get(id, getCurrentCompanyId())
   return row ? map(row as Record<string, unknown>) : null
 }
 
@@ -82,9 +83,10 @@ export function createProduct(database: Db, input: ProductInput, timestamp: stri
 
   const id = randomUUID()
   const normalizedSku = input.sku.trim()
+  const companyId = getCurrentCompanyId()
   const duplicate = database
-    .prepare('SELECT id FROM products WHERE lower(trim(sku)) = lower(?) LIMIT 1')
-    .get(normalizedSku)
+    .prepare('SELECT id FROM products WHERE lower(trim(sku)) = lower(?) AND company_id = ? LIMIT 1')
+    .get(normalizedSku, companyId)
   if (duplicate) throw new Error('Já existe um produto com este código')
 
   const tx = database.transaction(() => {
@@ -93,9 +95,9 @@ export function createProduct(database: Db, input: ProductInput, timestamp: stri
         .prepare(
           `INSERT INTO products (
             id, sku, name, description, category_id, supplier_id, kind, unit,
-            cost_price, sale_price, min_stock, stock, active, created_at, updated_at,
+            cost_price, sale_price, min_stock, stock, active, company_id, created_at, updated_at,
             purchase_unit, purchase_conversion_factor, lot_control
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, ?, ?, ?, ?, ?)`,
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, ?, ?, ?, ?, ?, ?)`,
         )
         .run(
           id,
@@ -109,6 +111,7 @@ export function createProduct(database: Db, input: ProductInput, timestamp: stri
           0,
           input.salePrice,
           input.minStock,
+          companyId,
           timestamp,
           timestamp,
           input.purchaseUnit?.trim() || null,
@@ -130,8 +133,8 @@ export function updateProduct(database: Db, input: ProductUpdateInput, timestamp
   validateProductFields(input)
   const normalizedSku = input.sku.trim()
   const duplicate = database
-    .prepare('SELECT id FROM products WHERE lower(trim(sku)) = lower(?) AND id <> ? LIMIT 1')
-    .get(normalizedSku, input.id)
+    .prepare('SELECT id FROM products WHERE lower(trim(sku)) = lower(?) AND id <> ? AND company_id = ? LIMIT 1')
+    .get(normalizedSku, input.id, getCurrentCompanyId())
   if (duplicate) throw new Error('Já existe um produto com este código')
   const effectiveCostPrice = input.kind === 'insumo'
     ? (calculateInvoiceAverageCost(database, input.id) ?? 0)
@@ -143,7 +146,7 @@ export function updateProduct(database: Db, input: ProductUpdateInput, timestamp
           sku = ?, name = ?, description = ?, category_id = ?, supplier_id = ?,
           kind = ?, unit = ?, cost_price = ?, sale_price = ?, min_stock = ?, updated_at = ?,
           purchase_unit = ?, purchase_conversion_factor = ?, lot_control = ?
-         WHERE id = ?`,
+         WHERE id = ? AND company_id = ?`,
       )
       .run(
         normalizedSku,
@@ -161,6 +164,7 @@ export function updateProduct(database: Db, input: ProductUpdateInput, timestamp
         input.purchaseConversionFactor ?? 1,
         input.lotControl ? 1 : 0,
         input.id,
+        getCurrentCompanyId(),
       )
     if (result.changes === 0) throw new Error('Produto não encontrado')
   } catch (err) {
@@ -173,8 +177,8 @@ export function updateProduct(database: Db, input: ProductUpdateInput, timestamp
 
 export function setProductActive(database: Db, id: string, active: boolean, timestamp: string): Product {
   const result = database
-    .prepare('UPDATE products SET active = ?, updated_at = ? WHERE id = ?')
-    .run(active ? 1 : 0, timestamp, id)
+    .prepare('UPDATE products SET active = ?, updated_at = ? WHERE id = ? AND company_id = ?')
+    .run(active ? 1 : 0, timestamp, id, getCurrentCompanyId())
   if (result.changes === 0) throw new Error('Produto não encontrado')
   return getProduct(database, id)!
 }

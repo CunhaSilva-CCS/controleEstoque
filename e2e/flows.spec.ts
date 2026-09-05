@@ -246,4 +246,20 @@ test.describe('Fluxos operacionais (web/memory)', () => {
     await page.getByTestId('btn-check-updates').click()
     await expect(page.getByTestId('update-status')).toContainText(/indispon|desabilit/i)
   })
+
+  test('Empresas — cadastra empresa e exibe o seletor no topo', async ({ page }) => {
+    await skipOrAcceptSeed(page, false)
+    await page.getByTestId('nav-configuracoes').click()
+    await expect(page.getByTestId('settings-companies')).toBeVisible()
+    await expect(page.getByText('Empresa Principal')).toBeVisible()
+    await expect(page.getByTestId('select-company')).toHaveCount(0)
+
+    await page.getByTestId('btn-new-company').click()
+    await page.getByTestId('input-company-name').fill('E2E Segunda Empresa')
+    await saveModal(page)
+    await expect(page.getByRole('cell', { name: 'E2E Segunda Empresa' })).toBeVisible()
+
+    await expect(page.getByTestId('select-company')).toBeVisible()
+    await expect(page.getByTestId('select-company').getByRole('option', { name: 'E2E Segunda Empresa' })).toHaveCount(1)
+  })
 })
