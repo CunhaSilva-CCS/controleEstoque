@@ -9,6 +9,7 @@ import { useCompany } from '../../../lib/company'
 import { roleLabel } from '../../../lib/format'
 import { useTheme } from '../../../lib/theme'
 import { useToast } from '../../../lib/toast'
+import { LICENSE_MODULE_LABELS } from '@shared/license-modules'
 import type { ClientBrand, Company, LicenseStatus, LocalDiagnostics, UpdateStatus, User } from '@shared/types'
 
 type CompanyFormState = {
@@ -45,7 +46,7 @@ function formatUpdateStatus(status: UpdateStatus): string {
 }
 
 export function SettingsPage() {
-  const { user } = useOutletContext<AppOutletContext>()
+  const { user, licensedModules } = useOutletContext<AppOutletContext>()
   const isAdmin = user.role === 'admin'
   const { push } = useToast()
   const { theme, setTheme } = useTheme()
@@ -429,6 +430,13 @@ export function SettingsPage() {
           <div className="settings-about-grid">
             <div><span>Versão</span><strong data-testid="app-version">{version || '—'}</strong><small>{packaged ? 'Aplicação instalada' : 'Ambiente de desenvolvimento'}</small></div>
             <div><span>Licença</span>{licenseStatus?.active ? <><strong>{licenseStatus.details.edition === 'professional' ? 'Profissional' : 'Padrão'}</strong><small>{licenseStatus.details.customer} · {licenseStatus.details.expiresAt ? `válida até ${new Date(licenseStatus.details.expiresAt).toLocaleDateString('pt-PT')}` : 'validade perpétua'}</small></> : <small>{licenseStatus?.reason ?? 'A consultar…'}</small>}</div>
+            {licenseStatus?.active ? (
+              <div>
+                <span>Módulos incluídos</span>
+                <strong>{licensedModules.size || 'Nenhum'}</strong>
+                <small>{licensedModules.size ? Array.from(licensedModules).map((id) => LICENSE_MODULE_LABELS[id]).join(', ') : 'Somente cadastros básicos'}</small>
+              </div>
+            ) : null}
           </div>
           {isAdmin ? <details className="settings-technical-details"><summary>Informações técnicas</summary><p className="muted info-row break-all">Base de dados: <code data-testid="db-path">{dbPath || '—'}</code></p>{licenseStatus?.active ? <p className="muted info-row break-all">Identificação da licença: <code>{licenseStatus.details.licenseId}</code></p> : null}</details> : null}
         </div>
@@ -481,7 +489,7 @@ export function SettingsPage() {
         </div>
         ) : null}
 
-        {isAdmin ? (
+        {isAdmin && licensedModules.has('multi-empresa') ? (
         <div className="panel" data-testid="settings-companies">
           <div className="settings-section-header">
             <div>

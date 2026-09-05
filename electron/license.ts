@@ -86,6 +86,9 @@ function validatePayload(value: unknown): LicenseDetails {
   if (item.expiresAt !== null && (typeof item.expiresAt !== 'string' || Number.isNaN(Date.parse(item.expiresAt)))) {
     throw new Error('Validade inválida')
   }
+  if (item.modules !== undefined && (!Array.isArray(item.modules) || !item.modules.every((m) => typeof m === 'string'))) {
+    throw new Error('Módulos da licença inválidos')
+  }
   return item as unknown as LicenseDetails
 }
 

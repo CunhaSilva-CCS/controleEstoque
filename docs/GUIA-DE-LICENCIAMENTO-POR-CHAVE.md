@@ -32,11 +32,26 @@ Cada licença contém:
 - `customer` — nome do cliente;
 - `edition` — `standard` ou `professional`;
 - `issuedAt` — data de emissão;
-- `expiresAt` — data de validade, ou `null` para licença perpétua.
+- `expiresAt` — data de validade, ou `null` para licença perpétua;
+- `modules` — opcional, lista dos módulos operacionais licenciados (ver abaixo).
 
 A licença é vinculada ao `installationId` exibido no computador do cliente. Copiar
 somente a chave para outro computador não ativa o sistema, porque o `installationId`
 não vai corresponder.
+
+### Licenciamento por módulo
+
+Além dos cadastros básicos (produtos, categorias, fornecedores, clientes, sempre
+disponíveis), sete módulos operacionais podem ser licenciados individualmente:
+`compras`, `vendas`, `producao`, `estoque`, `financeiro`, `relatorios-avancados` e
+`multi-empresa`. Quando o campo `modules` está ausente da licença — o caso de **toda
+licença emitida antes desta funcionalidade** — o aplicativo usa a edição como
+substituto: `professional` libera todos os módulos, `standard` não libera nenhum
+módulo extra. Incluir `modules` explicitamente na licença (via `--modules` no CLI, ou
+os checkboxes no Gerador de Licenças) sobrepõe esse padrão e vale à risca,
+independentemente da edição — por exemplo, uma licença `standard` com
+`modules: ["financeiro"]` libera só o Financeiro. Um módulo não licenciado
+simplesmente não aparece no menu do cliente.
 
 ```mermaid
 flowchart LR
@@ -104,6 +119,7 @@ npm run license:generate -- \
   --installation "CODIGO-EXIBIDO-PELO-CLIENTE" \
   --edition professional \
   --days 365 \
+  --modules compras,vendas,financeiro \
   --out /caminho/seguro/empresa-cliente.license
 ```
 
@@ -115,6 +131,7 @@ Parâmetros:
 | `--installation` | sim | `installationId` exibido no computador do cliente. |
 | `--edition` | não (padrão `standard`) | `standard` ou `professional`. |
 | `--days` | não | Validade em dias (1 a 3650). Omitido = licença perpétua. |
+| `--modules` | não | Lista separada por vírgula (`compras,vendas,producao,estoque,financeiro,relatorios-avancados,multi-empresa`). Omitido = usa o padrão da edição. |
 | `--out` | não | Caminho do arquivo `.license` a gerar. Sem isso, a chave é impressa no terminal. |
 
 O script recusa gerar a licença se a chave privada apontada por

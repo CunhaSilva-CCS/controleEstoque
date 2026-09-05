@@ -66,9 +66,16 @@ $("perpetual").addEventListener("change", (event) => {
   $("days").disabled = event.target.checked;
 });
 
+function selectedModules() {
+  return Array.from(
+    document.querySelectorAll("#modules input[type=checkbox]:checked"),
+  ).map((input) => input.value);
+}
+
 $("form").addEventListener("submit", async (event) => {
   event.preventDefault();
   try {
+    const modules = selectedModules();
     generated = unwrap(
       await window.licenseGenerator.generate({
         customer: $("customer").value,
@@ -76,6 +83,7 @@ $("form").addEventListener("submit", async (event) => {
         edition: $("edition").value,
         days: $("days").value,
         perpetual: $("perpetual").checked,
+        modules: modules.length ? modules : undefined,
       }),
     );
     $("licenseKey").value = generated.licenseKey;
@@ -83,13 +91,16 @@ $("form").addEventListener("submit", async (event) => {
       ? new Date(generated.details.expiresAt).toLocaleDateString("pt-BR")
       : "Perpétua";
     $("summary").innerHTML =
-      `<div><span>Cliente</span><strong></strong></div><div><span>Edição</span><strong></strong></div><div><span>Validade</span><strong></strong></div>`;
+      `<div><span>Cliente</span><strong></strong></div><div><span>Edição</span><strong></strong></div><div><span>Validade</span><strong></strong></div><div><span>Módulos</span><strong></strong></div>`;
     const values = [
       generated.details.customer,
       generated.details.edition === "professional"
         ? "Profissional"
         : "Standard",
       expiry,
+      generated.details.modules?.length
+        ? generated.details.modules.join(", ")
+        : `padrão da edição (${generated.details.edition === "professional" ? "todos" : "nenhum extra"})`,
     ];
     $("summary")
       .querySelectorAll("strong")

@@ -5,36 +5,48 @@ import { useClientBrand } from '../lib/client-brand'
 import { useCompany } from '../lib/company'
 import { roleLabel } from '../lib/format'
 import { useToast } from '../lib/toast'
+import type { LicenseModule } from '@shared/license-modules'
 import type { User } from '@shared/types'
 
-export type AppOutletContext = { user: User }
+export type AppOutletContext = { user: User; licensedModules: Set<LicenseModule> }
 
 const cadastroPaths = ['/produtos', '/categorias', '/fornecedores', '/clientes', '/receitas']
 const operacaoPaths = ['/faturas', '/faturacao/saida', '/fabricacao', '/movimentacoes', '/inventario-fisico']
 
-type NavEntry =
-  | { to: string; label: string; testId: string }
-  | { label: string; children: { to: string; label: string; testId: string }[] }
+type NavLeaf = { to: string; label: string; testId: string; moduleId?: LicenseModule }
+type NavEntry = NavLeaf | { label: string; children: NavLeaf[] }
 
-const cadastroLinks = [
+function filterLinks<T extends NavEntry>(links: T[], licensedModules: Set<LicenseModule>): T[] {
+  return links
+    .map((link) => {
+      if ('children' in link) {
+        const children = link.children.filter((child) => !child.moduleId || licensedModules.has(child.moduleId))
+        return children.length ? { ...link, children } : null
+      }
+      return !link.moduleId || licensedModules.has(link.moduleId) ? link : null
+    })
+    .filter((link): link is T => link !== null)
+}
+
+const cadastroLinks: NavLeaf[] = [
   { to: '/produtos', label: 'Produtos', testId: 'nav-produtos' },
   { to: '/categorias', label: 'Categorias', testId: 'nav-categorias' },
   { to: '/fornecedores', label: 'Fornecedores', testId: 'nav-fornecedores' },
   { to: '/clientes', label: 'Clientes', testId: 'nav-clientes' },
-  { to: '/receitas', label: 'Receita de Fabrico', testId: 'nav-receitas' },
+  { to: '/receitas', label: 'Receita de Fabrico', testId: 'nav-receitas', moduleId: 'producao' },
 ]
 
 const operacaoLinks: NavEntry[] = [
   {
     label: 'Faturação',
     children: [
-      { to: '/faturas', label: 'Entrada', testId: 'nav-faturacao-entrada' },
-      { to: '/faturacao/saida', label: 'Saída', testId: 'nav-faturacao-saida' },
+      { to: '/faturas', label: 'Entrada', testId: 'nav-faturacao-entrada', moduleId: 'compras' },
+      { to: '/faturacao/saida', label: 'Saída', testId: 'nav-faturacao-saida', moduleId: 'vendas' },
     ],
   },
-  { to: '/fabricacao', label: 'Fabrico', testId: 'nav-fabricacao' },
-  { to: '/movimentacoes', label: 'Ajustes de inventário', testId: 'nav-movimentacoes' },
-  { to: '/inventario-fisico', label: 'Inventário físico', testId: 'nav-inventario' },
+  { to: '/fabricacao', label: 'Fabrico', testId: 'nav-fabricacao', moduleId: 'producao' },
+  { to: '/movimentacoes', label: 'Ajustes de inventário', testId: 'nav-movimentacoes', moduleId: 'estoque' },
+  { to: '/inventario-fisico', label: 'Inventário físico', testId: 'nav-inventario', moduleId: 'estoque' },
 ]
 
 const mainLinks = [
@@ -42,6 +54,7 @@ const mainLinks = [
     to: '/financeiro',
     label: 'Financeiro',
     testId: 'nav-financeiro',
+    moduleId: 'financeiro' as const,
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden>
         <path d="M11 2h2v2.06c2.9.44 5 2.6 5 5.44h-2c0-1.66-1.34-3-3-3s-3 1.34-3 3c0 1.1.6 1.7 2.7 2.36l1.9.6C16.1 13.1 18 14.4 18 16.5c0 2.84-2.1 5-5 5.44V24h-2v-2.06c-2.9-.44-5-2.6-5-5.44h2c0 1.66 1.34 3 3 3s3-1.34 3-3c0-1.1-.6-1.7-2.7-2.36l-1.9-.6C7.9 12.9 6 11.6 6 9.5 6 6.66 8.1 4.5 11 4.06V2z" />
@@ -52,6 +65,7 @@ const mainLinks = [
     to: '/relatorios',
     label: 'Relatórios',
     testId: 'nav-relatorios',
+    moduleId: 'relatorios-avancados' as const,
     icon: (
       <svg viewBox="0 0 24 24" aria-hidden>
         <path d="M5 19V5h2v14H5zm6 0V9h2v10h-2zm6 0V3h2v16h-2z" />
@@ -155,9 +169,11 @@ function NavGroup({
 export function AppLayout({
   user,
   onLogout,
+  licensedModules,
 }: {
   user: User
   onLogout: () => void
+  licensedModules: Set<LicenseModule>
 }) {
   const { toasts, dismiss } = useToast()
   const { brand } = useClientBrand()
@@ -169,6 +185,10 @@ export function AppLayout({
   const [operacaoOpen, setOperacaoOpen] = useState(false)
   const clientName = brand.name.trim() || 'Sua empresa'
   const currentRole = roleLabel(user.role)
+  const visibleCadastroLinks = useMemo(() => filterLinks(cadastroLinks, licensedModules), [licensedModules])
+  const visibleOperacaoLinks = useMemo(() => filterLinks(operacaoLinks, licensedModules), [licensedModules])
+  const visibleMainLinks = useMemo(() => filterLinks(mainLinks, licensedModules), [licensedModules])
+  const showMultiEmpresa = licensedModules.has('multi-empresa')
 
   useEffect(() => {
     if (isGroupRoute(pathname, cadastroPaths)) setCadastroOpen(true)
@@ -209,22 +229,24 @@ export function AppLayout({
             <NavGroup
               label="Registos"
               testId="nav-cadastro"
-              links={cadastroLinks}
+              links={visibleCadastroLinks}
               paths={cadastroPaths}
               open={cadastroOpen}
               onToggle={() => setCadastroOpen((v) => !v)}
             />
 
-            <NavGroup
-              label="Operações"
-              testId="nav-operacoes"
-              links={operacaoLinks}
-              paths={operacaoPaths}
-              open={operacaoOpen}
-              onToggle={() => setOperacaoOpen((v) => !v)}
-            />
+            {visibleOperacaoLinks.length ? (
+              <NavGroup
+                label="Operações"
+                testId="nav-operacoes"
+                links={visibleOperacaoLinks}
+                paths={operacaoPaths}
+                open={operacaoOpen}
+                onToggle={() => setOperacaoOpen((v) => !v)}
+              />
+            ) : null}
 
-            {mainLinks.map((link) => (
+            {visibleMainLinks.map((link) => (
               <NavLink key={link.to} to={link.to} data-testid={link.testId}>
                 <span className="nav-icon">{link.icon}</span>
                 <span className="nav-label">{link.label}</span>
@@ -250,7 +272,7 @@ export function AppLayout({
               </h1>
             </div>
             <div className="row-actions">
-              {activeCompanies.length > 1 ? (
+              {showMultiEmpresa && activeCompanies.length > 1 ? (
                 <select
                   className="company-switcher"
                   data-testid="select-company"
@@ -275,7 +297,7 @@ export function AppLayout({
           </header>
 
           <main className="content">
-            <Outlet context={{ user } satisfies AppOutletContext} />
+            <Outlet context={{ user, licensedModules } satisfies AppOutletContext} />
           </main>
         </div>
       </div>

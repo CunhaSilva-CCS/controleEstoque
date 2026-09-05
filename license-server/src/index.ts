@@ -87,13 +87,16 @@ app.post('/licenses/:licenseId/unrevoke', async (req, res) => {
 app.post('/licenses/issued', async (req, res) => {
   if (!requireAdmin(req, res)) return
   try {
-    const { licenseId, installationId, customer, edition, issuedAt, expiresAt } = req.body ?? {}
+    const { licenseId, installationId, customer, edition, issuedAt, expiresAt, modules } = req.body ?? {}
     if (typeof licenseId !== 'string' || !licenseId) throw new Error('licenseId é obrigatório')
     if (typeof installationId !== 'string' || !installationId) throw new Error('installationId é obrigatório')
     if (typeof customer !== 'string' || !customer) throw new Error('customer é obrigatório')
     if (typeof edition !== 'string' || !edition) throw new Error('edition é obrigatório')
     if (typeof issuedAt !== 'string' || Number.isNaN(Date.parse(issuedAt))) throw new Error('issuedAt inválido')
     if (expiresAt !== null && expiresAt !== undefined && Number.isNaN(Date.parse(expiresAt))) throw new Error('expiresAt inválido')
+    if (modules !== undefined && modules !== null && (!Array.isArray(modules) || !modules.every((m) => typeof m === 'string'))) {
+      throw new Error('modules inválido')
+    }
     await registerIssuedLicense({
       licenseId,
       installationId,
@@ -101,6 +104,7 @@ app.post('/licenses/issued', async (req, res) => {
       edition,
       issuedAt,
       expiresAt: expiresAt ?? null,
+      modules: modules ?? null,
     })
     res.json({ ok: true })
   } catch (error) {

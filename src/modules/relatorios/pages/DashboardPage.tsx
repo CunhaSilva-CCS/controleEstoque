@@ -13,7 +13,7 @@ type Props = {
 }
 
 export function DashboardPage({ needsSeed, onSeedDone }: Props) {
-  const { user } = useOutletContext<AppOutletContext>()
+  const { user, licensedModules } = useOutletContext<AppOutletContext>()
   const isAdmin = user.role === 'admin'
   const { push } = useToast()
   const [data, setData] = useState<DashboardData | null>(null)
@@ -84,17 +84,23 @@ export function DashboardPage({ needsSeed, onSeedDone }: Props) {
               <p>Consulte saldos, identifique prioridades e acesse as operações do dia.</p>
             </div>
             <div className="dashboard-quick-actions" aria-label="Ações rápidas">
-              <Link className="dashboard-action" to="/faturas">
-                <span>+</span>
-                Lançar fatura
-              </Link>
-              <Link className="dashboard-action" to="/fabricacao">
-                <span>+</span>
-                Registrar fabricação
-              </Link>
-              <Link className="dashboard-action" to="/movimentacoes">
-                Consultar movimentações
-              </Link>
+              {licensedModules.has('compras') ? (
+                <Link className="dashboard-action" to="/faturas">
+                  <span>+</span>
+                  Lançar fatura
+                </Link>
+              ) : null}
+              {licensedModules.has('producao') ? (
+                <Link className="dashboard-action" to="/fabricacao">
+                  <span>+</span>
+                  Registrar fabricação
+                </Link>
+              ) : null}
+              {licensedModules.has('estoque') ? (
+                <Link className="dashboard-action" to="/movimentacoes">
+                  Consultar movimentações
+                </Link>
+              ) : null}
             </div>
           </section>
 
@@ -184,9 +190,11 @@ export function DashboardPage({ needsSeed, onSeedDone }: Props) {
                   <h3>Últimas movimentações</h3>
                   <p>Histórico recente</p>
                 </div>
-                <Link className="btn btn-ghost" to="/movimentacoes">
-                  Ver histórico
-                </Link>
+                {licensedModules.has('estoque') ? (
+                  <Link className="btn btn-ghost" to="/movimentacoes">
+                    Ver histórico
+                  </Link>
+                ) : null}
               </div>
               {data.recentMovements.length === 0 ? (
                 <div className="empty">As movimentações mais recentes aparecerão aqui.</div>

@@ -27,6 +27,7 @@ export async function ensureSchema(): Promise<void> {
       registered_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `)
+  await pool.query('ALTER TABLE issued_licenses ADD COLUMN IF NOT EXISTS modules TEXT[]')
 }
 
 export interface RevocationRow {
@@ -77,6 +78,7 @@ export interface IssuedLicenseInput {
   edition: string
   issuedAt: string
   expiresAt: string | null
+  modules?: string[] | null
 }
 
 export interface IssuedLicenseRow extends IssuedLicenseInput {
@@ -86,15 +88,16 @@ export interface IssuedLicenseRow extends IssuedLicenseInput {
 // Registro apenas informativo: nunca guarda a chave nem a chave privada, só metadados da emissão local.
 export async function registerIssuedLicense(input: IssuedLicenseInput): Promise<void> {
   await pool.query(
-    `INSERT INTO issued_licenses (license_id, installation_id, customer, edition, issued_at, expires_at)
-     VALUES ($1, $2, $3, $4, $5, $6)
+    `INSERT INTO issued_licenses (license_id, installation_id, customer, edition, issued_at, expires_at, modules)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)
      ON CONFLICT (license_id) DO UPDATE SET
        installation_id = EXCLUDED.installation_id,
        customer = EXCLUDED.customer,
        edition = EXCLUDED.edition,
        issued_at = EXCLUDED.issued_at,
-       expires_at = EXCLUDED.expires_at`,
-    [input.licenseId, input.installationId, input.customer, input.edition, input.issuedAt, input.expiresAt],
+       expires_at = EXCLUDED.expires_at,
+       modules = EXCLUDED.modules`,
+    [input.licenseId, input.installationId, input.customer, input.edition, input.issuedAt, input.expiresAt, input.modules ?? null],
   )
 }
 
@@ -107,7 +110,8 @@ export async function listIssuedLicenses(): Promise<IssuedLicenseRow[]> {
     issued_at: Date
     expires_at: Date | null
     registered_at: Date
-  }>('SELECT license_id, installation_id, customer, edition, issued_at, expires_at, registered_at FROM issued_licenses ORDER BY registered_at DESC')
+    modules: string[] | null
+  }>('SELECT license_id, installation_id, customer, edition, issued_at, expires_at, registered_at, modules FROM issued_licenses ORDER BY registered_at DESC')
   return result.rows.map((row) => ({
     licenseId: row.license_id,
     installationId: row.installation_id,
@@ -116,5 +120,6 @@ export async function listIssuedLicenses(): Promise<IssuedLicenseRow[]> {
     issuedAt: row.issued_at.toISOString(),
     expiresAt: row.expires_at ? row.expires_at.toISOString() : null,
     registeredAt: row.registered_at.toISOString(),
+    modules: row.modules,
   }))
 }

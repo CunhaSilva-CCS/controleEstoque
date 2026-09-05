@@ -7,11 +7,22 @@ function argument(name) {
   return index >= 0 ? process.argv[index + 1] : undefined;
 }
 
+const KNOWN_MODULES = [
+  "compras",
+  "vendas",
+  "producao",
+  "estoque",
+  "financeiro",
+  "relatorios-avancados",
+  "multi-empresa",
+];
+
 const customer = argument("customer")?.trim();
 const edition = argument("edition") ?? "standard";
 const daysRaw = argument("days");
 const output = argument("out");
 const installationId = argument("installation")?.trim();
+const modulesRaw = argument("modules");
 if (!customer) throw new Error('Informe --customer "Nome do cliente"');
 if (!installationId)
   throw new Error(
@@ -22,6 +33,17 @@ if (edition !== "standard" && edition !== "professional")
 const days = daysRaw ? Number(daysRaw) : null;
 if (days !== null && (!Number.isInteger(days) || days < 1 || days > 3650))
   throw new Error("--days deve estar entre 1 e 3650");
+const modules = modulesRaw
+  ? modulesRaw.split(",").map((m) => m.trim()).filter(Boolean)
+  : undefined;
+if (modules) {
+  const unknown = modules.filter((m) => !KNOWN_MODULES.includes(m));
+  if (unknown.length) {
+    throw new Error(
+      `--modules contém valores desconhecidos: ${unknown.join(", ")}. Válidos: ${KNOWN_MODULES.join(", ")}`,
+    );
+  }
+}
 
 const privatePath = process.env.CORTEXIS_LICENSE_PRIVATE_KEY;
 if (
@@ -59,6 +81,7 @@ const payload = {
   edition,
   issuedAt: issuedAt.toISOString(),
   expiresAt,
+  ...(modules ? { modules } : {}),
 };
 const encodedPayload = Buffer.from(JSON.stringify(payload)).toString(
   "base64url",
@@ -80,7 +103,7 @@ if (output) {
   console.log(licenseKey);
 }
 console.error(
-  `Cliente: ${customer} | Edição: ${edition} | Validade: ${expiresAt ?? "perpétua"}`,
+  `Cliente: ${customer} | Edição: ${edition} | Validade: ${expiresAt ?? "perpétua"} | Módulos: ${modules ? modules.join(", ") : `padrão da edição (${edition === "professional" ? "todos" : "nenhum extra"})`}`,
 );
 
 // Registro opcional no painel online: só metadados (nunca a chave), para consulta/histórico centralizado.
@@ -103,6 +126,7 @@ if (registryToken) {
         edition,
         issuedAt: payload.issuedAt,
         expiresAt,
+        modules,
       }),
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);

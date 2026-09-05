@@ -20,6 +20,7 @@ import { SuppliersPage } from './modules/cadastros/pages/SuppliersPage'
 import { CustomersPage } from './modules/cadastros/pages/CustomersPage'
 import { SalesInvoicesPage } from './modules/vendas/pages/SalesInvoicesPage'
 import { FinancePage } from './modules/financeiro/pages/FinancePage'
+import { getEnabledModules, type LicenseModule } from '@shared/license-modules'
 import type { AuthSession, LicenseStatus } from '@shared/types'
 
 export default function App() {
@@ -429,10 +430,12 @@ export default function App() {
     )
   }
 
+  const licensedModules: Set<LicenseModule> = license.active ? getEnabledModules(license.details) : new Set()
+
   return (
     <CompanyProvider>
       <Routes>
-        <Route element={<AppLayout user={auth.user} onLogout={handleLogout} />}>
+        <Route element={<AppLayout user={auth.user} onLogout={handleLogout} licensedModules={licensedModules} />}>
           <Route
             index
             element={
@@ -443,14 +446,14 @@ export default function App() {
           <Route path="categorias" element={<CategoriesPage />} />
           <Route path="fornecedores" element={<SuppliersPage />} />
           <Route path="clientes" element={<CustomersPage />} />
-          <Route path="receitas" element={<RecipesPage />} />
-          <Route path="faturas" element={<InvoicesPage />} />
-          <Route path="faturacao/saida" element={<SalesInvoicesPage />} />
-          <Route path="fabricacao" element={<ProductionPage />} />
-          <Route path="movimentacoes" element={<MovementsPage />} />
-          <Route path="inventario-fisico" element={<InventoryPage />} />
-          <Route path="financeiro" element={<FinancePage />} />
-          <Route path="relatorios" element={<ReportsPage />} />
+          <Route path="receitas" element={licensedModules.has('producao') ? <RecipesPage /> : <Navigate to="/" replace />} />
+          <Route path="faturas" element={licensedModules.has('compras') ? <InvoicesPage /> : <Navigate to="/" replace />} />
+          <Route path="faturacao/saida" element={licensedModules.has('vendas') ? <SalesInvoicesPage /> : <Navigate to="/" replace />} />
+          <Route path="fabricacao" element={licensedModules.has('producao') ? <ProductionPage /> : <Navigate to="/" replace />} />
+          <Route path="movimentacoes" element={licensedModules.has('estoque') ? <MovementsPage /> : <Navigate to="/" replace />} />
+          <Route path="inventario-fisico" element={licensedModules.has('estoque') ? <InventoryPage /> : <Navigate to="/" replace />} />
+          <Route path="financeiro" element={licensedModules.has('financeiro') ? <FinancePage /> : <Navigate to="/" replace />} />
+          <Route path="relatorios" element={licensedModules.has('relatorios-avancados') ? <ReportsPage /> : <Navigate to="/" replace />} />
           <Route path="configuracoes" element={<SettingsPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

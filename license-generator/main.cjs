@@ -128,6 +128,16 @@ ipcMain.handle("key:select", async (event) => {
   }
 });
 
+const KNOWN_MODULES = [
+  "compras",
+  "vendas",
+  "producao",
+  "estoque",
+  "financeiro",
+  "relatorios-avancados",
+  "multi-empresa",
+];
+
 ipcMain.handle("license:generate", (event, input) => {
   try {
     trusted(event);
@@ -146,6 +156,13 @@ ipcMain.handle("license:generate", (event, input) => {
       throw new Error("Selecione a edição");
     if (!perpetual && (!Number.isInteger(days) || days < 1 || days > 3650))
       throw new Error("A validade deve estar entre 1 e 3650 dias");
+    let modules;
+    if (Array.isArray(input?.modules) && input.modules.length) {
+      modules = input.modules.map(String);
+      const unknown = modules.filter((m) => !KNOWN_MODULES.includes(m));
+      if (unknown.length)
+        throw new Error(`Módulos desconhecidos: ${unknown.join(", ")}`);
+    }
     const issued = new Date();
     const payload = {
       version: 1,
@@ -157,6 +174,7 @@ ipcMain.handle("license:generate", (event, input) => {
       expiresAt: perpetual
         ? null
         : new Date(issued.getTime() + days * 86400000).toISOString(),
+      ...(modules ? { modules } : {}),
     };
     const payloadBuffer = Buffer.from(JSON.stringify(payload));
     const signature = sign(null, payloadBuffer, privateKey);
@@ -261,6 +279,7 @@ ipcMain.handle("registry:register", async (event, details) => {
           edition: details?.edition,
           issuedAt: details?.issuedAt,
           expiresAt: details?.expiresAt ?? null,
+          modules: details?.modules,
         }),
         signal: controller.signal,
       });

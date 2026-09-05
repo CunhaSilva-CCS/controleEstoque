@@ -4,17 +4,22 @@ import { describe, expect, it, vi } from 'vitest'
 vi.mock('electron', () => ({ app: { getPath: () => '/tmp' } }))
 
 import { protectLicenseForStorage, readLicenseFromStorage, verifyLicenseKey } from './license'
+import { LICENSE_MODULE_IDS, getEnabledModules } from '../shared/license-modules'
 
-function fixture(expiresAt: string | null) {
+function fixture(
+  expiresAt: string | null,
+  overrides: { edition?: 'standard' | 'professional'; modules?: string[] } = {},
+) {
   const { privateKey, publicKey } = generateKeyPairSync('ed25519')
   const payload = Buffer.from(JSON.stringify({
     version: 1,
     licenseId: 'lic-test',
     installationId: 'installation-test',
     customer: 'Cliente Teste',
-    edition: 'professional',
+    edition: overrides.edition ?? 'professional',
     issuedAt: '2026-01-01T00:00:00.000Z',
     expiresAt,
+    ...(overrides.modules ? { modules: overrides.modules } : {}),
   }))
   const signature = sign(null, payload, privateKey).toString('base64url')
   return {
@@ -72,5 +77,26 @@ describe('licenciamento offline', () => {
     const status = verifyLicenseKey(item.key, item.publicKey, new Date(), 'outro-computador')
     expect(status.active).toBe(false)
     if (!status.active) expect(status.reason).toMatch(/outra instalação/)
+  })
+
+  it('licença professional sem "modules" libera todos os módulos (compatibilidade)', () => {
+    const item = fixture(null, { edition: 'professional' })
+    const status = verifyLicenseKey(item.key, item.publicKey)
+    expect(status.active).toBe(true)
+    if (status.active) expect(getEnabledModules(status.details)).toEqual(new Set(LICENSE_MODULE_IDS))
+  })
+
+  it('licença standard sem "modules" não libera nenhum módulo opcional', () => {
+    const item = fixture(null, { edition: 'standard' })
+    const status = verifyLicenseKey(item.key, item.publicKey)
+    expect(status.active).toBe(true)
+    if (status.active) expect(getEnabledModules(status.details).size).toBe(0)
+  })
+
+  it('licença com "modules" explícito vale à risca, independente da edição', () => {
+    const item = fixture(null, { edition: 'standard', modules: ['financeiro'] })
+    const status = verifyLicenseKey(item.key, item.publicKey)
+    expect(status.active).toBe(true)
+    if (status.active) expect(getEnabledModules(status.details)).toEqual(new Set(['financeiro']))
   })
 })

@@ -498,6 +498,7 @@ export interface LicenseDetails {
   edition: LicenseEdition
   issuedAt: string
   expiresAt: string | null
+  modules?: string[]
 }
 
 export type LicenseStatus =

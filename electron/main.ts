@@ -76,6 +76,7 @@ import {
 import { initAutoUpdater, registerUpdateIpc } from './updater'
 import { setAuditContext } from './database/audit'
 import { activateLicense, getLicenseStatus, refreshRevocationStatus, requireValidLicense } from './license'
+import { LICENSE_MODULE_LABELS, isModuleEnabled, type LicenseModule } from '../shared/license-modules'
 import {
   captureError,
   initMainTelemetry,
@@ -186,6 +187,13 @@ function requireAdmin(): User {
   const user = requireUser()
   if (user.role !== 'admin') throw new Error('Acesso restrito ao administrador')
   return user
+}
+
+function requireModule(moduleId: LicenseModule): void {
+  const details = requireValidLicense()
+  if (!isModuleEnabled(details, moduleId)) {
+    throw new Error(`Este módulo não está incluído na sua licença: ${LICENSE_MODULE_LABELS[moduleId]}`)
+  }
 }
 
 function createWindow(): void {
@@ -544,6 +552,7 @@ function registerIpc(): void {
   ipcMain.handle('movements:list', (_e, filters?: MovementFilters) => {
     try {
       requireUser()
+      requireModule('estoque')
       return ok(listMovements(filters ?? {}))
     } catch (error) {
       return fail(error)
@@ -553,6 +562,7 @@ function registerIpc(): void {
   ipcMain.handle('movements:create', (_e, input: MovementInput) => {
     try {
       requireUser()
+      requireModule('estoque')
       return ok(registerMovement(input))
     } catch (error) {
       return fail(error)
@@ -562,6 +572,7 @@ function registerIpc(): void {
   ipcMain.handle('invoices:list', () => {
     try {
       requireUser()
+      requireModule('compras')
       return ok(listPurchaseInvoices())
     } catch (error) {
       return fail(error)
@@ -571,6 +582,7 @@ function registerIpc(): void {
   ipcMain.handle('invoices:create', (_e, input: PurchaseInvoiceInput) => {
     try {
       requireUser()
+      requireModule('compras')
       return ok(createPurchaseInvoice(input))
     } catch (error) {
       return fail(error)
@@ -580,6 +592,7 @@ function registerIpc(): void {
   ipcMain.handle('invoices:update', (_e, input: PurchaseInvoiceUpdateInput) => {
     try {
       requireUser()
+      requireModule('compras')
       return ok(updatePurchaseInvoice(input))
     } catch (error) {
       return fail(error)
@@ -587,22 +600,23 @@ function registerIpc(): void {
   })
 
   ipcMain.handle('invoices:reverse', (_e, input: CancelOperationInput) => {
-    try { requireAdmin(); return ok(reversePurchaseInvoice(input)) } catch (error) { return fail(error) }
+    try { requireAdmin(); requireModule('compras'); return ok(reversePurchaseInvoice(input)) } catch (error) { return fail(error) }
   })
 
   ipcMain.handle('sales:list', () => {
-    try { requireUser(); return ok(listSalesInvoices()) } catch (error) { return fail(error) }
+    try { requireUser(); requireModule('vendas'); return ok(listSalesInvoices()) } catch (error) { return fail(error) }
   })
   ipcMain.handle('sales:create', (_e, input: SalesInvoiceInput) => {
-    try { requireUser(); return ok(createSalesInvoice(input)) } catch (error) { return fail(error) }
+    try { requireUser(); requireModule('vendas'); return ok(createSalesInvoice(input)) } catch (error) { return fail(error) }
   })
   ipcMain.handle('sales:reverse', (_e, input: CancelOperationInput) => {
-    try { requireAdmin(); return ok(reverseSalesInvoice(input)) } catch (error) { return fail(error) }
+    try { requireAdmin(); requireModule('vendas'); return ok(reverseSalesInvoice(input)) } catch (error) { return fail(error) }
   })
 
   ipcMain.handle('recipes:list', () => {
     try {
       requireUser()
+      requireModule('producao')
       return ok(listRecipes())
     } catch (error) {
       return fail(error)
@@ -612,6 +626,7 @@ function registerIpc(): void {
   ipcMain.handle('recipes:get', (_e, productId: string) => {
     try {
       requireUser()
+      requireModule('producao')
       return ok(getRecipeByProductId(productId))
     } catch (error) {
       return fail(error)
@@ -621,6 +636,7 @@ function registerIpc(): void {
   ipcMain.handle('recipes:save', (_e, input: RecipeInput) => {
     try {
       requireUser()
+      requireModule('producao')
       return ok(saveRecipe(input))
     } catch (error) {
       return fail(error)
@@ -630,6 +646,7 @@ function registerIpc(): void {
   ipcMain.handle('production:list', () => {
     try {
       requireUser()
+      requireModule('producao')
       return ok(listProductionOrders())
     } catch (error) {
       return fail(error)
@@ -639,48 +656,49 @@ function registerIpc(): void {
   ipcMain.handle('production:create', (_e, input: ProductionInput) => {
     try {
       requireUser()
+      requireModule('producao')
       return ok(createProduction(input))
     } catch (error) {
       return fail(error)
     }
   })
   ipcMain.handle('production:reverse', (_e, input: CancelOperationInput) => {
-    try { requireAdmin(); return ok(reverseProductionOrder(input)) } catch (error) { return fail(error) }
+    try { requireAdmin(); requireModule('producao'); return ok(reverseProductionOrder(input)) } catch (error) { return fail(error) }
   })
 
   ipcMain.handle('inventory:list', () => {
-    try { requireUser(); return ok(listInventorySessions()) } catch (error) { return fail(error) }
+    try { requireUser(); requireModule('estoque'); return ok(listInventorySessions()) } catch (error) { return fail(error) }
   })
   ipcMain.handle('inventory:open', (_e, notes?: string) => {
-    try { requireUser(); return ok(openInventorySession(notes ?? '')) } catch (error) { return fail(error) }
+    try { requireUser(); requireModule('estoque'); return ok(openInventorySession(notes ?? '')) } catch (error) { return fail(error) }
   })
   ipcMain.handle('inventory:count', (_e, sessionId: string, productId: string, countedStock: number) => {
-    try { requireUser(); return ok(recordInventoryCount(sessionId, productId, countedStock)) } catch (error) { return fail(error) }
+    try { requireUser(); requireModule('estoque'); return ok(recordInventoryCount(sessionId, productId, countedStock)) } catch (error) { return fail(error) }
   })
   ipcMain.handle('inventory:submit', (_e, id: string) => {
-    try { requireUser(); return ok(submitInventorySession(id)) } catch (error) { return fail(error) }
+    try { requireUser(); requireModule('estoque'); return ok(submitInventorySession(id)) } catch (error) { return fail(error) }
   })
   ipcMain.handle('inventory:approve', (_e, id: string) => {
-    try { requireAdmin(); return ok(approveInventorySession(id)) } catch (error) { return fail(error) }
+    try { requireAdmin(); requireModule('estoque'); return ok(approveInventorySession(id)) } catch (error) { return fail(error) }
   })
   ipcMain.handle('inventory:cancel', (_e, id: string, reason: string) => {
-    try { requireAdmin(); return ok(cancelInventorySession(id, reason)) } catch (error) { return fail(error) }
+    try { requireAdmin(); requireModule('estoque'); return ok(cancelInventorySession(id, reason)) } catch (error) { return fail(error) }
   })
 
   ipcMain.handle('finance:list', (_e, filters?: FinanceEntryFilters) => {
-    try { requireUser(); return ok(listFinanceEntries(filters ?? {})) } catch (error) { return fail(error) }
+    try { requireUser(); requireModule('financeiro'); return ok(listFinanceEntries(filters ?? {})) } catch (error) { return fail(error) }
   })
 
   ipcMain.handle('finance:create', (_e, input: FinanceEntryInput) => {
-    try { requireUser(); return ok(createFinanceEntry(input)) } catch (error) { return fail(error) }
+    try { requireUser(); requireModule('financeiro'); return ok(createFinanceEntry(input)) } catch (error) { return fail(error) }
   })
 
   ipcMain.handle('finance:mark-paid', (_e, id: string, paid: boolean) => {
-    try { requireUser(); return ok(markFinanceEntryPaid(id, paid)) } catch (error) { return fail(error) }
+    try { requireUser(); requireModule('financeiro'); return ok(markFinanceEntryPaid(id, paid)) } catch (error) { return fail(error) }
   })
 
   ipcMain.handle('finance:delete', (_e, id: string) => {
-    try { requireUser(); deleteFinanceEntry(id); return ok(true) } catch (error) { return fail(error) }
+    try { requireUser(); requireModule('financeiro'); deleteFinanceEntry(id); return ok(true) } catch (error) { return fail(error) }
   })
 
   ipcMain.handle('companies:list', () => {
@@ -688,7 +706,7 @@ function registerIpc(): void {
   })
 
   ipcMain.handle('companies:create', (_e, input: CompanyInput) => {
-    try { requireAdmin(); return ok(createCompany(input)) } catch (error) { return fail(error) }
+    try { requireAdmin(); requireModule('multi-empresa'); return ok(createCompany(input)) } catch (error) { return fail(error) }
   })
 
   ipcMain.handle('companies:update', (_e, input) => {
@@ -718,6 +736,7 @@ function registerIpc(): void {
       try {
         if (type === 'auditoria') requireAdmin()
         else requireUser()
+        requireModule('relatorios-avancados')
         return ok(buildReport(type, filters ?? {}))
       } catch (error) {
         return fail(error)
@@ -737,6 +756,7 @@ function registerIpc(): void {
     ) => {
       try {
         requireUser()
+        requireModule('relatorios-avancados')
         const report = buildReport(payload.type, payload.filters ?? {})
         const header = report.columns.join(';')
         const lines = report.rows.map((row) =>

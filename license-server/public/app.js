@@ -263,7 +263,7 @@ function renderIssuedRows(issued) {
     : "";
   if (!issued.length) {
     issuedTbody.innerHTML =
-      '<tr><td colspan="5" class="empty">Nenhuma licença registada ainda.</td></tr>';
+      '<tr><td colspan="6" class="empty">Nenhuma licença registada ainda.</td></tr>';
     return;
   }
   issuedTbody.innerHTML = "";
@@ -274,10 +274,15 @@ function renderIssuedRows(issued) {
       ? new Date(item.expiresAt).toLocaleDateString("pt-BR")
       : "Perpétua";
     const revoked = revokedIds.has(item.licenseId);
+    const modules =
+      item.modules && item.modules.length
+        ? item.modules.join(", ")
+        : "padrão da edição";
     tr.innerHTML = `
       <td class="mono">${escapeHtml(item.licenseId)}</td>
       <td>${escapeHtml(item.customer)}</td>
       <td>${escapeHtml(item.edition)}</td>
+      <td>${escapeHtml(modules)}</td>
       <td>${escapeHtml(expiresAt)}</td>
       <td><span class="badge ${revoked ? "revoked" : "active"}">${revoked ? "Revogada" : "Ativa"}</span></td>
     `;
