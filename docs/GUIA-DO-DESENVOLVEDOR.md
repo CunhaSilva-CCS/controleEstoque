@@ -86,6 +86,7 @@ entre módulos continuam em `components/` e `lib/` na raiz de `src/`.
 | `modules/vendas/` | Faturas de venda | Vendas |
 | `modules/producao/` | Ordens de fabrico | Produção |
 | `modules/estoque/` | Inventário físico, Movimentos | Estoque/Inventário |
+| `modules/financeiro/` | Contas a pagar e a receber | Financeiro |
 | `modules/relatorios/` | Painel (dashboard), Relatórios | Business intelligence |
 | `modules/administracao/` | Configurações (usuários, licença, marca, backup) | Administração |
 
@@ -122,9 +123,9 @@ Nunca exponha `ipcRenderer`, `require`, caminhos arbitrários ou métodos genér
 | `connection.ts` | Caminho da base, chave AES-256 no cofre do SO, SQLCipher, WAL, migração de base plana e `integrity_check`. |
 | `types.ts` | Tipo interno da ligação SQLite. |
 | `audit.ts` | Contexto da operação e registo de auditoria. |
-| `migrations/001…008` | Evolução ordenada do esquema: base inicial, compras/fabrico, vendas, snapshots de custo, passwords, governação, inventário, unidades/lotes. |
+| `migrations/001…009` | Evolução ordenada do esquema: base inicial, compras/fabrico, vendas, snapshots de custo, passwords, governação, inventário, unidades/lotes, contas a pagar/receber. |
 | `migrations/index.ts` | Executa migrations transacionalmente e preserva backup para rollback. |
-| `repositories/` | Regras e mapeamento por domínio: `categories`, `suppliers`, `customers`, `products`, `purchases`, `sales`, `production`, `users` (CRUD e regras de negócio de cada um, não só leitura). |
+| `repositories/` | Regras e mapeamento por domínio: `categories`, `suppliers`, `customers`, `products`, `purchases`, `sales`, `production`, `users`, `finance` (CRUD e regras de negócio de cada um, não só leitura). |
 | `services/stock-service.ts` | Único ponto de atualização de saldo e criação de movimento. |
 | `services/costing-service.ts` | Custo médio ponderado e custo do produto acabado. |
 | `services/reversal-service.ts` | Estorno com motivo, validação de saldo e movimento inverso. |

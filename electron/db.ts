@@ -33,6 +33,9 @@ import type {
   CancelOperationInput,
   InventorySession,
   LocalDiagnostics,
+  FinanceEntry,
+  FinanceEntryFilters,
+  FinanceEntryInput,
 } from '../shared/types'
 import { roundQuantity } from '../shared/quantity'
 import { movementLabel, statusLabel } from '../shared/labels'
@@ -123,6 +126,12 @@ import {
   recordInventoryCount as recordInventoryCountService,
   submitInventorySession as submitInventorySessionService,
 } from './database/services/inventory-service'
+import {
+  listFinanceEntries as listFinanceEntriesRepository,
+  createFinanceEntry as createFinanceEntryRepository,
+  markFinanceEntryPaid as markFinanceEntryPaidRepository,
+  deleteFinanceEntry as deleteFinanceEntryRepository,
+} from './database/repositories/finance'
 
 
 function nowIso(): string {
@@ -681,4 +690,20 @@ export function approveInventorySession(id: string): InventorySession {
 
 export function cancelInventorySession(id: string, reason: string): InventorySession {
   return cancelInventorySessionService(requireDb(), id, reason, nowIso())
+}
+
+export function listFinanceEntries(filters: FinanceEntryFilters = {}): FinanceEntry[] {
+  return listFinanceEntriesRepository(requireDb(), filters)
+}
+
+export function createFinanceEntry(input: FinanceEntryInput): FinanceEntry {
+  return createFinanceEntryRepository(requireDb(), input, nowIso())
+}
+
+export function markFinanceEntryPaid(id: string, paid: boolean): FinanceEntry {
+  return markFinanceEntryPaidRepository(requireDb(), id, paid, nowIso())
+}
+
+export function deleteFinanceEntry(id: string): void {
+  deleteFinanceEntryRepository(requireDb(), id)
 }

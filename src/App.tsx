@@ -18,6 +18,7 @@ import { SettingsPage } from './modules/administracao/pages/SettingsPage'
 import { SuppliersPage } from './modules/cadastros/pages/SuppliersPage'
 import { CustomersPage } from './modules/cadastros/pages/CustomersPage'
 import { SalesInvoicesPage } from './modules/vendas/pages/SalesInvoicesPage'
+import { FinancePage } from './modules/financeiro/pages/FinancePage'
 import type { AuthSession, LicenseStatus } from '@shared/types'
 
 export default function App() {
@@ -446,6 +447,7 @@ export default function App() {
         <Route path="fabricacao" element={<ProductionPage />} />
         <Route path="movimentacoes" element={<MovementsPage />} />
         <Route path="inventario-fisico" element={<InventoryPage />} />
+        <Route path="financeiro" element={<FinancePage />} />
         <Route path="relatorios" element={<ReportsPage />} />
         <Route path="configuracoes" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

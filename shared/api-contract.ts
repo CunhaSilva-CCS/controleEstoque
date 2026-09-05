@@ -33,6 +33,9 @@ import type {
   SalesInvoiceInput,
   CancelOperationInput,
   InventorySession,
+  FinanceEntry,
+  FinanceEntryFilters,
+  FinanceEntryInput,
 } from './types'
 
 export interface EstoqueApi {
@@ -111,6 +114,10 @@ export interface EstoqueApi {
   submitInventorySession: (id: string) => Promise<ApiResponse<InventorySession>>
   approveInventorySession: (id: string) => Promise<ApiResponse<InventorySession>>
   cancelInventorySession: (id: string, reason: string) => Promise<ApiResponse<InventorySession>>
+  listFinanceEntries: (filters?: FinanceEntryFilters) => Promise<ApiResponse<FinanceEntry[]>>
+  createFinanceEntry: (input: FinanceEntryInput) => Promise<ApiResponse<FinanceEntry>>
+  markFinanceEntryPaid: (id: string, paid: boolean) => Promise<ApiResponse<FinanceEntry>>
+  deleteFinanceEntry: (id: string) => Promise<ApiResponse<boolean>>
   getDashboard: () => Promise<ApiResponse<DashboardData>>
   getReport: (
     type: ReportType,

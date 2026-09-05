@@ -35,6 +35,9 @@ import type {
   SalesInvoiceInput,
   CancelOperationInput,
   InventorySession,
+  FinanceEntry,
+  FinanceEntryInput,
+  FinanceEntryFilters,
 } from '@shared/types'
 import { roundQuantity } from '@shared/quantity'
 import { movementLabel, statusLabel } from '@shared/labels'
@@ -65,6 +68,7 @@ function createMemoryApi() {
   const invoices: PurchaseInvoice[] = []
   const salesInvoices: SalesInvoice[] = []
   const productionOrders: ProductionOrder[] = []
+  const financeEntries: FinanceEntry[] = []
   function updateFinishedProductCost(productId: string) {
     const product = products.find((item) => item.id === productId)
     const recipe = recipes.find((item) => item.productId === productId && item.active)
@@ -1082,6 +1086,50 @@ function createMemoryApi() {
       const session = inventorySessions.find((item) => item.id === id)
       if (!session || !reason.trim()) return fail('Indique o motivo do cancelamento')
       session.status = 'cancelado'; session.notes += `\nCancelamento: ${reason.trim()}`; return ok(session)
+    },
+    async listFinanceEntries(filters: FinanceEntryFilters = {}) {
+      let list = [...financeEntries]
+      if (filters.type) list = list.filter((entry) => entry.type === filters.type)
+      if (filters.status) list = list.filter((entry) => entry.status === filters.status)
+      return ok(list.sort((a, b) => a.dueDate.localeCompare(b.dueDate)))
+    },
+    async createFinanceEntry(input: FinanceEntryInput) {
+      const description = input.description.trim()
+      if (!description) return fail('Descrição é obrigatória')
+      if (!(input.amount > 0)) return fail('Valor deve ser maior que zero')
+      if (!input.dueDate) return fail('Data de vencimento é obrigatória')
+      const ts = now()
+      const entry: FinanceEntry = {
+        id: uid(),
+        type: input.type,
+        description,
+        amount: input.amount,
+        dueDate: input.dueDate,
+        status: 'pendente',
+        paidAt: null,
+        reference: input.reference?.trim() ?? '',
+        notes: input.notes?.trim() ?? '',
+        createdAt: ts,
+        updatedAt: ts,
+      }
+      financeEntries.push(entry)
+      return ok(entry)
+    },
+    async markFinanceEntryPaid(id: string, paid: boolean) {
+      const entry = financeEntries.find((item) => item.id === id)
+      if (!entry) return fail('Lançamento não encontrado')
+      entry.status = paid ? 'pago' : 'pendente'
+      entry.paidAt = paid ? now() : null
+      entry.updatedAt = now()
+      return ok(entry)
+    },
+    async deleteFinanceEntry(id: string) {
+      const entry = financeEntries.find((item) => item.id === id)
+      if (!entry) return fail('Lançamento não encontrado')
+      if (entry.status === 'pago') return fail('Não é possível excluir um lançamento já pago')
+      const index = financeEntries.indexOf(entry)
+      financeEntries.splice(index, 1)
+      return ok(true)
     },
     async getDashboard(): Promise<ApiResponse<DashboardData>> {
       const active = products.filter((p) => p.active).map(enrich)

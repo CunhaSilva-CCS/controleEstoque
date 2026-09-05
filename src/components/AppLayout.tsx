@@ -38,6 +38,16 @@ const operacaoLinks: NavEntry[] = [
 
 const mainLinks = [
   {
+    to: '/financeiro',
+    label: 'Financeiro',
+    testId: 'nav-financeiro',
+    icon: (
+      <svg viewBox="0 0 24 24" aria-hidden>
+        <path d="M11 2h2v2.06c2.9.44 5 2.6 5 5.44h-2c0-1.66-1.34-3-3-3s-3 1.34-3 3c0 1.1.6 1.7 2.7 2.36l1.9.6C16.1 13.1 18 14.4 18 16.5c0 2.84-2.1 5-5 5.44V24h-2v-2.06c-2.9-.44-5-2.6-5-5.44h2c0 1.66 1.34 3 3 3s3-1.34 3-3c0-1.1-.6-1.7-2.7-2.36l-1.9-.6C7.9 12.9 6 11.6 6 9.5 6 6.66 8.1 4.5 11 4.06V2z" />
+      </svg>
+    ),
+  },
+  {
     to: '/relatorios',
     label: 'Relatórios',
     testId: 'nav-relatorios',
@@ -71,6 +81,7 @@ const routeTitles: Record<string, string> = {
   '/fabricacao': 'Fabrico',
   '/movimentacoes': 'Ajustes de inventário',
   '/inventario-fisico': 'Inventário físico',
+  '/financeiro': 'Financeiro',
   '/relatorios': 'Relatórios',
   '/configuracoes': 'Configurações',
 }

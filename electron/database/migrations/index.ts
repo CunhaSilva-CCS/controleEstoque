@@ -8,6 +8,7 @@ import { securePasswordHistoryMigration } from './005-secure-password-history'
 import { operationGovernanceMigration } from './006-operation-governance'
 import { physicalInventoryMigration } from './007-physical-inventory'
 import { unitsAndLotsMigration } from './008-units-and-lots'
+import { financialEntriesMigration } from './009-financial-entries'
 
 export const migrations: Migration[] = [
   initialSchemaMigration,
@@ -18,6 +19,7 @@ export const migrations: Migration[] = [
   operationGovernanceMigration,
   physicalInventoryMigration,
   unitsAndLotsMigration,
+  financialEntriesMigration,
 ]
 
 export class MigrationFailure extends Error {

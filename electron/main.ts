@@ -63,6 +63,10 @@ import {
   submitInventorySession,
   approveInventorySession,
   cancelInventorySession,
+  listFinanceEntries,
+  createFinanceEntry,
+  markFinanceEntryPaid,
+  deleteFinanceEntry,
 } from './db'
 import { initAutoUpdater, registerUpdateIpc } from './updater'
 import { setAuditContext } from './database/audit'
@@ -91,6 +95,8 @@ import type {
   SalesInvoiceInput,
   ReportType,
   CancelOperationInput,
+  FinanceEntryFilters,
+  FinanceEntryInput,
 } from '../shared/types'
 
 initMainTelemetry()
@@ -653,6 +659,22 @@ function registerIpc(): void {
   })
   ipcMain.handle('inventory:cancel', (_e, id: string, reason: string) => {
     try { requireAdmin(); return ok(cancelInventorySession(id, reason)) } catch (error) { return fail(error) }
+  })
+
+  ipcMain.handle('finance:list', (_e, filters?: FinanceEntryFilters) => {
+    try { requireUser(); return ok(listFinanceEntries(filters ?? {})) } catch (error) { return fail(error) }
+  })
+
+  ipcMain.handle('finance:create', (_e, input: FinanceEntryInput) => {
+    try { requireUser(); return ok(createFinanceEntry(input)) } catch (error) { return fail(error) }
+  })
+
+  ipcMain.handle('finance:mark-paid', (_e, id: string, paid: boolean) => {
+    try { requireUser(); return ok(markFinanceEntryPaid(id, paid)) } catch (error) { return fail(error) }
+  })
+
+  ipcMain.handle('finance:delete', (_e, id: string) => {
+    try { requireUser(); deleteFinanceEntry(id); return ok(true) } catch (error) { return fail(error) }
   })
 
   ipcMain.handle('dashboard:get', () => {

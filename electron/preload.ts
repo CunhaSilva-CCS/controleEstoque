@@ -8,6 +8,8 @@ import type {
   ProductUpdateInput,
   ReportType,
   UpdateStatus,
+  FinanceEntryFilters,
+  FinanceEntryInput,
 } from '../shared/types'
 
 const api: EstoqueApi = {
@@ -71,6 +73,11 @@ const api: EstoqueApi = {
   submitInventorySession: (id: string) => ipcRenderer.invoke('inventory:submit', id),
   approveInventorySession: (id: string) => ipcRenderer.invoke('inventory:approve', id),
   cancelInventorySession: (id: string, reason: string) => ipcRenderer.invoke('inventory:cancel', id, reason),
+
+  listFinanceEntries: (filters?: FinanceEntryFilters) => ipcRenderer.invoke('finance:list', filters),
+  createFinanceEntry: (input: FinanceEntryInput) => ipcRenderer.invoke('finance:create', input),
+  markFinanceEntryPaid: (id: string, paid: boolean) => ipcRenderer.invoke('finance:mark-paid', id, paid),
+  deleteFinanceEntry: (id: string) => ipcRenderer.invoke('finance:delete', id),
 
   getDashboard: () => ipcRenderer.invoke('dashboard:get'),
 

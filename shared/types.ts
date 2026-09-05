@@ -311,6 +311,37 @@ export interface InventorySession {
   counts: InventoryCount[]
 }
 
+export type FinanceEntryType = 'pagar' | 'receber'
+export type FinanceEntryStatus = 'pendente' | 'pago'
+
+export interface FinanceEntry {
+  id: string
+  type: FinanceEntryType
+  description: string
+  amount: number
+  dueDate: string
+  status: FinanceEntryStatus
+  paidAt: string | null
+  reference: string
+  notes: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface FinanceEntryInput {
+  type: FinanceEntryType
+  description: string
+  amount: number
+  dueDate: string
+  reference?: string
+  notes?: string
+}
+
+export interface FinanceEntryFilters {
+  type?: FinanceEntryType
+  status?: FinanceEntryStatus
+}
+
 export interface AuditEntry {
   id: string
   userId: string | null
