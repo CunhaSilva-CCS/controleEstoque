@@ -1,5 +1,8 @@
-import type { Product, ProductFilters, ProductKind, ProductStatus } from '../../../shared/types'
+import { randomUUID } from 'node:crypto'
+import type { Product, ProductFilters, ProductInput, ProductKind, ProductStatus, ProductUpdateInput } from '../../../shared/types'
 import type { Db } from '../types'
+import { recordAudit } from '../audit'
+import { calculateInvoiceAverageCost } from '../services/costing-service'
 
 function status(stock: number, minimum: number): ProductStatus {
   if (stock <= 0) return 'zero'
@@ -52,4 +55,126 @@ export function getProduct(database: Db, id: string): Product | null {
     FROM products p LEFT JOIN categories c ON c.id = p.category_id
     LEFT JOIN suppliers s ON s.id = p.supplier_id WHERE p.id = ?`).get(id)
   return row ? map(row as Record<string, unknown>) : null
+}
+
+function validateProductFields(input: {
+  sku: string
+  name: string
+  unit: string
+  costPrice: number
+  salePrice: number
+  minStock: number
+  purchaseConversionFactor?: number
+}): void {
+  if (!input.sku.trim()) throw new Error('Código é obrigatório')
+  if (!input.name.trim()) throw new Error('Nome do produto é obrigatório')
+  if (!input.unit.trim()) throw new Error('Unidade é obrigatória')
+  if (input.costPrice < 0 || input.salePrice < 0) throw new Error('Preços não podem ser negativos')
+  if (input.minStock < 0) throw new Error('O stock mínimo não pode ser negativo')
+  if (input.purchaseConversionFactor !== undefined && !(input.purchaseConversionFactor > 0)) {
+    throw new Error('O fator de conversão deve ser superior a zero')
+  }
+}
+
+export function createProduct(database: Db, input: ProductInput, timestamp: string): Product {
+  validateProductFields(input)
+  const kind: ProductKind = input.kind ?? 'insumo'
+
+  const id = randomUUID()
+  const normalizedSku = input.sku.trim()
+  const duplicate = database
+    .prepare('SELECT id FROM products WHERE lower(trim(sku)) = lower(?) LIMIT 1')
+    .get(normalizedSku)
+  if (duplicate) throw new Error('Já existe um produto com este código')
+
+  const tx = database.transaction(() => {
+    try {
+      database
+        .prepare(
+          `INSERT INTO products (
+            id, sku, name, description, category_id, supplier_id, kind, unit,
+            cost_price, sale_price, min_stock, stock, active, created_at, updated_at,
+            purchase_unit, purchase_conversion_factor, lot_control
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          id,
+          normalizedSku,
+          input.name.trim(),
+          input.description?.trim() ?? '',
+          input.categoryId || null,
+          input.supplierId || null,
+          kind,
+          input.unit.trim(),
+          0,
+          input.salePrice,
+          input.minStock,
+          timestamp,
+          timestamp,
+          input.purchaseUnit?.trim() || null,
+          input.purchaseConversionFactor ?? 1,
+          input.lotControl ? 1 : 0,
+        )
+    } catch (err) {
+      if (String(err).includes('UNIQUE')) throw new Error('Já existe um produto com este código')
+      throw err
+    }
+  })
+
+  tx()
+  recordAudit(database, 'create', 'product', id, { sku: normalizedSku, kind }, timestamp)
+  return getProduct(database, id)!
+}
+
+export function updateProduct(database: Db, input: ProductUpdateInput, timestamp: string): Product {
+  validateProductFields(input)
+  const normalizedSku = input.sku.trim()
+  const duplicate = database
+    .prepare('SELECT id FROM products WHERE lower(trim(sku)) = lower(?) AND id <> ? LIMIT 1')
+    .get(normalizedSku, input.id)
+  if (duplicate) throw new Error('Já existe um produto com este código')
+  const effectiveCostPrice = input.kind === 'insumo'
+    ? (calculateInvoiceAverageCost(database, input.id) ?? 0)
+    : (getProduct(database, input.id)?.costPrice ?? 0)
+  try {
+    const result = database
+      .prepare(
+        `UPDATE products SET
+          sku = ?, name = ?, description = ?, category_id = ?, supplier_id = ?,
+          kind = ?, unit = ?, cost_price = ?, sale_price = ?, min_stock = ?, updated_at = ?,
+          purchase_unit = ?, purchase_conversion_factor = ?, lot_control = ?
+         WHERE id = ?`,
+      )
+      .run(
+        normalizedSku,
+        input.name.trim(),
+        input.description?.trim() ?? '',
+        input.categoryId || null,
+        input.supplierId || null,
+        input.kind,
+        input.unit.trim(),
+        effectiveCostPrice,
+        input.salePrice,
+        input.minStock,
+        timestamp,
+        input.purchaseUnit?.trim() || null,
+        input.purchaseConversionFactor ?? 1,
+        input.lotControl ? 1 : 0,
+        input.id,
+      )
+    if (result.changes === 0) throw new Error('Produto não encontrado')
+  } catch (err) {
+    if (String(err).includes('UNIQUE')) throw new Error('Já existe um produto com este código')
+    throw err
+  }
+  recordAudit(database, 'update', 'product', input.id, { sku: normalizedSku, kind: input.kind }, timestamp)
+  return getProduct(database, input.id)!
+}
+
+export function setProductActive(database: Db, id: string, active: boolean, timestamp: string): Product {
+  const result = database
+    .prepare('UPDATE products SET active = ?, updated_at = ? WHERE id = ?')
+    .run(active ? 1 : 0, timestamp, id)
+  if (result.changes === 0) throw new Error('Produto não encontrado')
+  return getProduct(database, id)!
 }

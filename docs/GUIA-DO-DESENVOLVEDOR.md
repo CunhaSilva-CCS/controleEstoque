@@ -6,7 +6,11 @@ Aplicação desktop offline-first para controlo de stock. O processo Electron co
 
 Fluxo principal: **React (renderer) → `window.estoqueApi` (preload) → IPC validado → `electron/main.ts` → `electron/db.ts` (fachada) → repositórios/serviços → SQLite cifrada**.
 
-`db.ts` é uma fachada pública durante a migração para módulos menores. Não introduzir novas regras volumosas nesse ficheiro: criar um repositório ou serviço em `electron/database/` e expor apenas a função necessária na fachada.
+`db.ts` é uma fachada fina (≈680 linhas): quase toda a lógica de domínio já vive em
+`electron/database/repositories/` e `electron/database/services/`; `db.ts` só resolve a
+conexão (`requireDb()`), gera o timestamp e delega. Não introduzir novas regras volumosas
+nesse ficheiro: criar/estender um repositório ou serviço em `electron/database/` e expor
+apenas a função necessária na fachada.
 
 ## 2. Arranque local
 
@@ -120,7 +124,7 @@ Nunca exponha `ipcRenderer`, `require`, caminhos arbitrários ou métodos genér
 | `audit.ts` | Contexto da operação e registo de auditoria. |
 | `migrations/001…008` | Evolução ordenada do esquema: base inicial, compras/fabrico, vendas, snapshots de custo, passwords, governação, inventário, unidades/lotes. |
 | `migrations/index.ts` | Executa migrations transacionalmente e preserva backup para rollback. |
-| `repositories/` | Leitura e mapeamento de produtos, compras, vendas, fabrico e utilizadores. |
+| `repositories/` | Regras e mapeamento por domínio: `categories`, `suppliers`, `customers`, `products`, `purchases`, `sales`, `production`, `users` (CRUD e regras de negócio de cada um, não só leitura). |
 | `services/stock-service.ts` | Único ponto de atualização de saldo e criação de movimento. |
 | `services/costing-service.ts` | Custo médio ponderado e custo do produto acabado. |
 | `services/reversal-service.ts` | Estorno com motivo, validação de saldo e movimento inverso. |
@@ -128,6 +132,8 @@ Nunca exponha `ipcRenderer`, `require`, caminhos arbitrários ou métodos genér
 | `services/unit-service.ts` | Conversão para unidade de stock com precisão controlada. |
 | `services/lot-service.ts` | Receção, rastreabilidade e seleção FIFO/FEFO. |
 | `services/backup-service.ts` | Backup WAL-aware, validação e retenção automática. |
+| `services/dashboard-service.ts` | Indicadores do painel (saldo, alertas, movimentos recentes). |
+| `services/reports-service.ts` | Construção de todos os relatórios (posição, compras, vendas, produção, auditoria, inventários). |
 | `services/password-service.ts` | scrypt, salt, política de palavra-passe e histórico. |
 | `services/diagnostics-service.ts` | Diagnóstico redigido para suporte; não inclui dados empresariais. |
 | `services/movement-query-service.ts` | Consulta filtrada do histórico de movimentos. |
