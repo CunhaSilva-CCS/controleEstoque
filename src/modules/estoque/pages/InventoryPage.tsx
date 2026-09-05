@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import { ModalForm } from '../components/ModalForm'
-import { CollectionEmpty, CollectionPageHeader } from '../components/CollectionPage'
-import type { AppOutletContext } from '../components/AppLayout'
-import { api, unwrap } from '../lib/api'
-import { formatDateTime, formatNumber, inventoryStatusBadgeClass, inventoryStatusLabel } from '../lib/format'
-import { useToast } from '../lib/toast'
+import { ModalForm } from '../../../components/ModalForm'
+import { CollectionEmpty, CollectionPageHeader } from '../../../components/CollectionPage'
+import type { AppOutletContext } from '../../../components/AppLayout'
+import { api, unwrap } from '../../../lib/api'
+import { formatDateTime, formatNumber, inventoryStatusBadgeClass, inventoryStatusLabel } from '../../../lib/format'
+import { useToast } from '../../../lib/toast'
 import type { InventorySession } from '@shared/types'
 
 const ACTIVE_STATUSES = new Set(['aberto', 'em_contagem', 'aguarda_aprovacao'])

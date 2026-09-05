@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ModalForm } from '../components/ModalForm'
-import { api, unwrap } from '../lib/api'
-import { formatDateTime, formatNumber, movementLabel, movementOriginLabel } from '../lib/format'
-import { useToast } from '../lib/toast'
+import { ModalForm } from '../../../components/ModalForm'
+import { api, unwrap } from '../../../lib/api'
+import { formatDateTime, formatNumber, movementLabel, movementOriginLabel } from '../../../lib/format'
+import { useToast } from '../../../lib/toast'
 import type { MovementType, Product, StockMovement } from '@shared/types'
 
 export function MovementsPage({

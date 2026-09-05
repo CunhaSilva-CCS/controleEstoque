@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
-import { ModalForm } from '../components/ModalForm'
-import { CollectionEmpty, CollectionPageHeader } from '../components/CollectionPage'
-import type { AppOutletContext } from '../components/AppLayout'
-import { api, unwrap } from '../lib/api'
-import { formatCurrency, formatDateTime, formatNumber, operationStatusBadgeClass, operationStatusLabel } from '../lib/format'
-import { useToast } from '../lib/toast'
+import { ModalForm } from '../../../components/ModalForm'
+import { CollectionEmpty, CollectionPageHeader } from '../../../components/CollectionPage'
+import type { AppOutletContext } from '../../../components/AppLayout'
+import { api, unwrap } from '../../../lib/api'
+import { formatCurrency, formatDateTime, formatNumber, operationStatusBadgeClass, operationStatusLabel } from '../../../lib/format'
+import { useToast } from '../../../lib/toast'
 import type { Product, PurchaseInvoice, Supplier } from '@shared/types'
 
 type InvoiceItemForm = {

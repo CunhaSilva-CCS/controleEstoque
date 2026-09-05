@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { api, unwrap } from '../lib/api'
-import { CollectionEmpty, CollectionPageHeader } from '../components/CollectionPage'
-import { useToast } from '../lib/toast'
-import { formatCurrency, formatNumber } from '../lib/format'
+import { api, unwrap } from '../../../lib/api'
+import { CollectionEmpty, CollectionPageHeader } from '../../../components/CollectionPage'
+import { useToast } from '../../../lib/toast'
+import { formatCurrency, formatNumber } from '../../../lib/format'
 import type { ReportType } from '@shared/types'
 
 const reports: Record<ReportType, { label: string; description: string; period: boolean }> = {

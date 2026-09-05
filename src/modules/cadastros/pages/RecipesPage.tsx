@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ModalForm } from '../components/ModalForm'
-import { CollectionEmpty, CollectionPageHeader } from '../components/CollectionPage'
-import { api, unwrap } from '../lib/api'
-import { formatNumber } from '../lib/format'
-import { useToast } from '../lib/toast'
+import { ModalForm } from '../../../components/ModalForm'
+import { CollectionEmpty, CollectionPageHeader } from '../../../components/CollectionPage'
+import { api, unwrap } from '../../../lib/api'
+import { formatNumber } from '../../../lib/format'
+import { useToast } from '../../../lib/toast'
 import type { Product, Recipe } from '@shared/types'
 
 type RecipeLine = { productId: string; quantity: string }

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { ModalForm } from '../components/ModalForm'
-import { CollectionEmpty, CollectionPageHeader } from '../components/CollectionPage'
-import { api, unwrap } from '../lib/api'
-import { useToast } from '../lib/toast'
+import { ModalForm } from '../../../components/ModalForm'
+import { CollectionEmpty, CollectionPageHeader } from '../../../components/CollectionPage'
+import { api, unwrap } from '../../../lib/api'
+import { useToast } from '../../../lib/toast'
 import type { Supplier } from '@shared/types'
 
 type FormState = {

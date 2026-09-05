@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react'
-import { CollectionEmpty, CollectionPageHeader } from '../components/CollectionPage'
-import { ModalForm } from '../components/ModalForm'
-import { StatusBadge } from '../components/StatusBadge'
-import { api, unwrap } from '../lib/api'
-import { useToast } from '../lib/toast'
+import { CollectionEmpty, CollectionPageHeader } from '../../../components/CollectionPage'
+import { ModalForm } from '../../../components/ModalForm'
+import { StatusBadge } from '../../../components/StatusBadge'
+import { api, unwrap } from '../../../lib/api'
+import { useToast } from '../../../lib/toast'
 import type { Customer } from '@shared/types'
 
 const blank = { name: '', taxNumber: '', address: '', phone: '', email: '', notes: '' }

@@ -40,6 +40,7 @@ npm run test:e2e
 | `build/` | Ícones de empacotamento e entitlements macOS. |
 | `scripts/` | Automação de ícones, manual, chaves, licenças, smoke e assinatura. |
 | `license-generator/` | Aplicação Electron separada para emissão de licenças assinadas. |
+| `license-server/` | Serviço Node/Express + Postgres (Railway) de revogação remota de licenças. |
 | `docs/` | Documentação de produto, operação, segurança e engenharia. |
 | `e2e/` | Cenários Playwright da interface. |
 | `.github/workflows/` | CI e criação de releases. |
@@ -58,7 +59,7 @@ npm run test:e2e
 |---|---|
 | `main.tsx` | Monta React e os estilos globais. |
 | `App.tsx` | Rotas, inicialização, estado de licença/autenticação e bloqueios de acesso. |
-| `pages/` | Ecrãs: painel, produtos, categorias, fornecedores, clientes, compras, vendas, receitas, fabrico, movimentos, inventário, relatórios e configurações. |
+| `modules/` | Ecrãs agrupados por módulo de negócio (ver tabela abaixo). |
 | `components/AppLayout.tsx` | Menu, título, sessão e permissões de navegação. |
 | `components/ModalForm.tsx` | Diálogo reutilizável e acessível para formulários. |
 | `components/CollectionPage.tsx` | Estrutura de listas/cadastros. |
@@ -67,6 +68,25 @@ npm run test:e2e
 | `lib/auth.test.ts`, `stock.test.ts`, `backup-update.test.ts` | Testes do contrato de interface/API em memória. |
 | `lib/format.ts`, `units.ts`, `branding.ts`, `theme.tsx`, `toast.tsx` | Formatação, unidades, marca, tema e notificações. |
 | `styles.css` | Estilos globais e componentes. |
+
+### Módulos de negócio (`src/modules/`)
+
+O renderer é organizado por módulo de domínio do ERP, não por tipo de arquivo. Cada
+módulo tem sua própria pasta `pages/`; componentes e utilitários realmente partilhados
+entre módulos continuam em `components/` e `lib/` na raiz de `src/`.
+
+| Módulo | Ecrãs | Domínio |
+|---|---|---|
+| `modules/cadastros/` | Categorias, Fornecedores, Clientes, Produtos, Receitas | Cadastros mestres |
+| `modules/compras/` | Faturas de compra | Compras |
+| `modules/vendas/` | Faturas de venda | Vendas |
+| `modules/producao/` | Ordens de fabrico | Produção |
+| `modules/estoque/` | Inventário físico, Movimentos | Estoque/Inventário |
+| `modules/relatorios/` | Painel (dashboard), Relatórios | Business intelligence |
+| `modules/administracao/` | Configurações (usuários, licença, marca, backup) | Administração |
+
+Ao adicionar um novo ecrã, crie-o dentro do módulo de domínio correspondente (ou crie um
+módulo novo, se for um domínio novo) em vez de devolver a uma pasta `pages/` única.
 
 Regra: uma página nunca chama Electron, `fs` ou SQLite. Toda mutação deve chamar o contrato em `shared/api-contract.ts`, tratar o resultado com `unwrap` e atualizar o estado após sucesso.
 

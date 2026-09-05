@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useOutletContext } from 'react-router-dom'
-import { StatusBadge } from '../components/StatusBadge'
-import type { AppOutletContext } from '../components/AppLayout'
-import { api, unwrap } from '../lib/api'
-import { formatCurrency, formatDateTime, formatNumber, movementLabel } from '../lib/format'
-import { useToast } from '../lib/toast'
+import { StatusBadge } from '../../../components/StatusBadge'
+import type { AppOutletContext } from '../../../components/AppLayout'
+import { api, unwrap } from '../../../lib/api'
+import { formatCurrency, formatDateTime, formatNumber, movementLabel } from '../../../lib/format'
+import { useToast } from '../../../lib/toast'
 import type { DashboardData } from '@shared/types'
 
 type Props = {
