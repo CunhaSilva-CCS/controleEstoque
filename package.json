@@ -29,6 +29,7 @@
     "manual": "node scripts/generate-user-manual.mjs",
     "manual:developer": "node scripts/generate-developer-guide.mjs",
     "manual:licenciamento": "node scripts/generate-license-manual.mjs",
+    "manual:administrador": "node scripts/generate-admin-manual.mjs",
     "license:keypair": "node scripts/license-keypair.mjs",
     "license:generate": "node scripts/license-generate.mjs"
   },

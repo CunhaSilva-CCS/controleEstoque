@@ -9,6 +9,11 @@ por público e finalidade para evitar duplicação de instruções.
 - [Manual do Utilizador (fonte HTML)](./MANUAL-DO-UTILIZADOR.html) — fonte editável utilizada para gerar o PDF.
 - [Fluxos Operacionais do Sistema](./FLUXOS-OPERACIONAIS-DO-SISTEMA.md) — sequências funcionais e resultados esperados.
 
+## Administração
+
+- [Manual Completo do Administrador](./MANUAL-DO-ADMINISTRADOR.md) — ponto de entrada único: licenciamento (geração, módulos, revogação), utilizadores, multi-empresa, backup e resolução de problemas.
+- [Manual do Administrador (PDF)](./Manual-do-Administrador-ERP-Cortexis-Tech.pdf) — versão em PDF, gerada com `npm run manual:administrador`.
+
 ## Produto e engenharia
 
 - [Guia do Desenvolvedor (PDF)](./Guia-do-Desenvolvedor-ERP-Cortexis-Tech.pdf) — arquitetura, estrutura de código, fluxos e manutenção.
