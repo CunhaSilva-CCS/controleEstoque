@@ -22,6 +22,7 @@ import {
   createSalesInvoice,
   createUser,
   getCurrentCompany,
+  getDashboard,
   getProduct,
   buildReport,
   initDatabaseAtPath,
@@ -340,6 +341,31 @@ describe('integração SQLite de estoque', () => {
       const serializedRows = report.rows.map((row) => JSON.stringify(row))
       expect(serializedRows.some((row) => row.includes('Cliente Empresa Nova'))).toBe(true)
       expect(serializedRows.some((row) => row.includes('Cliente Empresa Original'))).toBe(false)
+    } finally {
+      setCurrentCompany(original.id)
+    }
+  })
+
+  it('painel (dashboard) não mistura estatísticas de empresas diferentes', (context) => {
+    if (!ensureDatabase(context)) return
+    const original = getCurrentCompany()
+    try {
+      const companyWithData = createCompany({ name: 'Empresa Painel Cheia' })
+      setCurrentCompany(companyWithData.id)
+      seedDemoData()
+      const populated = getDashboard()
+      expect(populated.activeProducts).toBeGreaterThan(0)
+      expect(populated.categoriesCount).toBeGreaterThan(0)
+      expect(populated.topProductsByValue.length).toBeGreaterThan(0)
+
+      const emptyCompany = createCompany({ name: 'Empresa Painel Vazia' })
+      setCurrentCompany(emptyCompany.id)
+      const empty = getDashboard()
+      expect(empty.activeProducts).toBe(0)
+      expect(empty.categoriesCount).toBe(0)
+      expect(empty.topProductsByValue).toHaveLength(0)
+      expect(empty.stockByCategory).toHaveLength(0)
+      expect(empty.recentActivity).toHaveLength(0)
     } finally {
       setCurrentCompany(original.id)
     }

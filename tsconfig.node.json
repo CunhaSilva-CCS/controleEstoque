@@ -2,9 +2,9 @@
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022"],
-    "module": "CommonJS",
+    "module": "NodeNext",
     "skipLibCheck": true,
-    "moduleResolution": "node",
+    "moduleResolution": "nodenext",
     "strict": true,
     "esModuleInterop": true,
     "outDir": "dist-electron",

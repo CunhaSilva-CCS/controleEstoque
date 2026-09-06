@@ -21,7 +21,13 @@ export default defineConfig({
               },
               build: {
                 outDir: 'dist-electron',
+                // vite-plugin-electron 1.x lê `rolldownOptions` no Vite 8+ e `rollupOptions` no Vite < 8
+                // (a própria config padrão do plugin já é migrada por versão, mas a nossa não é
+                // convertida automaticamente); declaramos as duas chaves para funcionar nas duas.
                 rollupOptions: {
+                  external: ['better-sqlite3-multiple-ciphers', 'electron', '@sentry/electron/main', 'electron-updater'],
+                },
+                rolldownOptions: {
                   external: ['better-sqlite3-multiple-ciphers', 'electron', '@sentry/electron/main', 'electron-updater'],
                 },
               },
