@@ -45,15 +45,15 @@
     "@playwright/test": "^1.62.1",
     "@types/better-sqlite3": "^9.6.0",
     "@types/react": "^19.0.2",
-    "@types/react-dom": "^19.0.2",
-    "@vitejs/plugin-react": "^6.1.0",
-    "electron": "^43.4.1",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "electron": "^44.1.1",
     "electron-builder": "^26.15.3",
     "playwright": "^1.62.1",
-    "tsx": "^4.23.12",
+    "tsx": "^4.23.13",
     "typescript": "^7.0.2",
     "vite": "^8.2.2",
-    "vite-plugin-electron": "^1.1.1",
-    "vitest": "^4.1.11"
+    "vite-plugin-electron": "^1.1.2",
+    "vitest": "^5.0.0"
   }
 }
