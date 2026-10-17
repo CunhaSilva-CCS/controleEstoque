@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import type { TestContext } from '@vitest/runner'
+import type { TestContext } from 'vitest'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 
 vi.mock('electron', () => ({
